@@ -1,4 +1,9 @@
+"use client";
 export default function CallToAction() {
+  const handleStartAssessment = () => {
+    window.location.href = '/assestment';
+  }
+
   return (
     <section className="bg-white py-16">
       {/* centered green panel (not full-width) */}
@@ -14,6 +19,7 @@ export default function CallToAction() {
         <div className="flex justify-center">
           <button
             type="button"
+            onClick={handleStartAssessment}
             className="relative inline-flex items-center gap-4 cursor-pointer rounded-full px-8 py-3 font-semibold text-white bg-[#071a2a] hover:bg-[#092436] focus:outline-none focus:ring-4 focus:ring-black/10 shadow-md transition transform active:translate-y-0.5"
           >
             <span className="select-none">Start Your Free Assessment</span>

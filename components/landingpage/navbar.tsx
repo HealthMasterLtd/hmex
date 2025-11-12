@@ -11,7 +11,7 @@ export default function Navbar() {
   const pathname = usePathname()
 
   const navItems = [
-    { label: "Risk Assessment", href: "/risk" },
+    { label: "Risk Assessment", href: "/assestment" },
     { label: "About", href: "/about" },
     { label: "How It Works", href: "/how-it-works" },
     { label: "Contact Us", href: "/contact" },
