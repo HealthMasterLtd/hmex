@@ -6,12 +6,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Footer from '@/components/ui/Footer';
 import { geminiService, Question, RiskAssessment } from '@/services/gemini_service';
+import Image from 'next/image';
+import Navbar from '@/components/landingpage/navbar';
 
 export default function AssessmentPage() {
   const router = useRouter();
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
-  const [currentAnswer, setCurrentAnswer] = useState<string | number>('');
+  const [currentAnswer, setCurrentAnswer] = useState<string | number | boolean>('');
   const [messages, setMessages] = useState<Array<{ type: 'bot' | 'user'; content: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -60,7 +62,7 @@ export default function AssessmentPage() {
   };
 
   const handleAnswer = async () => {
-    if (!currentQuestion || currentAnswer === '') return;
+    if (!currentQuestion || currentAnswer === '' || loading) return;
 
     setLoading(true);
 
@@ -79,11 +81,10 @@ export default function AssessmentPage() {
     ]);
 
     geminiService.saveAnswer(currentQuestion, currentAnswer);
+    setCurrentAnswer('');
 
     try {
       const nextQuestion = await geminiService.getNextQuestion();
-      setLoading(false);
-      setCurrentAnswer('');
 
       if (nextQuestion) {
         setCurrentQuestion(nextQuestion);
@@ -92,6 +93,7 @@ export default function AssessmentPage() {
             ...prev,
             { type: 'bot', content: nextQuestion.question },
           ]);
+          setLoading(false);
         }, 500);
       } else {
         setCompleted(true);
@@ -104,6 +106,7 @@ export default function AssessmentPage() {
         const result = await geminiService.generateRiskAssessment();
         setRiskResult(result);
         setGeneratingReport(false);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error getting next question:', error);
@@ -113,6 +116,68 @@ export default function AssessmentPage() {
         { type: 'bot', content: "I encountered an issue. Let me try again..." },
       ]);
     }
+  };
+
+  const handleAnswerClick = (answer: string | number | boolean) => {
+    if (loading) return;
+    
+    setCurrentAnswer(answer);
+    setLoading(true);
+
+    let answerText: string;
+    if (typeof answer === 'boolean') {
+      answerText = answer ? 'Yes' : 'No';
+    } else if (currentQuestion?.type === 'slider') {
+      answerText = `${answer}${currentQuestion.unit ? ` ${currentQuestion.unit}` : ''}`;
+    } else {
+      answerText = String(answer);
+    }
+    
+    setMessages(prev => [
+      ...prev,
+      { type: 'user', content: answerText },
+    ]);
+
+    if (currentQuestion) {
+      geminiService.saveAnswer(currentQuestion, answer);
+    }
+
+    setTimeout(async () => {
+      try {
+        const nextQuestion = await geminiService.getNextQuestion();
+        setCurrentAnswer('');
+
+        if (nextQuestion) {
+          setCurrentQuestion(nextQuestion);
+          setTimeout(() => {
+            setMessages(prev => [
+              ...prev,
+              { type: 'bot', content: nextQuestion.question },
+            ]);
+            setLoading(false);
+          }, 500);
+        } else {
+          setCompleted(true);
+          setGeneratingReport(true);
+          setMessages(prev => [
+            ...prev,
+            { type: 'bot', content: "Perfect! Thank you for answering all my questions. 🎉 Let me analyze your responses and prepare your personalized health risk report..." },
+          ]);
+
+          const result = await geminiService.generateRiskAssessment();
+          setRiskResult(result);
+          setGeneratingReport(false);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error getting next question:', error);
+        setLoading(false);
+        setMessages(prev => [
+          ...prev,
+          { type: 'bot', content: "I encountered an issue. Let me try again..." },
+        ]);
+      }
+    }, 100);
   };
 
   const getRiskColor = (level: string) => {
@@ -141,26 +206,9 @@ export default function AssessmentPage() {
 
   if (!started) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col overflow-x-hidden">
         <div className="flex-1 bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-          <nav className="px-4 sm:px-6 lg:px-8 py-6">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-3 group">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="text-white font-bold text-lg sm:text-xl">HM</span>
-                </div>
-                <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  HMEX
-                </span>
-              </Link>
-              <Link
-                href="/auth"
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-[#0A1F44] text-white rounded-full font-medium hover:bg-[#0d2a5c] transition-all duration-300 text-sm sm:text-base"
-              >
-                LOGIN/SIGN UP
-              </Link>
-            </div>
-          </nav>
+          <Navbar/>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
             <div className="text-center space-y-6 sm:space-y-8">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-4">
@@ -176,31 +224,50 @@ export default function AssessmentPage() {
               <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto">
                 Private. Fast. Reliable AI-powered health insights.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto mt-12">
-                <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-emerald-100 hover:border-emerald-300 transition-all duration-300">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 mx-auto">
-                    <Check className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-[#0A1F44] mb-2">Your data is confidential</h3>
-                  <p className="text-gray-600 text-sm">End-to-end encrypted and HIPAA compliant</p>
-                </div>
-                <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-blue-100 hover:border-blue-300 transition-all duration-300">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 mx-auto">
-                    <Sparkles className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-[#0A1F44] mb-2">AI-Powered Analysis</h3>
-                  <p className="text-gray-600 text-sm">Dynamic questions tailored to your answers</p>
-                </div>
-              </div>
 
-              <div className="pt-8">
-                <button
-                  onClick={startAssessment}
-                  className="px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full font-semibold text-lg sm:text-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3 mx-auto"
-                >
-                  <Sparkles className="w-6 h-6" />
-                  Start Your AI Risk Check
-                </button>
+              <div 
+                className="relative py-16 sm:py-20 "
+                style={{ 
+                  backgroundImage: 'url(/Background.jpg)', 
+                  backgroundSize: 'cover', 
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundAttachment: 'fixed',
+                  marginLeft: 'calc(-50vw + 50%)',
+                  marginRight: 'calc(-50vw + 50%)',
+                  width: '100vw',
+                 
+                }}
+              >
+                {/* Overlay for better readability */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-900/60 via-emerald-900/50 to-teal-900/60"></div>
+                
+                <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-12">
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-emerald-100 hover:border-emerald-300 transition-all duration-300">
+                      <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                        <Check className="w-6 h-6 text-emerald-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-[#0A1F44] mb-2">Your data is confidential</h3>
+                      <p className="text-gray-600 text-sm">End-to-end encrypted and HIPAA compliant</p>
+                    </div>
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-blue-100 hover:border-blue-300 transition-all duration-300">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                        <Sparkles className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-[#0A1F44] mb-2">AI-Powered Analysis</h3>
+                      <p className="text-gray-600 text-sm">Dynamic questions tailored to your answers</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={startAssessment}
+                    className="px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full font-semibold text-lg sm:text-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3 mx-auto"
+                  >
+                    <Sparkles className="w-6 h-6" />
+                    Start Your AI Risk Check
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -241,13 +308,18 @@ export default function AssessmentPage() {
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Back</span>
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">HM</span>
+         {/* Logo */}
+         <div className="shrink-0 flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+              <Image
+                src='/white logo.png'
+                alt="Logo"
+                width={120}
+                height={50}
+                className="object-cover w-full h-full"
+              />
             </div>
-            <span className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              HMEX
-            </span>
+            <span className="font-bold text-lg text-gray-900 tracking-tight">H<span className="text-emerald-600">MEX</span></span>
           </div>
           {!completed && (
             <div className="text-sm font-medium text-emerald-600">
@@ -294,7 +366,6 @@ export default function AssessmentPage() {
               </div>
             ))}
 
-            {/* Loading Indicator */}
             {generatingReport && (
               <div className="flex justify-center py-8">
                 <div className="flex items-center gap-3 px-6 py-4 bg-white rounded-full shadow-lg border-2 border-emerald-100">
@@ -304,10 +375,8 @@ export default function AssessmentPage() {
               </div>
             )}
 
-            {/* Results Display - BLURRED with Login Prompt */}
             {completed && riskResult && !generatingReport && (
               <div className="space-y-6 animate-fade-in mt-8">
-                {/* Quick Preview - Not Blurred */}
                 <div className={`rounded-3xl p-6 sm:p-8 border-2 ${getRiskBgColor(riskResult.riskLevel)} shadow-lg`}>
                   <div className="text-center">
                     <div className="text-sm font-medium text-gray-600 mb-2">Your Risk Level</div>
@@ -317,7 +386,6 @@ export default function AssessmentPage() {
                     <div className="text-6xl sm:text-7xl font-bold text-gray-800 mb-2">{riskResult.score}</div>
                     <div className="text-sm text-gray-600 mb-4">Risk Score (out of 100)</div>
                     
-                    {/* Progress Bar */}
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-1000 ${
@@ -333,11 +401,8 @@ export default function AssessmentPage() {
                   </div>
                 </div>
 
-                {/* Locked Content - Blurred */}
                 <div className="relative">
-                  {/* Blur Overlay */}
                   <div className="relative filter blur-sm pointer-events-none select-none">
-                    {/* Key Findings - Blurred */}
                     <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 mb-6">
                       <h3 className="text-lg font-bold text-[#0A1F44] mb-4">Key Findings</h3>
                       <ul className="space-y-3">
@@ -350,7 +415,6 @@ export default function AssessmentPage() {
                       </ul>
                     </div>
 
-                    {/* Recommendations - Blurred */}
                     <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 mb-6">
                       <h3 className="text-lg font-bold text-[#0A1F44] mb-4">Personalized Recommendations</h3>
                       <ul className="space-y-3">
@@ -363,7 +427,6 @@ export default function AssessmentPage() {
                       </ul>
                     </div>
 
-                    {/* Detailed Analysis - Blurred */}
                     <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border-2 border-emerald-200">
                       <h3 className="text-lg font-bold text-[#0A1F44] mb-4">Detailed Health Analysis</h3>
                       <p className="text-gray-700 leading-relaxed">
@@ -372,7 +435,6 @@ export default function AssessmentPage() {
                     </div>
                   </div>
 
-                  {/* Lock Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent via-white/80 to-white">
                     <div className="text-center px-6 py-8 max-w-md">
                       <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -403,27 +465,22 @@ export default function AssessmentPage() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
           {!completed && currentQuestion && !loading && (
             <div className="bg-white border-t-2 border-gray-100 px-4 sm:px-6 py-4 sm:py-6 shadow-lg">
               <div className="max-w-2xl mx-auto">
                 {currentQuestion.type === 'yesno' && (
                   <div className="flex gap-3 sm:gap-4">
                     <button
-                      onClick={() => {
-                        setCurrentAnswer("false");
-                        setTimeout(handleAnswer, 100);
-                      }}
-                      className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base"
+                      onClick={() => handleAnswerClick(false)}
+                      disabled={loading}
+                      className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                     >
                       No
                     </button>
                     <button
-                      onClick={() => {
-                        setCurrentAnswer("true");
-                        setTimeout(handleAnswer, 100);
-                      }}
-                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg text-white rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base"
+                      onClick={() => handleAnswerClick(true)}
+                      disabled={loading}
+                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg text-white rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                     >
                       Yes
                     </button>
@@ -442,9 +499,10 @@ export default function AssessmentPage() {
                       type="range"
                       min={currentQuestion.min}
                       max={currentQuestion.max}
-                      value={currentAnswer || currentQuestion.min}
+                      value={typeof currentAnswer === 'number' ? currentAnswer : currentQuestion.min}
                       onChange={(e) => setCurrentAnswer(Number(e.target.value))}
                       className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                      disabled={loading}
                     />
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>{currentQuestion.min}</span>
@@ -453,7 +511,7 @@ export default function AssessmentPage() {
                     <button
                       onClick={handleAnswer}
                       disabled={loading}
-                      className="w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 text-sm sm:text-base"
+                      className="w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base active:scale-95"
                     >
                       Continue
                     </button>
@@ -465,11 +523,9 @@ export default function AssessmentPage() {
                     {currentQuestion.options?.map((option, idx) => (
                       <button
                         key={idx}
-                        onClick={() => {
-                          setCurrentAnswer(option);
-                          setTimeout(handleAnswer, 100);
-                        }}
-                        className="w-full px-6 py-4 bg-white border-2 border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-left text-sm sm:text-base"
+                        onClick={() => handleAnswerClick(option)}
+                        disabled={loading}
+                        className="w-full px-6 py-4 bg-white border-2 border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-left text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                       >
                         {option}
                       </button>
@@ -481,16 +537,21 @@ export default function AssessmentPage() {
                   <div className="flex gap-3">
                     <input
                       type="text"
-                      value={currentAnswer}
+                      value={typeof currentAnswer === 'boolean' ? (currentAnswer ? 'true' : 'false') : currentAnswer}
                       onChange={(e) => setCurrentAnswer(e.target.value)}
                       placeholder="Type your answer..."
-                      className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:outline-none text-sm sm:text-base"
-                      onKeyPress={(e) => e.key === 'Enter' && handleAnswer()}
+                      className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:outline-none text-sm sm:text-base placeholder:text-gray-400 text-gray-500"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !loading && currentAnswer) {
+                          handleAnswer();
+                        }
+                      }}
+                      disabled={loading}
                     />
                     <button
                       onClick={handleAnswer}
                       disabled={loading || !currentAnswer}
-                      className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50"
+                      className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                     >
                       Send
                     </button>
@@ -501,11 +562,12 @@ export default function AssessmentPage() {
                   <div className="flex gap-3">
                     <input
                       type="number"
-                      value={currentAnswer}
+                      value={typeof currentAnswer === 'boolean' ? (currentAnswer ? 'true' : 'false') : currentAnswer}
                       onChange={(e) => setCurrentAnswer(Number(e.target.value))}
                       placeholder="Enter number..."
-                      className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:outline-none text-sm sm:text-base"
-                      onKeyPress={(e) => e.key === 'Enter' && handleAnswer()}
+                      className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:outline-none text-sm sm:text-base placeholder:text-gray-400 text-gray-500"
+                      onKeyPress={(e) => e.key === 'Enter' && !loading && handleAnswer()}
+                      disabled={loading}
                     />
                     <button
                       onClick={handleAnswer}
