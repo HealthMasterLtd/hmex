@@ -1,4 +1,3 @@
-// components/Footer.tsx
 import Link from 'next/link';
 import Image from 'next/image';
 import { Linkedin, Mail, Instagram } from 'lucide-react';

@@ -1,8 +1,7 @@
-// app/assessment/page.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Check, AlertCircle, Heart, Activity, Shield, Lock, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, Heart, Activity, Shield, Lock, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Footer from '@/components/ui/Footer';
@@ -65,7 +64,6 @@ export default function AssessmentPage() {
 
     setLoading(true);
 
-    // Add user's answer to chat
     let answerText: string;
     if (typeof currentAnswer === 'boolean') {
       answerText = currentAnswer ? 'Yes' : 'No';
@@ -80,10 +78,8 @@ export default function AssessmentPage() {
       { type: 'user', content: answerText },
     ]);
 
-    // Save answer
     geminiService.saveAnswer(currentQuestion, currentAnswer);
 
-    // Get next question
     try {
       const nextQuestion = await geminiService.getNextQuestion();
       setLoading(false);
@@ -98,7 +94,6 @@ export default function AssessmentPage() {
           ]);
         }, 500);
       } else {
-        // Assessment complete - generate report
         setCompleted(true);
         setGeneratingReport(true);
         setMessages(prev => [
@@ -106,7 +101,6 @@ export default function AssessmentPage() {
           { type: 'bot', content: "Perfect! Thank you for answering all my questions. 🎉 Let me analyze your responses and prepare your personalized health risk report..." },
         ]);
 
-        // Generate AI assessment
         const result = await geminiService.generateRiskAssessment();
         setRiskResult(result);
         setGeneratingReport(false);
@@ -148,9 +142,7 @@ export default function AssessmentPage() {
   if (!started) {
     return (
       <div className="min-h-screen flex flex-col">
-        {/* Hero Section */}
         <div className="flex-1 bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-          {/* Navigation */}
           <nav className="px-4 sm:px-6 lg:px-8 py-6">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
               <Link href="/" className="flex items-center gap-3 group">
@@ -169,8 +161,6 @@ export default function AssessmentPage() {
               </Link>
             </div>
           </nav>
-
-          {/* Hero Content */}
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
             <div className="text-center space-y-6 sm:space-y-8">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-4">
@@ -186,8 +176,6 @@ export default function AssessmentPage() {
               <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto">
                 Private. Fast. Reliable AI-powered health insights.
               </p>
-
-              {/* Feature Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto mt-12">
                 <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-emerald-100 hover:border-emerald-300 transition-all duration-300">
                   <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 mx-auto">
@@ -205,7 +193,6 @@ export default function AssessmentPage() {
                 </div>
               </div>
 
-              {/* CTA Button */}
               <div className="pt-8">
                 <button
                   onClick={startAssessment}
@@ -217,8 +204,6 @@ export default function AssessmentPage() {
               </div>
             </div>
           </div>
-
-          {/* Stats Section */}
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
               <div className="text-center p-6 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow">
@@ -247,7 +232,6 @@ export default function AssessmentPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <button 
@@ -273,8 +257,6 @@ export default function AssessmentPage() {
           {completed && <div className="w-16"></div>}
         </div>
       </div>
-
-      {/* Progress Bar */}
       {!completed && (
         <div className="bg-white border-b border-gray-100">
           <div className="max-w-4xl mx-auto">
@@ -287,11 +269,8 @@ export default function AssessmentPage() {
           </div>
         </div>
       )}
-
-      {/* Chat Container */}
       <div className="flex-1 overflow-hidden">
         <div className="max-w-4xl mx-auto h-full flex flex-col">
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
             {messages.map((msg, idx) => (
               <div
@@ -432,7 +411,7 @@ export default function AssessmentPage() {
                   <div className="flex gap-3 sm:gap-4">
                     <button
                       onClick={() => {
-                        setCurrentAnswer(false);
+                        setCurrentAnswer("false");
                         setTimeout(handleAnswer, 100);
                       }}
                       className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base"
@@ -441,7 +420,7 @@ export default function AssessmentPage() {
                     </button>
                     <button
                       onClick={() => {
-                        setCurrentAnswer(true);
+                        setCurrentAnswer("true");
                         setTimeout(handleAnswer, 100);
                       }}
                       className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg text-white rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base"
