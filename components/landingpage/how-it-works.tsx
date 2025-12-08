@@ -1,93 +1,152 @@
-import { CheckCircle2, Brain, MessageCircle, BarChart3, Zap } from "lucide-react"
+import Image from "next/image"
 
-const steps = [
+const stepsLeft = [
   {
     number: "01",
     title: "Check Your Risk",
     description: "Answer quick health & lifestyle questions",
-    icon: CheckCircle2,
+    icon: "/assets/2.png",
   },
   {
     number: "02",
     title: "AI Analyzes",
     description: "Get your personalized NCD risk score instantly",
-    icon: Brain,
+    icon: "/assets/3.png",
   },
   {
     number: "03",
     title: "Get Smart Tips",
     description: "Receive daily prevention and lifestyle advice",
-    icon: MessageCircle,
+    icon: "/assets/5.png",
   },
+]
+
+const stepsRight = [
   {
     number: "04",
     title: "Connect to Care",
-    description: "Get referral to nearby health centers",
-    icon: Zap,
+    description: "Get referred to nearby health centers",
+    icon: "/assets/2.png",
   },
   {
     number: "05",
     title: "Empowering Insights",
     description: "Data helps health systems act faster",
-    icon: BarChart3,
+    icon: "/assets/3.png",
   },
 ]
 
 export default function HowItWorks() {
   return (
-    <section className="w-full py-16 md:py-24 lg:py-28 px-6 sm:px-8 lg:px-4 bg-white">
-      <div className="max-w-6xl mx-auto">
+    <section className="w-full py-12 md:py-16 lg:py-20 px-4 bg-white">
+      <div className="max-w-7xl mx-auto px-4">
         {/* Heading */}
-        <div className="text-center mb-12 md:mb-20 space-y-3">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900">
+        <div className="text-center mb-10 md:mb-14">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1a3a52] mb-4">
             How It Works
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
-            A simple, AI-driven process that helps you assess and manage your health risk step by step.
+          <p className="text-gray-600 max-w-4xl mx-auto text-sm md:text-base leading-relaxed px-4">
+            Your health journey made simple in 5 Steps: answer a few questions, get instant insights, and receive guidance tailored just for you.
           </p>
         </div>
 
-        {/* Timeline Flow */}
-        <div className="relative">
-          {/* Connecting Line (only visible on large screens) */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-1 bg-emerald-500  rounded-full"></div>
-
-          {/* Steps Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-12 md:gap-10 lg:gap-8 relative z-10">
-            {steps.map((step, idx) => {
-              const Icon = step.icon
-              const isEven = idx % 2 === 1
-              return (
-                <div
-                  key={idx}
-                  className={`flex flex-col items-center text-center ${
-                    isEven ? "lg:mt-20" : ""
-                  }`}
-                >
-                  {/* Step Circles */}
-                  <div className="flex flex-col items-center mb-6">
-                    <div className="hidden sm:flex w-20 h-20 rounded-full bg-white border-4 border-gray-900 items-center justify-center mb-4 shadow-md">
-                      <span className="text-2xl font-bold text-gray-900">{step.number}</span>
-                    </div>
-                                  
-                    {/* Icon Circle (always visible) */}
-                    <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-md">
-                      <Icon className="w-7 h-7" />
-                    </div>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-8 lg:gap-12 xl:gap-16 items-start">
+          {/* Left Steps */}
+          <div className="space-y-10 md:space-y-12 relative">
+            {/* Vertical connecting line */}
+            <div className="hidden lg:block absolute left-[50px] top-[60px] bottom-[60px] w-px bg-gray-200"></div>
+            
+            {stepsLeft.map((step, _idx) => (
+              <div key={step.number} className="relative">
+                <div className="flex items-start gap-4">
+                  {/* Number */}
+                  <div className="shrink-0 w-12 text-left">
+                    <span className="text-xl md:text-2xl font-bold text-gray-300">{step.number}</span>
                   </div>
-
-                  {/* Text Content */}
-                  <div className="space-y-2 px-4 sm:px-2 lg:px-0">
-                    <h3 className="font-semibold text-lg sm:text-xl text-gray-900">
+                  
+                  {/* Icon */}
+                  <div className="shrink-0 w-10 h-10 md:w-10 md:h-10 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center relative z-10">
+                    <Image
+                      src={step.icon}
+                      alt={step.title}
+                      width={32}
+                      height={32}
+                      className="w-7 h-7 md:w-8 md:h-8 object-contain"
+                    />
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="flex-1 pt-1">
+                    <h3 className="text-base md:text-lg font-bold text-gray-900 mb-2">
                       {step.title}
                     </h3>
-                    <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                      {step.description}
-                    </p>
+                    <div className="flex items-center gap-3 mb-4">
+                      <p className="text-sm md:text-base text-gray-600 flex-1">
+                        {step.description}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )
-            })}
+                
+                {/* Horizontal underline */}
+                <div className="ml-[90px] md:ml-[100px] h-px bg-gray-300 w-[280px] md:w-[320px]"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Center Image */}
+          <div className="flex justify-center items-center lg:mx-6 xl:mx-8">
+            <div className="relative w-full max-w-[320px] md:max-w-[380px] lg:max-w-[420px]">
+              <Image
+                src="/assets/4zoom.png"
+                alt="Healthcare professional showing five fingers"
+                width={450}
+                height={500}
+                className="w-full h-auto object-contain"
+                priority
+              />
+            </div>
+          </div>
+
+          {/* Right Steps */}
+          <div className="space-y-10 md:space-y-12">
+            {stepsRight.map((step) => (
+              <div key={step.number} className="relative">
+                <div className="flex items-start gap-4">
+                  {/* Number */}
+                  <div className="shrink-0 w-12 text-left">
+                    <span className="text-xl md:text-2xl font-bold text-gray-300">{step.number}</span>
+                  </div>
+                  
+                  {/* Icon */}
+                  <div className="shrink-0 w-10 h-10 md:w-10 md:h-10 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center">
+                    <Image
+                      src={step.icon}
+                      alt={step.title}
+                      width={32}
+                      height={32}
+                      className="w-7 h-7 md:w-8 md:h-8 object-contain"
+                    />
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="flex-1 pt-1">
+                    <h3 className="text-base md:text-lg font-bold text-gray-900 mb-2">
+                      {step.title}
+                    </h3>
+                    <div className="flex items-center gap-3 mb-4">
+                      <p className="text-sm md:text-base text-gray-600 flex-1">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Horizontal underline */}
+                <div className="ml-[90px] md:ml-[100px] h-px bg-gray-300 w-[280px] md:w-[320px]"></div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

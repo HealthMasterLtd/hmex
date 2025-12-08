@@ -1,19 +1,6 @@
 export default function AwarenessSection() {
   return (
     <>
-      {/* Demo: Section before (to show scrolling works normally) */}
-      <section className="bg-white py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h3 className="text-3xl font-bold text-gray-900 mb-6">Risk Assessment</h3>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Take our comprehensive health risk assessment to understand your current health status.
-          </p>
-          <p className="text-gray-700 leading-relaxed">
-            Scroll down to see the parallax section...
-          </p>
-        </div>
-      </section>
-
       {/* Parallax Section - Only this part has the fixed background */}
       <section className="relative w-full py-16 md:py-24 px-4 overflow-hidden">
         {/* Fixed Background Image - confined to this section */}
