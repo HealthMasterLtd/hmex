@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function HealthCheckPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
       <section className="relative min-h-screen overflow-hidden bg-white">
         <div className="container mx-auto px-6 lg:px-12 h-screen">
           <div className="grid lg:grid-cols-2 gap-12 h-full items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
@@ -100,11 +100,13 @@ export default function HealthCheckPage() {
           </div>
 
           {/* CTA Button */}
-          <div className="text-center">
+          <div className="text-center cursor-pointer">
+            <Link href='/questions'>
             <button className="group inline-flex items-center gap-3 px-8 py-4 rounded-full text-base lg:text-lg font-semibold transition-all duration-300 shadow-xl bg-(--hmex-dark) text-white">
               Begin Your Test Now
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </button>
+            </Link>
           </div>
         </div>
       </section>
