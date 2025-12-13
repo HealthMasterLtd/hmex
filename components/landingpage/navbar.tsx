@@ -11,7 +11,7 @@ export default function Navbar() {
   const pathname = usePathname()
 
   const navItems = [
-    { label: "Risk Assessment", href: "/assestment" },
+    { label: "Risk Assessment", href: "/risk-assesment" },
     { label: "About", href: "/about" },
     { label: "How It Works", href: "/how-it-works" },
     { label: "Contact Us", href: "/contact" },
@@ -23,8 +23,9 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
-          <div className="shrink-0 flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+          <Link href='/'>
+          <div className="shrink-0 flex items-center gap-2 cursor-pointer">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
               <Image
                 src='/white logo.png'
                 alt="Logo"
@@ -35,6 +36,7 @@ export default function Navbar() {
             </div>
             <span className="font-bold text-lg text-gray-900 tracking-tight">H<span className="text-emerald-600">MEX</span></span>
           </div>
+            </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
@@ -75,7 +77,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/signup"
+              href="/register"
               className="px-5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
             >
               Sign Up
@@ -118,7 +120,7 @@ export default function Navbar() {
               </Link>
 
               <Link
-                href="/signup"
+                href="/register"
                 className="w-full px-5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 Sign Up

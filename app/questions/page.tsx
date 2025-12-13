@@ -4,11 +4,13 @@ import React, { useState } from "react";
 import { Info } from "lucide-react";
 import { Answers } from "@/types/questions.type";
 import { questions } from "@/lib/mockdata";
+import { useRouter } from "next/navigation";
 
 
 const HealthCheckQuestions: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [answers, setAnswers] = useState<Answers>({});
+  const router = useRouter()
 
 
   const currentQuestion = questions[currentStep - 1];
@@ -56,19 +58,18 @@ const HealthCheckQuestions: React.FC = () => {
         </div>
 
         {/* Question Card */}
-        <div className="bg-white rounded-3xl shadow-lg border-2 border-gray-200 p-8 sm:p-12">
-          {/* Question Header */}
+        <div className="bg-white rounded-3xl shadow-lg border-2 border-gray-200 p-5 sm:p-8">
           <div className="flex items-start gap-4 mb-8">
-            <div className="text-5xl">{currentQuestion.icon}</div>
+            <div className="text-3xl">{currentQuestion.icon}</div>
             <div className="flex-1">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-3">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3">
                 {currentQuestion.question}
               </h2>
               <div className="flex items-start gap-2">
                 <p className="text-gray-600 text-base flex-1">
                   {currentQuestion.subtitle}
                 </p>
-                <button className="flex items-center gap-1 text-teal-500 text-sm font-medium whitespace-nowrap">
+                <button className="flex items-center gap-1 text-[#0fbb7d] text-sm font-medium whitespace-nowrap">
                   <Info className="w-4 h-4" />
                   More info
                 </button>
@@ -97,11 +98,11 @@ const HealthCheckQuestions: React.FC = () => {
                     onClick={() => handleOptionSelect(option.value)}
                     className={`p-4 rounded-2xl border-2 transition-all text-left ${
                       answers[currentQuestion.type] === option.value
-                        ? "border-teal-500 bg-teal-50"
+                        ? "border-[#0fbb7d] bg-teal-50"
                         : "border-teal-200 bg-teal-50/30 hover:border-teal-300"
                     }`}
                   >
-                    <div className="bg-gray-700 rounded-xl p-4 mb-3 aspect-video flex items-center justify-center text-4xl">
+                    <div className="bg-gray-700 rounded-xl p-4 mb-3 aspect-video flex items-center justify-center text-xl">
                       {option.image}
                     </div>
                     <div className="font-bold text-gray-800 text-sm mb-3">
@@ -144,7 +145,7 @@ const HealthCheckQuestions: React.FC = () => {
                     <button
                       key={option.value}
                       onClick={() => handleOptionSelect(option.value)}
-                      className={`p-5 rounded-2xl border-2 transition-all text-left ${
+                      className={`p-3 rounded-2xl border-2 transition-all text-left flex justify-between ${
                         answers[currentQuestion.type] === option.value
                           ? "border-teal-500 bg-teal-50"
                           : "border-teal-200 bg-teal-50/30 hover:border-teal-300 hover:bg-teal-50/50"
@@ -183,7 +184,7 @@ const HealthCheckQuestions: React.FC = () => {
               <input
                 type="text"
                 placeholder={currentQuestion.inputPlaceholder}
-                className="w-full px-6 py-4 rounded-2xl border-2 border-teal-200 bg-white focus:border-teal-500 focus:outline-none text-lg"
+                className="w-full px-6 py-3 rounded-2xl border-2 border-teal-200 bg-white focus:border-[#0fbb7d] focus:outline-none text-lg text-black"
               />
               {currentQuestion.note && (
                 <p className="text-sm text-gray-600 mt-4">
@@ -210,7 +211,7 @@ const HealthCheckQuestions: React.FC = () => {
                     <input
                       type="text"
                       placeholder={input.placeholder}
-                      className="w-full px-6 py-4 rounded-2xl border-2 border-teal-200 bg-white focus:border-teal-500 focus:outline-none text-lg"
+                      className="w-full px-6 py-4 rounded-2xl border-2 border-teal-200 bg-white focus:border-[#0fbb7d] focus:outline-none text-lg"
                     />
                   </div>
                 ))}
@@ -236,8 +237,14 @@ const HealthCheckQuestions: React.FC = () => {
             Back
           </button>
           <button
-            onClick={handleNext}
-            className="bg-linear-to-r from-emerald-400 to-teal-500 text-white px-8 py-4 rounded-full font-semibold hover:shadow-lg transition-all"
+            onClick={() => {
+              if (isLastStep) {
+                router.push("/review")
+              } else {
+                handleNext()
+              }
+            }}
+            className="bg-linear-to-r cursor-pointer from-emerald-400 to-[#0fbb7d] text-white px-8 py-4 rounded-full font-semibold hover:shadow-lg transition-all"
           >
             {isLastStep ? "See my risk preview" : "Next question"}
           </button>

@@ -26,10 +26,12 @@ export default function HealthCheckPage() {
                 questions to see your diabetes and blood pressure risk snapshot.
               </p>
 
-              <button className="group inline-flex items-center gap-3 px-8 py-4 rounded-full text-base lg:text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl bg-(--hmex-green) text-white">
+              <Link href='/questions'>
+                <button className="group inline-flex items-center gap-3 px-8 py-4 rounded-full text-base lg:text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl bg-(--hmex-green) text-white cursor-pointer">
                 Start Your Free Assessment
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </button>
+              </Link>
             </div>
 
             {/* Right Image - Positioned to extend to edge */}
@@ -50,7 +52,6 @@ export default function HealthCheckPage() {
 
       {/* How It Works Section */}
       <section className="relative min-h-screen py-20 overflow-hidden bg-(--hmex-green)">
-        {/* Medical Cross Pattern - Right Side */}
         <div className="absolute right-10 top-20 w-full max-w-xs pointer-events-none z-0 opacity-30">
           <div className="relative w-full aspect-square">
             <Image 
