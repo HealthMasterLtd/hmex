@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function CallToAction() {
   const handleStartAssessment = () => {
-    window.location.href = '/assestment';
+    window.location.href = '/risk-assesment';
   }
 
   return (
