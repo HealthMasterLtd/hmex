@@ -3,10 +3,13 @@
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Navbar from "@/components/landingpage/navbar";
+import Footer from "@/components/ui/Footer";
 
 export default function HealthCheckPage() {
   return (
     <div className="min-h-screen bg-white">
+      <Navbar/>
       <section className="relative min-h-screen overflow-hidden bg-white">
         <div className="container mx-auto px-6 lg:px-12 h-screen">
           <div className="grid lg:grid-cols-2 gap-12 h-full items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
@@ -111,6 +114,7 @@ export default function HealthCheckPage() {
           </div>
         </div>
       </section>
+      <Footer/>
     </div>
   );
 }

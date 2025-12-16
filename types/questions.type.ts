@@ -1,66 +1,48 @@
-// Type definitions
-export interface BaseOption {
-  label: string;
+// types/questions.type.ts
+import React from 'react';
+
+export interface Answers {
+  [key: string]: string | number | boolean;
+}
+
+// FIXED: Remove the index signature or make it more flexible
+export interface QuestionOption {
   value: string;
+  label: string;
   description?: string;
+  image?: string;
+  examples?: string[];
+  icon?: React.ReactNode;
 }
 
 export interface InputField {
   label: string;
-  placeholder: string;
   unit: string;
+  placeholder: string;
 }
 
-export interface BaseQuestion {
-  step: number;
+export interface DisplayQuestion {
+  id: string;
+  type: string;
   category: string;
   stepOf: string;
-  progress: number;
-  icon: string;
+  icon: React.ReactNode;
   question: string;
   subtitle: string;
-  type: string;
+  progress: number;
+  hasImages?: boolean;
+  hasInput?: boolean;
+  hasDoubleInput?: boolean;
+  inputLabel?: string;
+  inputUnit?: string;
+  inputPlaceholder?: string;
   note?: string;
-}
-
-export interface MultipleChoiceQuestion extends BaseQuestion {
-  options: BaseOption[];
-  hasInput?: false;
-  hasDoubleInput?: false;
-  hasImages?: false;
-}
-
-export interface SingleInputQuestion extends BaseQuestion {
-  hasInput: true;
-  inputPlaceholder: string;
-  inputLabel: string;
-  inputUnit: string;
-  options?: BaseOption[];
-  hasDoubleInput?: false;
-  hasImages?: false;
-}
-
-export interface DoubleInputQuestion extends BaseQuestion {
-  hasDoubleInput: true;
-  inputs: InputField[];
-  hasInput?: false;
-  options?: never;
-  hasImages?: false;
-}
-
-export interface ImageOptionsQuestion extends BaseQuestion {
-  hasImages: true;
-  options: Array<BaseOption & { image: string; examples: string[] }>;
-  hasInput?: false;
-  hasDoubleInput?: false;
-}
-
-export type Question =
-  | MultipleChoiceQuestion
-  | SingleInputQuestion
-  | DoubleInputQuestion
-  | ImageOptionsQuestion;
-
-export interface Answers {
-  [key: string]: string;
+  options?: QuestionOption[];
+  inputs?: InputField[];
+  min?: number;
+  max?: number;
+  unit?: string;
+  required: boolean;
+  aiGenerated: boolean;
+  tooltip?: string;
 }

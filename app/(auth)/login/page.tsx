@@ -147,9 +147,10 @@ const LoginPage: React.FC = () => {
   <div
     className="
       relative 
-      w-[750px] 
-      h-[680px] 
+      w-full
+      h-full
       overflow-hidden 
+      
       shadow-lg
       bg-white
     "
@@ -157,6 +158,7 @@ const LoginPage: React.FC = () => {
     <Image
       src="/Nurse.jpg"
       alt="Doctor"
+      quality={100}
       fill
       className="object-cover"
     />
