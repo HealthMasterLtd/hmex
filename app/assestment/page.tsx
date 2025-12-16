@@ -397,7 +397,7 @@ export default function AssessmentPage() {
           <div className="max-w-4xl mx-auto">
             <div className="h-2 bg-gray-100">
               <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
+                className="h-full bg-gradient-to-r  from-emerald-500 to-teal-500 transition-all duration-500"
                 style={{ width: `${geminiService.getProgress()}%` }}
               ></div>
             </div>
