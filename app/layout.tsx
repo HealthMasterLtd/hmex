@@ -2,8 +2,6 @@ import type React from "react";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/landingpage/navbar";
-import Footer from "@/components/landingpage/footer";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -34,9 +32,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Navbar />
+       
         {children}
-        <Footer />
       </body>
     </html>
   );
