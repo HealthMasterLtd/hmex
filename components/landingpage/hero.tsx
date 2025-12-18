@@ -10,11 +10,11 @@ export default function Hero() {
         <div className="grid lg:grid-cols-2 h-full gap-12 items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
           <div className="space-y-6 animate-slide-in-left z-10 max-w-5xl">
             <h1 className="text-2xl md:text-5xl font-bold text-blue-900 leading-tight text-balance">
-              Check Your Health Risk Early – Stay Aware, Stay Healthy.
+              Check Your Health Risk Early Stay Aware, Stay Healthy.
             </h1>
 
             <p className="text-lg text-gray-600 leading-relaxed text-balance">
-              Assess your NCD risk, get prevention tips, and connect to care – all in one place
+              Assess your NCD risk, get prevention tips, and connect to care all in one place
             </p>
 
             <Link href='/risk-assesment'>

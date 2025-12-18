@@ -21,7 +21,7 @@ const features = [
   {
     icon: Cpu,
     title: "Fast & Accessible",
-    description: "Complete your risk check in under a minute — anytime, anywhere.",
+    description: "Complete your risk check in under a minute anytime, anywhere.",
   },
   {
     icon: Radar,
@@ -83,7 +83,7 @@ export default function WhyChooseUs() {
               </div>
 
               <div className="relative">
-                <div className="relative w-full max-w-[500px] ml-auto">
+                <div className="relative w-full max-w-125 ml-auto">
                   <Image
                     src="/assets/5zoom.png"
                     alt="Healthcare professional"
