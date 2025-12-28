@@ -37,7 +37,7 @@ export default function Hero() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Link href="/risk-assessment">
+              <Link href="/questions">
                 <button className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base lg:text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:scale-105">
                   Start Your Risk Check
                   <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
