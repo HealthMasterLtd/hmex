@@ -27,7 +27,7 @@ export default function Footer() {
           <div className="space-y-4">
             <h3 className="font-semibold text-white mb-4">Quick Links</h3>
             <div className="grid grid-cols-2 gap-4 text-sm text-gray-400">
-              <a href="#" className="hover:text-emerald-400 transition-colors">
+              <a href="/risk-assesment" className="hover:text-emerald-400 transition-colors">
                 Risk Assessment
               </a>
               <a href="#" className="hover:text-emerald-400 transition-colors">

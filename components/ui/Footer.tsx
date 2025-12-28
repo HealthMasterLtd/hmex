@@ -58,7 +58,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link
-                  href="/risk-assessment"
+                  href="/risk-assesment"
                   className="text-gray-300 hover:text-emerald-400 transition-colors duration-200 text-base"
                 >
                   Risk Assessment
