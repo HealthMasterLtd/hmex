@@ -83,7 +83,7 @@ export default function ContactPage() {
                         <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-1">
                           Head Office
                         </h3>
-                        <p className="text-gray-600 text-sm sm:text-base">Norksken, KN, 579 st</p>
+                        <p className="text-gray-600 text-sm sm:text-base"> Norrsken House Kigali 1 KN 78 St, Kigali</p>
                       </div>
                     </div>
 
@@ -96,7 +96,7 @@ export default function ContactPage() {
                         <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-1">
                           Email Us
                         </h3>
-                        <p className="text-gray-600 text-sm sm:text-base">info@hmex.health</p>
+                        <p className="text-gray-600 text-sm sm:text-base">info@healthmasterco.com</p>
                       </div>
                     </div>
 
@@ -109,7 +109,7 @@ export default function ContactPage() {
                         <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-1">
                           Call Us
                         </h3>
-                        <p className="text-gray-600 text-sm sm:text-base">Phone: +250785928888</p>
+                        <p className="text-gray-600 text-sm sm:text-base">Phone:  +250789399765</p>
                       </div>
                     </div>
                   </div>
