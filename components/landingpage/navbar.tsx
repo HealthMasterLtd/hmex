@@ -14,6 +14,7 @@ export default function Navbar() {
     { label: "Risk Assessment", href: "/risk-assesment" },
     { label: "About", href: "/about" },
     { label: "How It Works", href: "/how-it-works" },
+    { label:"Corporates", href: "/corporates" },
     { label: "Contact Us", href: "/contact" },
   ]
 
