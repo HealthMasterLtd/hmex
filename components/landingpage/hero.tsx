@@ -5,6 +5,7 @@ import Link from "next/link";
 export default function Hero() {
   return (
     <section className="relative min-h-screen bg-white overflow-hidden">
+<<<<<<< HEAD
       {/* Background Text Effect */}
       <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
         <div className="text-[12rem] sm:text-[16rem] md:text-[20rem] lg:text-[25rem] xl:text-[30rem] font-black text-gray-100/30 whitespace-nowrap animate-pulse">
@@ -33,6 +34,18 @@ export default function Hero() {
             <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-xl">
               Assess your NCD risk, get prevention tips, and connect to care – 
               all in one place with our AI-powered health assessment platform.
+=======
+      {/* Main Container */}
+      <div className="container mx-auto h-screen px-6 lg:px-12">
+        <div className="grid lg:grid-cols-2 h-full gap-12 items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
+          <div className="space-y-6 animate-slide-in-left z-10 max-w-5xl">
+            <h1 className="text-2xl md:text-5xl font-bold text-blue-900 leading-tight text-balance">
+              Check Your Health Risk Early Stay Aware, Stay Healthy.
+            </h1>
+
+            <p className="text-lg text-gray-600 leading-relaxed text-balance">
+              Assess your NCD risk, get prevention tips, and connect to care all in one place
+>>>>>>> 6ea6f63 (add contact page)
             </p>
 
             {/* CTA Buttons */}

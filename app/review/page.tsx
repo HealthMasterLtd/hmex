@@ -20,7 +20,7 @@ import {
 import { groqService } from "@/services/GroqService";
 import type { DualRiskAssessment } from "@/services/GroqService";
 import "@/styles/review.scss";
-import Navbar from "@/components/landingpage/navbar";
+import Navbar from "@/components/landingPage/navbar";
 import Footer from "@/components/ui/Footer";
 
 const RiskPreviewPage: React.FC = () => {

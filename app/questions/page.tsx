@@ -37,7 +37,7 @@ import { Answers, DisplayQuestion } from "@/types/questions.type";
 import { useRouter } from "next/navigation";
 import { groqService } from "@/services/GroqService";
 import type { Question } from "@/services/GroqService";
-import Navbar from "@/components/landingpage/navbar";
+import Navbar from "@/components/landingPage/navbar";
 import Footer from "@/components/ui/Footer";
 
 const HealthCheckQuestions: React.FC = () => {
