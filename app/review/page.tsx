@@ -6,21 +6,16 @@ import { useRouter } from "next/navigation";
 import { 
   Loader2, 
   AlertCircle, 
-  Lock, 
-  TrendingUp, 
-  Heart, 
   Droplet,
-  Zap,
-  Target,
-  FileText,
-  Download,
-  Shield,
-  BarChart3,
-  CheckCircle,
+  Heart,
   ArrowRight,
-  Sparkles,
-  ShieldCheck,
-  Activity
+  MessageCircle,
+  RefreshCw,
+  Apple,
+  Activity,
+  Stethoscope,
+  AlertTriangle,
+  Info
 } from "lucide-react";
 import { groqService } from "@/services/GroqService";
 import type { DualRiskAssessment } from "@/services/GroqService";
@@ -60,33 +55,51 @@ const RiskPreviewPage: React.FC = () => {
   const getRiskColor = (level: string): string => {
     switch (level) {
       case 'low':
-        return 'from-green-400 to-emerald-500';
+        return 'bg-green-500';
       case 'slightly-elevated':
-        return 'from-amber-400 to-yellow-500';
+        return 'bg-yellow-500';
       case 'moderate':
-        return 'from-orange-400 to-orange-500';
+        return 'bg-orange-500';
       case 'high':
-        return 'from-red-400 to-rose-500';
+        return 'bg-red-500';
       case 'very-high':
-        return 'from-rose-600 to-red-700';
+        return 'bg-red-700';
       default:
-        return 'from-gray-400 to-gray-500';
+        return 'bg-gray-500';
     }
   };
 
-  const getRiskIcon = (level: string, type: 'diabetes' | 'hypertension') => {
-    const baseIcon = type === 'diabetes' ? Droplet : Heart;
-    
-    const iconProps = {
-      size: 28,
-      className: level === 'low' || level === 'slightly-elevated' 
-        ? 'text-emerald-500' 
-        : level === 'moderate'
-        ? 'text-amber-500'
-        : 'text-rose-500'
-    };
+  const getRiskScore = (level: string): string => {
+    switch (level) {
+      case 'low':
+        return '2/20';
+      case 'slightly-elevated':
+        return '5/20';
+      case 'moderate':
+        return '8/20';
+      case 'high':
+        return '14/20';
+      case 'very-high':
+        return '18/20';
+      default:
+        return '0/20';
+    }
+  };
 
-    return React.createElement(baseIcon, iconProps);
+  const getRecommendations = (type: 'diabetes' | 'hypertension', level: string) => {
+    if (type === 'diabetes') {
+      return [
+        'Schedule regular health check-ups with your doctor',
+        'Reduce intake of sugary drinks and processed foods',
+        'Increase physical activity to at least 150 minutes per week'
+      ];
+    } else {
+      return [
+        'Monitor your blood pressure regularly at home',
+        'Reduce salt intake significantly',
+        'Increase potassium-rich foods like bananas and leafy greens'
+      ];
+    }
   };
 
   if (isLoading) {
@@ -132,224 +145,250 @@ const RiskPreviewPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <Navbar/>
-      <main className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
-        
-        {/* Header */}
-        <div className="text-center mb-8 animate-fade-in-down">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-50 to-emerald-50 px-4 py-2 rounded-full border border-teal-200 mb-4">
-            <ShieldCheck className="w-4 h-4 text-teal-600" />
-            <span className="text-sm font-medium text-teal-700">Evidence-Based Assessment</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Your Health Risk Snapshot
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Based on validated medical frameworks. This is an educational tool, not a medical diagnosis.
-          </p>
-        </div>
-
-        {/* Risk Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-fade-in-up animate-stagger-1">
-          {/* Diabetes Risk */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 hover-lift">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-br from-blue-50 to-teal-50 rounded-xl">
-                {getRiskIcon(assessment.diabetesRisk.level, 'diabetes')}
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">Diabetes Risk</h3>
-                <p className="text-gray-500 text-sm">Type 2 Diabetes</p>
-              </div>
-            </div>
-            <div className={`
-              bg-gradient-to-r ${getRiskColor(assessment.diabetesRisk.level)}
-              rounded-xl p-4 text-center
-            `}>
-              <div className="text-white text-xl font-bold">
-                {assessment.diabetesRisk.level.toUpperCase().replace('-', ' ')}
-              </div>
-            </div>
+      
+      {/* Main Content Area with Green Background */}
+      <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 py-12 px-4">
+        <div className="max-w-6xl mx-auto">
+          
+          {/* Header */}
+          <div className="text-center mb-12 animate-fade-in-down">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
+              Here is your quick risk snapshot
+            </h1>
           </div>
 
-          {/* Hypertension Risk */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 hover-lift">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl">
-                {getRiskIcon(assessment.hypertensionRisk.level, 'hypertension')}
+          {/* Risk Cards Grid */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            
+            {/* Diabetes Risk Card */}
+            <div className="bg-white rounded-3xl shadow-xl p-8 transform hover:scale-105 transition-all duration-300">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Droplet className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Diabetes Risk</h3>
+                    <p className="text-sm text-gray-500">Type 2 Diabetes Assessment</p>
+                  </div>
+                </div>
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
               </div>
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">Hypertension Risk</h3>
-                <p className="text-gray-500 text-sm">High Blood Pressure</p>
-              </div>
-            </div>
-            <div className={`
-              bg-gradient-to-r ${getRiskColor(assessment.hypertensionRisk.level)}
-              rounded-xl p-4 text-center
-            `}>
-              <div className="text-white text-xl font-bold">
-                {assessment.hypertensionRisk.level.toUpperCase().replace('-', ' ')}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Summary */}
-        <div className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl shadow-lg border border-teal-200 p-6 mb-8 animate-fade-in-up animate-stagger-2">
-          <div className="flex items-center gap-3 mb-4">
-            <Activity className="w-6 h-6 text-teal-600" />
-            <h2 className="text-xl font-bold text-gray-900">Initial Assessment</h2>
-          </div>
-          <p className="text-gray-700 leading-relaxed mb-6">
-            {assessment.summary.substring(0, 180)}...
-          </p>
-          <div className="bg-white/60 rounded-xl p-4 border border-teal-300">
-            <div className="flex items-center gap-3">
-              <Lock className="w-5 h-5 text-blue-600" />
-              <div>
-                <p className="text-gray-800 font-semibold">Complete analysis available</p>
-                <p className="text-gray-600 text-sm">Sign up to unlock full report</p>
+              {/* Risk Level */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-2xl font-bold ${
+                    assessment.diabetesRisk.level === 'low' ? 'text-green-600' :
+                    assessment.diabetesRisk.level === 'moderate' ? 'text-orange-600' :
+                    'text-red-600'
+                  }`}>
+                    {assessment.diabetesRisk.level.charAt(0).toUpperCase() + assessment.diabetesRisk.level.slice(1).replace('-', ' ')}
+                  </span>
+                  <span className="text-gray-600 font-semibold">
+                    Score: {getRiskScore(assessment.diabetesRisk.level)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full ${getRiskColor(assessment.diabetesRisk.level)}`}
+                    style={{
+                      width: assessment.diabetesRisk.level === 'low' ? '20%' :
+                             assessment.diabetesRisk.level === 'moderate' ? '50%' :
+                             assessment.diabetesRisk.level === 'high' ? '80%' : '30%'
+                    }}
+                  ></div>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Locked Content Preview */}
-        <div className="relative mb-8 animate-fade-in-up animate-stagger-3">
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 opacity-40 blur-[2px]">
-            <div className="space-y-4">
-              <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-              <div className="grid grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="bg-gray-100 rounded-xl p-4">
-                    <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-full"></div>
+              {/* Recommendations Preview */}
+              <div className="space-y-2">
+                {getRecommendations('diabetes', assessment.diabetesRisk.level).map((rec, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                    <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span>{rec}</span>
                   </div>
                 ))}
               </div>
+
+              {/* Blur overlay for locked content */}
+              <div className="mt-6 relative">
+                <div className="blur-sm opacity-50 pointer-events-none">
+                  <div className="h-20 bg-gray-100 rounded-xl"></div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <button
+                    onClick={handleLoginSignUp}
+                    className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-6 py-2 rounded-full text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Sign Up to See More
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Hypertension Risk Card */}
+            <div className="bg-white rounded-3xl shadow-xl p-8 transform hover:scale-105 transition-all duration-300">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Hypertension Risk</h3>
+                    <p className="text-sm text-gray-500">High Blood Pressure Assessment</p>
+                  </div>
+                </div>
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+              </div>
+
+              {/* Risk Level */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-2xl font-bold ${
+                    assessment.hypertensionRisk.level === 'low' ? 'text-green-600' :
+                    assessment.hypertensionRisk.level === 'moderate' ? 'text-orange-600' :
+                    'text-red-600'
+                  }`}>
+                    {assessment.hypertensionRisk.level.charAt(0).toUpperCase() + assessment.hypertensionRisk.level.slice(1).replace('-', ' ')}
+                  </span>
+                  <span className="text-gray-600 font-semibold">
+                    Score: {getRiskScore(assessment.hypertensionRisk.level)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    className={`h-3 rounded-full ${getRiskColor(assessment.hypertensionRisk.level)}`}
+                    style={{
+                      width: assessment.hypertensionRisk.level === 'low' ? '20%' :
+                             assessment.hypertensionRisk.level === 'moderate' ? '50%' :
+                             assessment.hypertensionRisk.level === 'high' ? '80%' : '30%'
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Recommendations Preview */}
+              <div className="space-y-2">
+                {getRecommendations('hypertension', assessment.hypertensionRisk.level).map((rec, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                    <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span>{rec}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Blur overlay for locked content */}
+              <div className="mt-6 relative">
+                <div className="blur-sm opacity-50 pointer-events-none">
+                  <div className="h-20 bg-gray-100 rounded-xl"></div>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <button
+                    onClick={handleLoginSignUp}
+                    className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-6 py-2 rounded-full text-sm font-semibold hover:shadow-lg transition-all"
+                  >
+                    Sign Up to See More
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* CTA Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center p-8 animate-scale-in">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mb-4 shadow-lg">
-                <Lock className="w-8 h-8 text-white" />
+          {/* Quick Action Cards */}
+          <div className="grid sm:grid-cols-3 gap-6 mb-8">
+            
+            {/* Nutrition Card */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 text-center transform hover:scale-105 transition-all">
+              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Apple className="w-8 h-8 text-teal-600" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                Unlock Full Report
-              </h3>
-              <p className="text-gray-600 mb-6 max-w-sm">
-                Get detailed analysis, personalized recommendations, and your complete health assessment
+              <h4 className="font-bold text-gray-900 mb-2">Nutrition Matters</h4>
+              <p className="text-sm text-gray-600">
+                Focus on whole foods, vegetables, and balanced meals
               </p>
-              <button
-                onClick={handleLoginSignUp}
-                className="
-                  bg-gradient-to-r from-blue-600 to-indigo-600
-                  hover:from-blue-700 hover:to-indigo-700
-                  text-white
-                  font-semibold
-                  px-8
-                  py-4
-                  rounded-full
-                  shadow-lg
-                  transition-all
-                  duration-300
-                  flex items-center gap-2 mx-auto hover-scale
-                "
-              >
-                <Sparkles className="w-5 h-5" />
-                SIGN UP FOR FREE
-                <ArrowRight className="w-5 h-5" />
-              </button>
+            </div>
+
+            {/* Stay Active Card */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 text-center transform hover:scale-105 transition-all">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Activity className="w-8 h-8 text-blue-600" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Stay Active</h4>
+              <p className="text-sm text-gray-600">
+                Aim for 150 minutes of moderate exercise per week
+              </p>
+            </div>
+
+            {/* Regular Checkups Card */}
+            <div className="bg-white rounded-2xl shadow-lg p-6 text-center transform hover:scale-105 transition-all">
+              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Stethoscope className="w-8 h-8 text-pink-600" />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Regular Checkups</h4>
+              <p className="text-sm text-gray-600">
+                Visit your doctor for routine health screenings
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* Benefits */}
-        <div className="mb-8 animate-fade-in-up animate-stagger-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">
-            What You&apos;ll Get
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { icon: BarChart3, title: "Risk Scores", color: "from-blue-400 to-cyan-400" },
-              { icon: Target, title: "Key Factors", color: "from-emerald-400 to-teal-400" },
-              { icon: Zap, title: "Action Plan", color: "from-amber-400 to-orange-400" },
-              { icon: FileText, title: "Full Analysis", color: "from-violet-400 to-purple-400" },
-              { icon: Shield, title: "Guidance", color: "from-rose-400 to-pink-400" },
-              { icon: Download, title: "PDF Report", color: "from-gray-400 to-slate-400" }
-            ].map((item, index) => (
-              <div
-                key={item.title}
-                className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center hover:shadow-md transition-all duration-300 hover-lift animate-fade-in-up animate-stagger-${index + 1}`}
-              >
-                <div className={`inline-flex p-3 bg-gradient-to-br ${item.color} rounded-xl mb-3`}>
-                  <item.icon className="w-6 h-6 text-white" />
-                </div>
-                <p className="text-sm font-medium text-gray-900">{item.title}</p>
-              </div>
-            ))}
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <button
+              onClick={handleLoginSignUp}
+              className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold px-8 py-4 rounded-full shadow-xl transition-all duration-300 flex items-center gap-3 hover:scale-105"
+            >
+              <MessageCircle className="w-5 h-5" />
+              Chat With a Doctor on WhatsApp
+            </button>
+            
+            <button
+              onClick={() => router.push('/questions')}
+              className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-full shadow-lg transition-all duration-300 flex items-center gap-3 hover:scale-105"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Take Assessment Again
+            </button>
           </div>
-        </div>
 
-        {/* Disclaimer */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-6 mb-8 animate-fade-in-up animate-stagger-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-1" />
-            <div>
-              <h3 className="text-lg font-bold text-blue-900 mb-3">
-                Important Medical Disclaimer
-              </h3>
-              <div className="text-blue-800 text-sm leading-relaxed space-y-2">
-                <div className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <span>This is an <strong>educational screening tool</strong>, not a medical diagnosis</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <span>Based on validated frameworks (FINDRISC & Framingham)</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <span>Consult a healthcare professional for proper diagnosis</span>
-                </div>
-              </div>
+          {/* Disclaimer */}
+          <div className="bg-white/20 backdrop-blur-sm rounded-2xl border border-white/30 p-6 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Info className="w-5 h-5 text-white" />
+              <span className="font-bold text-white">Disclaimer:</span>
             </div>
+            <p className="text-white text-sm max-w-4xl mx-auto">
+              This risk assessment is for educational purposes only and should not be considered medical advice. Always consult with qualified healthcare professionals for diagnosis and treatment.
+            </p>
           </div>
-        </div>
 
-        {/* Final CTA */}
-        <div className="text-center animate-fade-in-up animate-stagger-6">
+        </div>
+      </div>
+
+      {/* Full Report Teaser Section */}
+      <div className="py-16 px-4 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+            Want Your Complete Health Analysis?
+          </h2>
+          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            Sign up for free to unlock detailed recommendations, personalized action plans, and downloadable reports
+          </p>
+          
           <button
             onClick={handleLoginSignUp}
-            className="
-              bg-gradient-to-r
-              from-emerald-500
-              to-teal-500
-              hover:from-emerald-600
-              hover:to-teal-600
-              text-white
-              font-bold
-              px-8
-              py-4
-              rounded-full
-              shadow-xl
-              transition-all
-              duration-300
-              hover:shadow-2xl
-              inline-flex items-center gap-3
-              mb-4 hover-scale
-            "
+            className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold px-12 py-5 rounded-full shadow-2xl transition-all duration-300 inline-flex items-center gap-3 hover:scale-105 text-lg"
           >
-            Get Your Complete Report
-            <ArrowRight className="w-5 h-5" />
+            Get Your Full Report Free
+            <ArrowRight className="w-6 h-6" />
           </button>
-          <p className="text-gray-500 text-sm">
-            Free • Secure • No credit card required
+          
+          <p className="text-gray-500 text-sm mt-4">
+            No credit card required • Instant access • 100% Secure
           </p>
         </div>
+      </div>
 
-      </main>
       <Footer/>
     </div>
   );
