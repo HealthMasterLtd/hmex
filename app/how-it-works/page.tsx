@@ -38,7 +38,7 @@ export default function HowItWorksPage() {
   ];
 
   const stats = [
-    { number: "100K+", label: "Health Assessments Completed" },
+    { number: "1240+", label: "Health Assessments Completed" },
     { number: "95%", label: "Accuracy Rate" },
     { number: "50+", label: "Healthcare Partners" },
     { number: "24/7", label: "Available Support" },
