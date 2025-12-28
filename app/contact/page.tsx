@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { MapPin, Mail, Phone } from "lucide-react";
-import Navbar from "@/components/landingpage/navbar";
+import Navbar from "@/components/landingPage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useState } from "react";
 
@@ -64,7 +64,7 @@ export default function ContactPage() {
             <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
               <div className="grid lg:grid-cols-2 gap-0">
                 {/* Left Side - Get in touch */}
-                <div className="p-8 sm:p-12 bg-gradient-to-br from-teal-50 to-white">
+                <div className="p-8 sm:p-12 bg-linear-to-br from-teal-50 to-white">
                   <h2 className="text-3xl sm:text-4xl font-bold text-[#1a5f7a] mb-6">
                     Get in touch
                   </h2>
@@ -76,7 +76,7 @@ export default function ContactPage() {
                   <div className="space-y-8">
                     {/* Head Office - Location */}
                     <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center">
+                      <div className="shrink-0 w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center">
                         <MapPin className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -89,7 +89,7 @@ export default function ContactPage() {
 
                     {/* Head Office - Email */}
                     <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center">
+                      <div className="shrink-0 w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center">
                         <Mail className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -102,7 +102,7 @@ export default function ContactPage() {
 
                     {/* Call Us */}
                     <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center">
+                      <div className="shrink-0 w-12 h-12 bg-teal-500 rounded-full flex items-center justify-center">
                         <Phone className="w-6 h-6 text-white" />
                       </div>
                       <div>
@@ -214,7 +214,7 @@ export default function ContactPage() {
       </section>
 
       {/* Map Section */}
-      <section className="h-[500px] w-full">
+      <section className="h-125 w-full">
         <iframe
           src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d63844.37502276254!2d30.058669799999998!3d-1.9440727!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x19dca4258ed8e797%3A0x4a6c9b4e2b0a5b0a!2sKigali%2C%20Rwanda!5e0!3m2!1sen!2sus!4v1234567890123!5m2!1sen!2sus"
           width="100%"

@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { ArrowRight, CheckCircle, Shield, Clock, Heart, Users, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import Navbar from "@/components/landingpage/navbar";
+import Navbar from "@/components/landingPage/navbar";
 import Footer from "@/components/ui/Footer";
-import HowItWorks from "@/components/landingpage/how-it-works";
+import HowItWorks from "@/components/landingPage/how-it-works";
 import { useState } from "react";
 
 export default function HowItWorksPage() {

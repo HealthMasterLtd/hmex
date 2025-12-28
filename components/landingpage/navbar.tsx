@@ -14,14 +14,18 @@ export default function Navbar() {
     { label: "Home", href: "/" },
     { label: "Risk Assessment", href: "/risk-assesment" },
     { label: "About", href: "/about" },
+<<<<<<< HEAD
     { label: "How It Works", href: "/how-it-works" },
     { label:"Corporates", href: "/corporates" },
+=======
+    { label: "How It Works", href: "#how-it-works" },
+>>>>>>> 6ea6f63 (add contact page)
     { label: "Contact Us", href: "/contact" },
   ]
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white shadow-sm border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20">
         <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
