@@ -33,18 +33,17 @@ export default function ContactPage() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      {/* Hero Section with Image */}
       <section className="relative h-[60vh] lg:h-[70vh] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200&q=80"
+            src="/assets/new/hero.png"
             alt="Healthcare professional"
             fill
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-teal-600/80 via-teal-500/70 to-purple-600/80"></div>
+          <div className="absolute inset-0 bg-slate-700/70"></div>
         </div>
         
         {/* Hero Content */}
