@@ -5,36 +5,6 @@ import Link from "next/link";
 export default function Hero() {
   return (
     <section className="relative min-h-screen bg-white overflow-hidden">
-<<<<<<< HEAD
-      {/* Background Text Effect */}
-      <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
-        <div className="text-[12rem] sm:text-[16rem] md:text-[20rem] lg:text-[25rem] xl:text-[30rem] font-black text-gray-100/30 whitespace-nowrap animate-pulse">
-          HMEX
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 sm:px-6 lg:px-12 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-screen max-w-7xl mx-auto py-12 lg:py-0">
-          {/* Left Content */}
-          <div className="space-y-6 lg:space-y-8 animate-fade-in-up">
-            {/* Main Heading */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-              <span className="block text-[#1a3a52] mb-2 sm:mb-3">
-                Check Your Health Risk Early –
-              </span>
-              <span className="block text-[#1a3a52] mb-2 sm:mb-3">
-                Stay Aware,
-              </span>
-              <span className="block bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent animate-gradient">
-                Stay Healthy.
-              </span>
-            </h1>
-
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-xl">
-              Assess your NCD risk, get prevention tips, and connect to care – 
-              all in one place with our AI-powered health assessment platform.
-=======
       {/* Main Container */}
       <div className="container mx-auto h-screen px-6 lg:px-12">
         <div className="grid lg:grid-cols-2 h-full gap-12 items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-4">
@@ -45,7 +15,6 @@ export default function Hero() {
 
             <p className="text-lg text-gray-600 leading-relaxed text-balance">
               Assess your NCD risk, get prevention tips, and connect to care all in one place
->>>>>>> 6ea6f63 (add contact page)
             </p>
 
             {/* CTA Buttons */}

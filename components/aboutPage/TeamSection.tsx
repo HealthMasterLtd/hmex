@@ -5,11 +5,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const TeamSection = () => {
   const team = [
-    { name: "Irene Dushime", role: "CEO", bg: "bg-[#00C896]", image: "/assets/2.png" },
-    { name: "Irene Dushimana", role: "COO", bg: "bg-[#0B2E6F]", image: "/assets/14.png" },
-    { name: "Brian Chege", role: "CTO", bg: "bg-[#00C896]", image: "/assets/2.png" },
+    { name: "Irene Dushime", role: "CEO", bg: "bg-[#00C896]", image: "/assets/new/Irene.jpg" },
+    { name: "Bonheur", role: "COO", bg: "bg-[#0B2E6F]", image: "/assets/new/bonheur.JPG" },
+    { name: "Brian Chege", role: "CTO", bg: "bg-[#00C896]", image: "/assets/new/Brian.jpg" },
     { name: "Mucyo Papy Blaise", role: "Developer", bg: "bg-[#00C896]", image: "/assets/14.png" },
-    { name: "Irene Dushime", role: "Product Manager", bg: "bg-[#0B2E6F]", image: "/assets/2.png" },
+    { name: "Francis", role: "Product Manager", bg: "bg-[#0B2E6F]", image: "/assets/new/Francis.JPG" },
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
