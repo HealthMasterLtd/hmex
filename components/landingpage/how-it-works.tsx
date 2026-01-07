@@ -45,7 +45,7 @@ const stepsRight = [
 
 export default function HowItWorks() {
   return (
-    <section className="w-full py-12 md:py-16 lg:py-20 px-4 bg-white">
+    <section id="how-it-works" className="w-full scroll-mt-24 py-12 md:py-16 lg:py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-10 md:mb-14">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1a3a52] mb-4">
@@ -59,7 +59,7 @@ export default function HowItWorks() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-8 lg:gap-12 xl:gap-16 items-start">
           {/* Left Steps */}
           <div className="space-y-10 md:space-y-12 relative">
-            <div className="hidden lg:block absolute left-[50px] top-[60px] bottom-[60px] w-px bg-gray-200"></div>
+            <div className="hidden lg:block absolute left-12.5 top-15 bottom-15 w-px bg-gray-200"></div>
 
             {stepsLeft.map((step) => {
               const Icon = step.icon
@@ -86,7 +86,7 @@ export default function HowItWorks() {
                     </div>
                   </div>
 
-                  <div className="ml-[90px] md:ml-[100px] h-px bg-gray-300 w-[280px] md:w-[320px]"></div>
+                  <div className="ml-22.5 md:ml-25 h-px bg-gray-300 w-70 md:w-[320px]"></div>
                 </div>
               )
             })}
@@ -94,7 +94,7 @@ export default function HowItWorks() {
 
           {/* Center Image */}
           <div className="flex justify-center items-center lg:mx-6 xl:mx-8">
-            <div className="relative w-full max-w-[320px] md:max-w-[380px] lg:max-w-[420px]">
+            <div className="relative w-full max-w-[320px] md:max-w-95 lg:max-w-105">
               <Image
                 src="/assets/4zoom.png"
                 alt="Healthcare professional showing five fingers"
@@ -133,7 +133,7 @@ export default function HowItWorks() {
                     </div>
                   </div>
 
-                  <div className="ml-[90px] md:ml-[100px] h-px bg-gray-300 w-[280px] md:w-[320px]"></div>
+                  <div className="ml-22.5 md:ml-25 h-px bg-gray-300 w-70 md:w-[320px]"></div>
                 </div>
               )
             })}

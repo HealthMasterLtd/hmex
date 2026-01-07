@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { ArrowRight, CheckCircle, Shield, Clock, Heart, Users, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import Navbar from "@/components/landingpage/navbar";
+import Navbar from "@/components/landingPage/navbar";
 import Footer from "@/components/ui/Footer";
-import HowItWorks from "@/components/landingpage/how-it-works";
+import HowItWorks from "@/components/landingPage/how-it-works";
 import { useState } from "react";
 
 export default function HowItWorksPage() {
@@ -122,7 +122,7 @@ export default function HowItWorksPage() {
             </div>
 
             {/* Right Image - Better sized */}
-            <div className="relative h-[400px] sm:h-[500px] lg:h-[600px] animate-fade-in">
+            <div className="relative h-[400px] sm:h-125 lg:h-[600px] animate-fade-in">
               <div className="absolute inset-0 bg-gradient-to-br from-teal-100 to-emerald-100 rounded-[3rem] transform rotate-6"></div>
               <div className="relative h-full rounded-[3rem] overflow-hidden transform -rotate-3 hover:rotate-0 transition-transform duration-500">
                 <Image
