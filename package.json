@@ -9,10 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/chart.js": "^2.9.41",
+    "@types/react-chartjs-2": "^2.0.2",
+    "chart.js": "^4.5.1",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.553.0",
     "next": "^16.0.10",
     "react": "^19.2.3",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.3",
     "sass": "^1.97.0"
   },

@@ -3,8 +3,10 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Mail, Lock, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const LoginPage: React.FC = () => {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -18,11 +20,25 @@ const LoginPage: React.FC = () => {
   };
 
   const handleLogin = () => {
-    console.log("Login:", formData);
+    if (formData.email && formData.password) {
+      // Save user email to localStorage for greeting
+      localStorage.setItem("userEmail", formData.email);
+      localStorage.setItem("userName", formData.email.split("@")[0]); // Use email prefix as name
+      localStorage.setItem("isLoggedIn", "true");
+      
+      // Redirect to dashboard
+      router.push("/dashboard");
+    } else {
+      alert("Please fill in all fields");
+    }
   };
 
   const handleGoogleLogin = () => {
-    console.log("Login with Google");
+    // For now, just redirect with a demo email
+    localStorage.setItem("userEmail", "user@gmail.com");
+    localStorage.setItem("userName", "user");
+    localStorage.setItem("isLoggedIn", "true");
+    router.push("/dashboard");
   };
 
   return (
@@ -88,6 +104,7 @@ const LoginPage: React.FC = () => {
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={handleInputChange}
+                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
                 className="w-full pl-12 pr-4 text-black py-3 border border-gray-300 rounded-lg 
                 focus:ring-2 focus:ring-emerald-500 outline-none"
               />
@@ -134,8 +151,8 @@ const LoginPage: React.FC = () => {
 
           {/* SIGN UP */}
           <p className="mt-6 text-center text-sm text-gray-600">
-            Don’t have an account?{" "}
-            <a href="#" className="text-emerald-600 font-medium hover:underline">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="text-emerald-600 font-medium hover:underline">
               Sign Up
             </a>
           </p>
@@ -143,27 +160,27 @@ const LoginPage: React.FC = () => {
       </div>
 
       {/* RIGHT IMAGE */}
-    <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-[#E6F7F8]">
-  <div
-    className="
-      relative 
-      w-full
-      h-full
-      overflow-hidden 
-      
-      shadow-lg
-      bg-white
-    "
-  >
-    <Image
-      src="/Nurse.jpg"
-      alt="Doctor"
-      quality={100}
-      fill
-      className="object-cover"
-    />
-  </div>
-</div>
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-[#E6F7F8]">
+        <div
+          className="
+            relative 
+            w-full
+            h-full
+            overflow-hidden 
+            
+            shadow-lg
+            bg-white
+          "
+        >
+          <Image
+            src="/Nurse.jpg"
+            alt="Doctor"
+            quality={100}
+            fill
+            className="object-cover"
+          />
+        </div>
+      </div>
     </div>
   );
 };
