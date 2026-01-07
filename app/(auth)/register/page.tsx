@@ -3,8 +3,10 @@
 import React, { useState } from "react";
 import { User, Mail, Lock, Shield } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const SignUpPage: React.FC = () => {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -17,6 +19,40 @@ const SignUpPage: React.FC = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleSignUp = () => {
+    // Basic validation
+    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
+      alert("Please fill in all fields");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      alert("Password must be at least 6 characters long");
+      return;
+    }
+
+    // Save user data to localStorage
+    localStorage.setItem("userEmail", formData.email);
+    localStorage.setItem("userName", formData.fullName);
+    localStorage.setItem("isLoggedIn", "true");
+
+    // Redirect to dashboard
+    router.push("/dashboard");
+  };
+
+  const handleGoogleSignUp = () => {
+    // For now, just redirect with a demo name
+    localStorage.setItem("userEmail", "user@gmail.com");
+    localStorage.setItem("userName", "Google User");
+    localStorage.setItem("isLoggedIn", "true");
+    router.push("/dashboard");
   };
 
   return (
@@ -159,7 +195,7 @@ const SignUpPage: React.FC = () => {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   placeholder="John Doe"
-                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8]"
+                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8] outline-none"
                 />
               </div>
             </div>
@@ -177,7 +213,7 @@ const SignUpPage: React.FC = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="you@example.com"
-                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8]"
+                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8] outline-none"
                 />
               </div>
             </div>
@@ -195,7 +231,7 @@ const SignUpPage: React.FC = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8]"
+                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8] outline-none"
                 />
               </div>
             </div>
@@ -212,14 +248,18 @@ const SignUpPage: React.FC = () => {
                   type="password"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
+                  onKeyPress={(e) => e.key === "Enter" && handleSignUp()}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8]"
+                  className="w-full pl-12 pr-4 py-3 border border-[#D0D5DD] rounded-lg text-black focus:ring-2 focus:ring-[#0FB6C8] outline-none"
                 />
               </div>
             </div>
 
             {/* Create Account */}
-            <button className="w-full py-3 bg-teal-500 cursor-pointer  text-white rounded-lg font-semibold hover:bg-[#0EA8B8] transition">
+            <button 
+              onClick={handleSignUp}
+              className="w-full py-3 bg-teal-500 cursor-pointer text-white rounded-lg font-semibold hover:bg-[#0EA8B8] transition"
+            >
               Create Account
             </button>
           </div>
@@ -232,7 +272,10 @@ const SignUpPage: React.FC = () => {
           </div>
 
           {/* Google */}
-          <button className="w-full text-black border border-[#D0D5DD] bg-white py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-50">
+          <button 
+            onClick={handleGoogleSignUp}
+            className="w-full text-black border border-[#D0D5DD] bg-white py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-gray-50"
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
@@ -257,7 +300,7 @@ const SignUpPage: React.FC = () => {
           {/* Login */}
           <p className="text-center text-sm text-[#475467] mt-6">
             Already have an account?{" "}
-            <a className="text-[#0FB6C8] font-medium hover:text-[#0EA8B8]">
+            <a href="/login" className="text-[#0FB6C8] font-medium hover:text-[#0EA8B8] cursor-pointer">
               Log In
             </a>
           </p>
