@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { internalContactTemplate, autoReplyTemplate } from "@/lib/emailTemplate";
+import {
+  internalCorporateTemplate,
+  corporateAutoReplyTemplate,
+} from "@/lib/corporateEmailTemplates";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, phone, message } = await req.json();
+    const data = await req.json();
 
-    if (!name || !email || !message) {
+    const {
+      name,
+      department,
+      organization,
+      employeeCount,
+      email,
+      phone,
+      preferredDate,
+    } = data;
+
+    if (!name || !organization || !employeeCount || !email || !phone) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
@@ -23,27 +36,27 @@ export async function POST(req: Request) {
       },
     });
 
-    // Internal email
+    // 1️⃣ Internal sales email
     await transporter.sendMail({
       from: `"HealthMaster Website" <${process.env.EMAIL_USER}>`,
       to: process.env.EMAIL_TO,
-      subject: `New Contact Request — ${name}`,
-      html: internalContactTemplate({ name, email, phone, message }),
+      subject: `Corporate Demo — ${organization}`,
+      html: internalCorporateTemplate(data),
     });
 
-    // Auto-reply to user
+    // 2️⃣ Auto-reply to corporate client
     await transporter.sendMail({
       from: `"HealthMaster" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "We’ve received your message",
-      html: autoReplyTemplate(name),
+      subject: "Your HealthMaster demo request",
+      html: corporateAutoReplyTemplate(name),
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Contact API error:", error);
+    console.error("Corporate demo error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to send email" },
+      { success: false, error: "Failed to submit demo request" },
       { status: 500 }
     );
   }

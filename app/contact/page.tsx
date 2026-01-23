@@ -7,6 +7,10 @@ import Footer from "@/components/ui/Footer";
 import { useState } from "react";
 
 export default function ContactPage() {
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -14,14 +18,44 @@ export default function ContactPage() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    // Add your form submission logic here
+    setLoading(true);
+    setStatus("idle");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      setStatus("success");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        message: "",
+      });
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setFormData({
       ...formData,
@@ -45,7 +79,7 @@ export default function ContactPage() {
           />
           <div className="absolute inset-0 bg-slate-700/70"></div>
         </div>
-        
+
         {/* Hero Content */}
         <div className="relative z-10 text-center px-6">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 animate-fade-in-up">
@@ -83,7 +117,10 @@ export default function ContactPage() {
                         <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-1">
                           Head Office
                         </h3>
-                        <p className="text-gray-600 text-sm sm:text-base"> Norrsken House Kigali 1 KN 78 St, Kigali</p>
+                        <p className="text-gray-600 text-sm sm:text-base">
+                          {" "}
+                          Norrsken House Kigali 1 KN 78 St, Kigali
+                        </p>
                       </div>
                     </div>
 
@@ -96,7 +133,9 @@ export default function ContactPage() {
                         <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-1">
                           Email Us
                         </h3>
-                        <p className="text-gray-600 text-sm sm:text-base">info@healthmasterco.com</p>
+                        <p className="text-gray-600 text-sm sm:text-base">
+                          info@healthmasterco.com
+                        </p>
                       </div>
                     </div>
 
@@ -109,7 +148,9 @@ export default function ContactPage() {
                         <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-1">
                           Call Us
                         </h3>
-                        <p className="text-gray-600 text-sm sm:text-base">Phone:  +250789399765</p>
+                        <p className="text-gray-600 text-sm sm:text-base">
+                          Phone: +250789399765
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -134,9 +175,10 @@ export default function ContactPage() {
                         type="text"
                         id="name"
                         name="name"
+                        placeholder="Enter Your name"
                         value={formData.name}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
+                        className="w-full px-4 text-black py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
                         required
                       />
                     </div>
@@ -154,9 +196,10 @@ export default function ContactPage() {
                           type="email"
                           id="email"
                           name="email"
+                          placeholder="Enter Your email"
                           value={formData.email}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
+                          className="w-full px-4 text-black py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
                           required
                         />
                       </div>
@@ -171,9 +214,10 @@ export default function ContactPage() {
                           type="tel"
                           id="phone"
                           name="phone"
+                          placeholder="Enter Your phone number"
                           value={formData.phone}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
+                          className="w-full px-4 text-black py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none"
                           required
                         />
                       </div>
@@ -192,18 +236,31 @@ export default function ContactPage() {
                         name="message"
                         value={formData.message}
                         onChange={handleChange}
+                        placeholder="Type your message here..."
                         rows={6}
-                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none resize-none"
+                        className="w-full px-4  text-black py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all outline-none resize-none"
                         required
                       ></textarea>
                     </div>
 
+                    {status === "success" && (
+                      <p className="text-green-600 text-sm">
+                        ✅ Message sent successfully! We’ll get back to you
+                        soon.
+                      </p>
+                    )}
+
+                    {status === "error" && (
+                      <p className="text-red-600 text-sm">❌ {errorMsg}</p>
+                    )}
+
                     {/* Submit Button */}
                     <button
                       type="submit"
-                      className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-4 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl"
+                      disabled={loading}
+                      className="w-full bg-teal-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-full transition-all duration-300 shadow-lg hover:shadow-xl"
                     >
-                      Send
+                      {loading ? "Sending..." : "Send"}
                     </button>
                   </form>
                 </div>
