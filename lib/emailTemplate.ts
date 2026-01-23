@@ -1,81 +1,87 @@
-type ContactEmailProps = {
+export const internalContactTemplate = (data: {
   name: string;
   email: string;
-  phone: string;
-  service: string;
+  phone?: string;
   message: string;
-};
+}) => `
+<table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background:#f5f7fa; padding:30px;">
+  <tr>
+    <td align="center">
+      <table width="600" style="background:#ffffff; border-radius:8px; overflow:hidden;">
+        <tr>
+          <td style="background:#14b8a6; padding:20px; color:white;">
+            <h2 style="margin:0;">New Contact Request</h2>
+          </td>
+        </tr>
 
-export const contactEmailTemplate = ({
-  name,
-  email,
-  phone,
-  service,
-  message,
-}: ContactEmailProps) => {
-  return `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="UTF-8" />
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          background-color: #f4f4f4;
-          padding: 20px;
-        }
-        .container {
-          max-width: 600px;
-          margin: auto;
-          background: #ffffff;
-          border-radius: 8px;
-          overflow: hidden;
-        }
-        .header {
-          background: #f97316;
-          color: white;
-          padding: 20px;
-          text-align: center;
-        }
-        .content {
-          padding: 20px;
-          color: #333;
-        }
-        .content p {
-          line-height: 1.6;
-        }
-        .label {
-          font-weight: bold;
-          color: #555;
-        }
-        .footer {
-          background: #f9f9f9;
-          padding: 15px;
-          text-align: center;
-          font-size: 12px;
-          color: #777;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h2>New Contact Request</h2>
-        </div>
+        <tr>
+          <td style="padding:24px;">
+            <p><strong>Name:</strong> ${data.name}</p>
+            <p><strong>Email:</strong> ${data.email}</p>
+            <p><strong>Phone:</strong> ${data.phone || "N/A"}</p>
 
-        <div class="content">
-          <p><span class="label">Name:</span> ${name}</p>
-          <p><span class="label">Email:</span> ${email}</p>
-          <p><span class="label">Phone:</span> ${phone}</p>
-          <p><span class="label">Service:</span> ${service}</p>
-          <p><span class="label">Message:</span><br/>${message}</p>
-        </div>
+            <hr style="margin:20px 0;" />
 
-        <div class="footer">
-          <p>© ${new Date().getFullYear()} Your Company. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-  </html>
-  `;
-};
+            <p><strong>Message:</strong></p>
+            <p style="background:#f1f5f9; padding:15px; border-radius:6px;">
+              ${data.message}
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#f8fafc; padding:16px; text-align:center; font-size:12px; color:#64748b;">
+            HealthMaster • Contact Form
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+`;
+
+
+export const autoReplyTemplate = (name: string) => `
+<table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background:#f5f7fa; padding:30px;">
+  <tr>
+    <td align="center">
+      <table width="600" style="background:#ffffff; border-radius:8px;">
+        <tr>
+          <td style="background:#14b8a6; padding:20px; color:white;">
+            <h2 style="margin:0;">Thanks for contacting HealthMaster</h2>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:24px; color:#334155;">
+            <p>Hi <strong>${name}</strong>,</p>
+
+            <p>
+              Thank you for reaching out to HealthMaster.  
+              We’ve received your message and one of our specialists will
+              contact you within <strong>24 hours</strong>.
+            </p>
+
+            <p>
+              We’re excited to help you improve employee health and wellness.
+            </p>
+
+            <p style="margin-top:30px;">
+              Warm regards,<br />
+              <strong>HealthMaster Team</strong><br />
+              📧 info@healthmasterco.com<br />
+              📞 +250 789 399 765
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#f8fafc; padding:16px; text-align:center; font-size:12px; color:#64748b;">
+            © ${new Date().getFullYear()} HealthMaster
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+`;

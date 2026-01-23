@@ -13,7 +13,6 @@ const TeamSection = () => {
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
-
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev === 0 ? team.length - 1 : prev - 1));
   };
