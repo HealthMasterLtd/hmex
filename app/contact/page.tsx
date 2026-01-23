@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { MapPin, Mail, Phone } from "lucide-react";
-import Navbar from "@/components/landingPage/navbar";
+import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useState } from "react";
 

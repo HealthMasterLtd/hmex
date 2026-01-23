@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import Navbar from "@/components/landingPage/navbar";
+import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 
 export default function HealthCheckPage() {

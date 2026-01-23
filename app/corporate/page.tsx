@@ -1,6 +1,6 @@
 "use client";
 
-import Navbar from "@/components/landingPage/navbar";
+import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { Users, Briefcase, Calendar } from "lucide-react";
 import { useState } from "react";

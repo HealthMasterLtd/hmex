@@ -7,7 +7,7 @@ import ImpactStats from "@/components/aboutPage/ImpactStats";
 import TeamSection from "@/components/aboutPage/TeamSection";
 import JoinUs from "@/components/aboutPage/JoinUs";
 import Footer from "@/components/ui/Footer";
-import Navbar from "@/components/landingPage/navbar";
+import Navbar from "@/components/landingpage/navbar";
 
 export default function AboutPage() {
   return (
