@@ -10,10 +10,9 @@
   },
   "dependencies": {
     "@types/chart.js": "^2.9.41",
-    "@types/react-chartjs-2": "^2.0.2",
     "chart.js": "^4.5.1",
     "framer-motion": "^12.23.26",
-    "lucide-react": "^0.553.0",
+    "lucide-react": "^0.563.0",
     "next": "^16.0.10",
     "nodemailer": "^7.0.12",
     "react": "^19.2.3",
