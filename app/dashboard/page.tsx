@@ -28,6 +28,7 @@ import {
 import { Bar } from "react-chartjs-2";
 import Navbar from "@/components/landingpage/navbar";
 
+
 // Register ChartJS components
 ChartJS.register(
   CategoryScale,
@@ -276,7 +277,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50">
-      <Navbar />
+      <Navbar/>
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-12 py-8 sm:py-12">
         <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
