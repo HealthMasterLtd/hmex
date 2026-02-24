@@ -1,90 +1,169 @@
-import Image from "next/image"
+'use client';
+import Image from "next/image";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useEffect, useRef, useState } from "react";
+
+const stats = [
+  { pct: 33, label: "Cardiovascular",   icon: "/assets/cordial.png",   alt: "cardiovascular" },
+  { pct: 17, label: "Cancers",           icon: "/assets/cancer.png",    alt: "cancers" },
+  { pct: 8,  label: "Diabetes",          icon: "/assets/diabetes.png",  alt: "diabetes" },
+  { pct: 14, label: "Other NCDs",        icon: "/assets/otherCNDS.png", alt: "other NCDs" },
+];
+
+function useCountUp(target: number, duration = 1300, start = false) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let t0: number | null = null;
+    const tick = (ts: number) => {
+      if (!t0) t0 = ts;
+      const p = Math.min((ts - t0) / duration, 1);
+      setValue(Math.round((1 - Math.pow(1 - p, 3)) * target));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration, start]);
+  return value;
+}
 
 export default function QuoteSection() {
+  const { isDark } = useTheme();
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); io.disconnect(); } },
+      { threshold: 0.18 }
+    );
+    if (ref.current) io.observe(ref.current);
+    return () => io.disconnect();
+  }, []);
+
+  const big = useCountUp(74, 1500, visible);
+
   return (
-    <section className="w-full py-16 md:py-24 px-4 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-start gap-12 md:gap-16">
-          <div className="flex justify-center md:justify-start w-full md:w-1/2">
+    <section
+      ref={ref}
+      className={`w-full py-20 md:py-28 transition-colors duration-500 ${
+        isDark ? "bg-[#161b25]" : "bg-[#f0f4f8]"
+      }`}
+    >
+      <div className="mx-auto max-w-6xl px-6 lg:px-16">
+        <div className="flex flex-col gap-16 md:flex-row md:items-center md:gap-20">
+
+          {/* ── LEFT: map ── */}
+          <div
+            className="relative flex w-full justify-center md:w-1/2 md:justify-start"
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateX(0)" : "translateX(-18px)",
+              transition: "opacity .75s ease, transform .75s ease",
+            }}
+          >
+            {/* Ambient glow behind map */}
+            <div
+              className="absolute inset-0 -z-0"
+              style={{
+                background: isDark
+                  ? "radial-gradient(ellipse at 50% 50%, rgba(13,148,136,.13) 0%, transparent 68%)"
+                  : "radial-gradient(ellipse at 50% 50%, rgba(13,148,136,.12) 0%, transparent 68%)",
+                animation: "breathe 7s ease-in-out infinite",
+              }}
+            />
             <Image
               src="/assets/3.png"
-              alt="World map"
-              width={400}
-              height={300}
-              className="w-full max-w-md h-auto object-contain"
+              alt="World map showing NCD distribution"
+              width={440}
+              height={310}
+              className={`relative z-10 w-full max-w-[340px] object-contain md:max-w-[420px] ${
+                isDark ? "opacity-85" : "opacity-100"
+              }`}
             />
           </div>
 
-          <div className="w-full md:w-1/2 space-y-8">
-            <div>
-              <h2 className="text-5xl md:text-6xl font-bold text-[#001b44] mb-4">
-                74% <span className="text-base font-normal text-gray-600">of all deaths</span>
-              </h2>
-              <p className="text-sm text-gray-700 font-semibold leading-relaxed">
-                Non-communicable diseases (NCDs) account for over 70% of all deaths worldwide, making them the leading cause of mortality across the globe.
+          {/* ── RIGHT: copy + stats ── */}
+          <div
+            className="flex w-full flex-col gap-10 md:w-1/2"
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(16px)",
+              transition: "opacity .75s ease .15s, transform .75s ease .15s",
+            }}
+          >
+            {/* Eyebrow */}
+            <p className={`text-[11px] font-semibold uppercase tracking-[0.2em] ${
+              isDark ? "text-teal-400" : "text-teal-600"
+            }`}>
+              Global Burden of Disease
+            </p>
+
+            {/* Big number */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-baseline gap-3">
+                <span className={`text-[clamp(3.2rem,7vw,5rem)] font-bold leading-none tabular-nums ${
+                  isDark ? "text-white" : "text-slate-900"
+                }`}>
+                  {big}%
+                </span>
+                <span className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                  of all deaths
+                </span>
+              </div>
+              <p className={`max-w-[42ch] text-[14.5px] leading-[1.8] ${
+                isDark ? "text-slate-400" : "text-slate-500"
+              }`}>
+                Non-communicable diseases are the leading cause of mortality worldwide —
+                responsible for more than 7 in 10 deaths every year.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mt-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-500 mb-1">33%</div>
-                <div className="flex justify-center mb-2 items-center gap-2">
-                  <Image
-                    src="/assets/cordial.png"
-                    alt="cardiovascular"
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 object-contain"
-                  />
-                  <div className="text-xs text-gray-600 font-bold text-nowrap">cardiovascular diseases</div>
-                </div>
-              </div>
+            {/* Divider */}
+            <div className={`h-px w-full ${isDark ? "bg-white/8" : "bg-slate-200"}`} />
 
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-500 mb-1">17%</div>
-                <div className="flex justify-center mb-2 items-center gap-2">
-                  <Image
-                    src="/assets/cancer.png"
-                    alt="cancers"
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 object-contain"
-                  />
-                  <div className="text-xs text-gray-600 font-bold">Cancers</div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-500 mb-1">8%</div>
-                <div className="flex justify-center mb-2 gap-2 items-center">
-                  <Image
-                    src="/assets/diabetes.png"
-                    alt="diabetes"
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 object-contain"
-                  />
-                <div className="text-xs text-gray-600 font-bold">Diabetes</div>
-                </div>
-              </div>
-
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-500 mb-1">14%</div>
-                <div className="flex justify-center mb-2  items-center gap-2">
-                  <Image
-                    src="/assets/otherCNDS.png"
-                    alt="other NCDs"
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 object-contain"
-                  />
-                <div className="text-xs text-gray-600 font-bold text-nowrap">Other NCDs</div>
-                </div>
-              </div>
+            {/* Stats — no cards, just clean columns */}
+            <div className="grid grid-cols-2 gap-y-8 gap-x-6 sm:grid-cols-4">
+              {stats.map((s, i) => {
+                // eslint-disable-next-line react-hooks/rules-of-hooks
+                const count = useCountUp(s.pct, 1200, visible);
+                return (
+                  <div
+                    key={s.alt}
+                    className="flex flex-col gap-2"
+                    style={{
+                      opacity: visible ? 1 : 0,
+                      transform: visible ? "translateY(0)" : "translateY(10px)",
+                      transition: `opacity .5s ease ${280 + i * 90}ms, transform .5s ease ${280 + i * 90}ms`,
+                    }}
+                  >
+                    <span className={`text-[1.6rem] font-bold tabular-nums leading-none ${
+                      isDark ? "text-teal-400" : "text-teal-600"
+                    }`}>
+                      {count}%
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Image src={s.icon} alt={s.alt} width={18} height={18} className="h-[18px] w-[18px] object-contain opacity-70" />
+                      <span className={`text-[12px] font-medium leading-snug ${
+                        isDark ? "text-slate-400" : "text-slate-500"
+                      }`}>
+                        {s.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes breathe {
+          0%, 100% { transform: scale(1);    opacity: 1;   }
+          50%       { transform: scale(1.1); opacity: .65; }
+        }
+      `}</style>
     </section>
-  )
+  );
 }
