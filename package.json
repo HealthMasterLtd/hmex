@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@types/chart.js": "^2.9.41",
+    "appwrite": "^22.4.1",
     "chart.js": "^4.5.1",
     "framer-motion": "^12.23.26",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.563.0",
     "next": "^16.0.10",
+    "node-appwrite": "^22.1.2",
     "nodemailer": "^7.0.12",
     "react": "^19.2.3",
     "react-chartjs-2": "^5.3.1",

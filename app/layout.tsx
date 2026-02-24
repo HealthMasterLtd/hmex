@@ -1,21 +1,21 @@
+// app/layout.tsx
 import type React from "react";
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
-const geistSans = Geist({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-dm-sans",
 });
 
 export const metadata: Metadata = {
-  title: "HMEX ",
-  description: "HMEX",
+  title: "HMEX",
+  description: "HMEX — AI-powered NCD health risk detection",
   icons: {
     icon: "/logoHmex.png",
     shortcut: "/logoHmex.png",
@@ -30,10 +30,18 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-       
-        {children}
+    <html lang="en" suppressHydrationWarning className={dmSans.variable}>
+      <body
+        style={{
+          fontFamily: `'DM Sans', sans-serif`,
+        }}
+      >
+        {/* This div ensures DM Sans cascades absolutely everywhere */}
+        <div style={{ fontFamily: `'DM Sans', sans-serif` }}>
+          <ThemeProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </ThemeProvider>
+        </div>
       </body>
     </html>
   );
