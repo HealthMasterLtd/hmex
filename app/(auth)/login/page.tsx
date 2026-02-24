@@ -219,7 +219,7 @@ export default function LoginPage() {
                 <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: colors.surface, color: colors.text }}>
                   Sign in
                 </div>
-                <Link href="/signup" className="flex-1 py-2 text-center text-sm font-medium" style={{ color: colors.muted }}>
+                <Link href="/register" className="flex-1 py-2 text-center text-sm font-medium" style={{ color: colors.muted }}>
                   Sign up
                 </Link>
               </div>
@@ -373,7 +373,7 @@ export default function LoginPage() {
                 {/* Sign Up Link */}
                 <p className="text-center text-sm mt-4" style={{ color: colors.muted }}>
                   Don&apos;t have an account?{" "}
-                  <Link href="/signup" className="font-semibold" style={{ color: colors.primary }}>
+                  <Link href="/register" className="font-semibold" style={{ color: colors.primary }}>
                     Sign up
                   </Link>
                 </p>
