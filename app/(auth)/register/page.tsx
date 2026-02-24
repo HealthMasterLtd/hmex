@@ -77,7 +77,7 @@ function HealthLottie() {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { login, loginWithGoogle, loading, error, clearError, user } = useAuth();
+  const { signUp, loginWithGoogle, loading, error, clearError, user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -140,8 +140,11 @@ export default function SignUpPage() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    // Using login function with email and password
-    await login(formData.email.trim(), formData.password);
+    await signUp({
+      fullName: formData.fullName.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -225,15 +228,15 @@ export default function SignUpPage() {
         {/* Mobile Header */}
         <div className="relative z-10 px-5 py-6">
           <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
-                <Image
-                  src='/white logo.png'
-                  alt="Logo"
-                  width={120}
-                  height={50}
-                  className="object-cover w-full h-full"
-                />
-              </div>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+              <Image
+                src='/white logo.png'
+                alt="Logo"
+                width={120}
+                height={50}
+                className="object-cover w-full h-full"
+              />
+            </div>
             <span className="text-xl font-bold text-white">HMEX</span>
           </div>
           <div className="mt-6">
@@ -521,15 +524,15 @@ export default function SignUpPage() {
               <div className="space-y-8">
                 {/* Logo */}
                 <Link href="/" className="inline-flex items-center gap-3 group">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
-                <Image
-                  src='/white logo.png'
-                  alt="Logo"
-                  width={120}
-                  height={50}
-                  className="object-cover w-full h-full"
-                />
-              </div>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+                    <Image
+                      src='/white logo.png'
+                      alt="Logo"
+                      width={120}
+                      height={50}
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
                   <span className="text-2xl font-bold" style={{ color: colors.text }}>HMEX</span>
                 </Link>
 
