@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Asap:ital,wght@0,100..900;1,100..900&family=Bubbler+One&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Dosis:wght@200..800&family=Funnel+Display:wght@300..800&family=Funnel+Sans:ital,wght@0,300..800;1,300..800&family=Geist+Mono:wght@100..900&family=Outfit:wght@100..900&family=Space+Grotesk:wght@300..700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -42,6 +42,50 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  --bg-base: #F5FAFD;
+  --bg-surface: #FFFFFF;
+  --bg-muted: #F2F4F7;
+  --bg-accent: #D6F2EA;
+  --text-primary: #101828;
+  --text-secondary: #475467;
+  --text-muted: #667085;
+  --text-inverse: #FFFFFF;
+  --border-focus: #0FB6C8;
+  --brand-primary: #0FB6C8;
+  --brand-emerald: #10B981;
+  --brand-navy: #0A2D5E;
+  --success: #0F9D8A;
+  --success-bg: #E0F7F1;
+  --error: #F04438;
+  --error-bg: #FEF3F2;
+  --warning: #F79009;
+  --warning-bg: #FFFAEB;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  
+  --bg-base: #0D1117;
+  --bg-surface: #161B22;
+  --bg-muted: #1C2333;
+  --bg-accent: #0D2B22;
+  --text-primary: #F0F6FC;
+  --text-secondary: #8B949E;
+  --text-muted: #6E7681;
+  --text-inverse: #101828;
+  --border: #30363D;
+  --border-focus: #0FB6C8;
+  --brand-primary: #0FB6C8;
+  --brand-emerald: #10B981;
+  --brand-navy: #0A2D5E;
+  --success: #3DD68C;
+  --success-bg: #0D2B22;
+  --error: #FF6B6B;
+  --error-bg: #2D1515;
+  --warning: #FFC107;
+  --warning-bg: #2B2000;
 }
 
 @theme inline {
@@ -51,18 +95,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Rubik', sans-serif !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
+
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);
@@ -76,4 +114,33 @@ body {
   .animate-spin-slow {
     animation: spin-slow 3s linear infinite;
   }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-muted);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--brand-primary);
+  border-radius: 5px;
+  border: 2px solid var(--bg-muted);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-emerald);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--bg-muted);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-primary) var(--bg-muted);
 }
