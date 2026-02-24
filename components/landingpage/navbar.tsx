@@ -3,282 +3,217 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, Sun, Moon, Heart } from "lucide-react";
+import { Menu, X, Sun, Moon, ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 
+const navItems = [
+  { label: "Home",            href: "/"               },
+  { label: "Risk Assessment", href: "/risk-assesment" },
+  { label: "About",           href: "/about"          },
+  { label: "How It Works",    href: "#how-it-works"   },
+  { label: "Corporate",       href: "/corporate"      },
+  { label: "Contact",         href: "/contact"        },
+];
+
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen]     = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const pathname = usePathname();
+  const pathname                = usePathname();
   const { isDark, toggleTheme } = useTheme();
 
-  // Handle scroll effect
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const fn = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  // Close mobile menu when route changes
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+  useEffect(() => { setIsOpen(false); }, [pathname]);
 
-  const navItems = [
-    { label: "Home", href: "/" },
-    { label: "Risk Assessment", href: "/risk-assesment" },
-    { label: "About", href: "/about" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Corporate", href: "/corporate" },
-    { label: "Contact", href: "/contact" },
-  ];
-
-  const colors = {
-    bg: isDark ? "#0D0D0F" : "#FFFFFF",
-    bgScrolled: isDark ? "#1A1B1F" : "#FFFFFF",
-    border: isDark ? "#202126" : "#E2E2E0",
-    text: isDark ? "#FFFFFF" : "#0A0A0B",
-    textMuted: isDark ? "#A0A0A8" : "#52525B",
-    primary: "#0FB6C8",
-    emerald: "#0FBB7D",
-  };
+  // ── Token system ──────────────────────────────────────
+  const bg      = isDark ? "#0e1117"          : "#ffffff";
+  const border  = isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)";
+  const text    = isDark ? "#f8fafc"          : "#0f172a";
+  const muted   = isDark ? "rgba(248,250,252,.45)" : "rgba(15,23,42,.45)";
 
   return (
     <>
       <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0,    opacity: 1 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-0 left-0 right-0 z-50 transition-colors duration-300"
         style={{
-          background: scrolled ? colors.bgScrolled : colors.bg,
-          borderBottom: `1px solid ${scrolled ? colors.border : "transparent"}`,
-          backdropFilter: scrolled ? "blur(12px)" : "none",
+          background: scrolled
+            ? isDark ? "rgba(14,17,23,.92)" : "rgba(255,255,255,.92)"
+            : bg,
+          borderBottom: scrolled ? `1px solid ${border}` : "1px solid transparent",
+          backdropFilter: scrolled ? "blur(16px)" : "none",
         }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative"
-              >
-               <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
-                <Image
-                  src='/white logo.png'
-                  alt="Logo"
-                  width={120}
-                  height={50}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-              </motion.div>
-              <span
-                className="text-xl font-black tracking-tight"
+        <div className="mx-auto flex h-[60px] max-w-7xl items-center justify-between px-5 lg:px-10">
+
+          {/* ── Logo ── */}
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+            <div className="h-8 w-8 overflow-hidden rounded-full">
+              <Image
+                src="/white logo.png"
+                alt="HMEX"
+                width={32}
+                height={32}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <span
+              className="text-[15px] font-bold tracking-tight"
+              style={{ color: text }}
+            >
+              H<span className="text-teal-500">mex</span>
+            </span>
+          </Link>
+
+          {/* ── Desktop links ── */}
+          <div className="hidden items-center gap-0.5 md:flex">
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="relative px-3.5 py-2 group"
+                >
+                  {/* Active pill underline */}
+                  {active && (
+                    <motion.span
+                      layoutId="nav-indicator"
+                      className="absolute bottom-1 left-3.5 right-3.5 h-[2px] rounded-full bg-teal-500"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
+
+                  {/* Hover bg */}
+                  <span
+                    className="absolute inset-0 rounded-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                    style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.04)" }}
+                  />
+
+                  <span
+                    className="relative text-[13.5px] font-medium transition-colors duration-150"
+                    style={{ color: active ? (isDark ? "#f8fafc" : "#0f172a") : muted }}
+                  >
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* ── Desktop actions ── */}
+          <div className="hidden items-center gap-2 md:flex">
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150"
+              style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)" }}
+              aria-label="Toggle theme"
+            >
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={isDark ? "moon" : "sun"}
+                  initial={{ rotate: -45, opacity: 0 }}
+                  animate={{ rotate: 0,   opacity: 1 }}
+                  exit={{    rotate:  45, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {isDark
+                    ? <Moon  size={15} style={{ color: muted }} />
+                    : <Sun   size={15} style={{ color: muted }} />
+                  }
+                </motion.span>
+              </AnimatePresence>
+            </button>
+
+            {/* Login */}
+            <Link href="/login">
+              <button
+                className="h-8 rounded-lg px-4 text-[13px] font-semibold transition-colors duration-150"
                 style={{
-                  color: colors.text,
-                  fontFamily: "'Space Grotesk', 'Inter', sans-serif",
-                  letterSpacing: "-0.02em",
+                  color: text,
+                  border: `1px solid ${border}`,
+                  background: "transparent",
                 }}
               >
-                H<span style={{ color: colors.emerald }}>mex</span>
-              </span>
+                Log in
+              </button>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className="relative px-3 py-2 group"
-                  >
-                    <span
-                      className="text-sm font-medium transition-colors relative z-10"
-                      style={{
-                        color: isActive ? colors.emerald : colors.textMuted,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-
-                    {/* Unique active state - pill background */}
-                    {isActive && (
-                      <motion.div
-                        layoutId="navbar-pill"
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          background: isDark
-                            ? `color-mix(in srgb, ${colors.emerald} 15%, transparent)`
-                            : `color-mix(in srgb, ${colors.emerald} 10%, transparent)`,
-                          border: `1px solid color-mix(in srgb, ${colors.emerald} 20%, transparent)`,
-                        }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 380,
-                          damping: 30,
-                        }}
-                      />
-                    )}
-
-                    {/* Hover effect */}
-                    {!isActive && (
-                      <div
-                        className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{
-                          background: isDark
-                            ? "rgba(255, 255, 255, 0.03)"
-                            : "rgba(0, 0, 0, 0.03)",
-                        }}
-                      />
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-3">
-              {/* Theme Toggle */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={toggleTheme}
-                className="p-2 transition-all"
+            {/* Sign up */}
+            <Link href="/register">
+              <button
+                className="group flex h-8 items-center gap-1.5 rounded-lg px-4 text-[13px] font-semibold text-white transition-opacity duration-150 hover:opacity-90"
                 style={{
-                  background: isDark
-                    ? "rgba(255, 255, 255, 0.05)"
-                    : "rgba(0, 0, 0, 0.05)",
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: "8px",
+                  background: "linear-gradient(135deg, #0d9488, #059669)",
+                  boxShadow: "0 2px 10px rgba(13,148,136,.30)",
                 }}
               >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={isDark ? "moon" : "sun"}
-                    initial={{ rotate: -90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: 90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {isDark ? (
-                      <Moon size={18} style={{ color: colors.text }} />
-                    ) : (
-                      <Sun size={18} style={{ color: colors.text }} />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.button>
+                Sign up
+                <ArrowRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5" />
+              </button>
+            </Link>
+          </div>
 
-              {/* Login Button */}
-              <Link href="/login">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 text-sm font-semibold transition-all"
-                  style={{
-                    color: colors.text,
-                    border: `1px solid ${colors.border}`,
-                    borderRadius: "8px",
-                    background: "transparent",
-                  }}
+          {/* ── Mobile controls ── */}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={toggleTheme}
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)" }}
+              aria-label="Toggle theme"
+            >
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={isDark ? "moon" : "sun"}
+                  initial={{ rotate: -45, opacity: 0 }}
+                  animate={{ rotate: 0,   opacity: 1 }}
+                  exit={{    rotate:  45, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                 >
-                  Login
-                </motion.button>
-              </Link>
+                  {isDark
+                    ? <Moon size={15} style={{ color: muted }} />
+                    : <Sun  size={15} style={{ color: muted }} />
+                  }
+                </motion.span>
+              </AnimatePresence>
+            </button>
 
-              {/* Sign Up Button */}
-              <Link href="/register">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 text-sm font-semibold text-white transition-all"
-                  style={{
-                    background: `linear-gradient(135deg, ${colors.primary}, ${colors.emerald})`,
-                    borderRadius: "8px",
-                    boxShadow: `0 2px 8px ${colors.emerald}20`,
-                  }}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              style={{ background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.04)" }}
+              aria-label="Toggle menu"
+            >
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={isOpen ? "x" : "menu"}
+                  initial={{ rotate: -45, opacity: 0 }}
+                  animate={{ rotate: 0,   opacity: 1 }}
+                  exit={{    rotate:  45, opacity: 0 }}
+                  transition={{ duration: 0.15 }}
                 >
-                  Sign Up
-                </motion.button>
-              </Link>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="flex md:hidden items-center gap-2">
-              {/* Mobile Theme Toggle */}
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={toggleTheme}
-                className="p-2"
-                style={{
-                  background: isDark
-                    ? "rgba(255, 255, 255, 0.05)"
-                    : "rgba(0, 0, 0, 0.05)",
-                  borderRadius: "8px",
-                }}
-              >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={isDark ? "moon" : "sun"}
-                    initial={{ rotate: -90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: 90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {isDark ? (
-                      <Moon size={18} style={{ color: colors.text }} />
-                    ) : (
-                      <Sun size={18} style={{ color: colors.text }} />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.button>
-
-              {/* Hamburger Menu */}
-              <motion.button
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setIsOpen(!isOpen)}
-                className="p-2"
-                style={{
-                  background: isDark
-                    ? "rgba(255, 255, 255, 0.05)"
-                    : "rgba(0, 0, 0, 0.05)",
-                  borderRadius: "8px",
-                }}
-              >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={isOpen ? "close" : "menu"}
-                    initial={{ rotate: -90, opacity: 0 }}
-                    animate={{ rotate: 0, opacity: 1 }}
-                    exit={{ rotate: 90, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {isOpen ? (
-                      <X size={24} style={{ color: colors.text }} />
-                    ) : (
-                      <Menu size={24} style={{ color: colors.text }} />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.button>
-            </div>
+                  {isOpen
+                    ? <X    size={18} style={{ color: text }} />
+                    : <Menu size={18} style={{ color: text }} />
+                  }
+                </motion.span>
+              </AnimatePresence>
+            </button>
           </div>
         </div>
       </motion.nav>
 
-      {/* Mobile Menu Overlay */}
+      {/* ── Mobile drawer ── */}
       <AnimatePresence>
         {isOpen && (
           <>
@@ -286,157 +221,95 @@ export default function Navbar() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{    opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="fixed inset-0 z-40 md:hidden"
-              style={{
-                background: isDark ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.5)",
-                backdropFilter: "blur(8px)",
-              }}
+              style={{ background: "rgba(0,0,0,.5)", backdropFilter: "blur(6px)" }}
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Mobile Menu */}
+            {/* Panel */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed top-16 right-0 bottom-0 w-80 z-40 md:hidden overflow-y-auto"
+              exit={{    x: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed right-0 top-[60px] bottom-0 z-50 w-72 overflow-y-auto md:hidden"
               style={{
-                background: colors.bg,
-                borderLeft: `1px solid ${colors.border}`,
+                background: isDark ? "#0e1117" : "#ffffff",
+                borderLeft: `1px solid ${border}`,
               }}
             >
-              <div className="p-6 space-y-6">
-                {/* Navigation Links */}
-                <div className="space-y-2">
-                  {navItems.map((item, index) => {
-                    const isActive = pathname === item.href;
+              <div className="flex flex-col gap-1 p-5">
 
-                    return (
-                      <motion.div
-                        key={item.label}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
+                {/* Nav links */}
+                {navItems.map((item, i) => {
+                  const active = pathname === item.href;
+                  return (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04, duration: 0.25 }}
+                    >
+                      <Link
+                        href={item.href}
+                        className="flex items-center justify-between rounded-lg px-4 py-3 transition-colors duration-150"
+                        style={{
+                          background: active
+                            ? isDark ? "rgba(13,148,136,.12)" : "rgba(13,148,136,.08)"
+                            : "transparent",
+                        }}
                       >
-                        <Link
-                          href={item.href}
-                          className="block px-4 py-3 transition-all relative overflow-hidden group"
-                          style={{
-                            borderRadius: "12px",
-                            background: isActive
-                              ? isDark
-                                ? `color-mix(in srgb, ${colors.emerald} 15%, transparent)`
-                                : `color-mix(in srgb, ${colors.emerald} 10%, transparent)`
-                              : "transparent",
-                            border: `1px solid ${
-                              isActive
-                                ? `color-mix(in srgb, ${colors.emerald} 30%, transparent)`
-                                : "transparent"
-                            }`,
-                          }}
+                        <span
+                          className="text-[14px] font-semibold"
+                          style={{ color: active ? "#0d9488" : text }}
                         >
-                          {/* Active indicator */}
-                          {isActive && (
-                            <motion.div
-                              layoutId="mobile-active"
-                              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-full"
-                              style={{ background: colors.emerald }}
-                              transition={{
-                                type: "spring",
-                                stiffness: 380,
-                                damping: 30,
-                              }}
-                            />
-                          )}
-
-                          <span
-                            className="text-base font-semibold relative z-10"
-                            style={{
-                              color: isActive ? colors.emerald : colors.text,
-                            }}
-                          >
-                            {item.label}
-                          </span>
-
-                          {/* Hover effect */}
-                          {!isActive && (
-                            <div
-                              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              style={{
-                                background: isDark
-                                  ? "rgba(255, 255, 255, 0.03)"
-                                  : "rgba(0, 0, 0, 0.03)",
-                                borderRadius: "12px",
-                              }}
-                            />
-                          )}
-                        </Link>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                          {item.label}
+                        </span>
+                        {active && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+                        )}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
 
                 {/* Divider */}
-                <div
-                  style={{
-                    height: "1px",
-                    background: colors.border,
-                  }}
-                />
+                <div className="my-3 h-px" style={{ background: border }} />
 
-                {/* Action Buttons */}
-                <div className="space-y-3">
+                {/* Auth buttons */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.28 }}
+                  className="flex flex-col gap-2"
+                >
                   <Link href="/login">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full px-4 py-3 text-sm font-semibold transition-all"
+                    <button
+                      className="w-full rounded-lg py-3 text-[13.5px] font-semibold transition-colors duration-150"
                       style={{
-                        color: colors.text,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: "12px",
+                        color: text,
+                        border: `1px solid ${border}`,
                         background: "transparent",
                       }}
                     >
-                      Login
-                    </motion.button>
+                      Log in
+                    </button>
                   </Link>
-
                   <Link href="/register">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full px-4 py-3 text-sm font-semibold text-white transition-all"
+                    <button
+                      className="w-full rounded-lg py-3 text-[13.5px] font-semibold text-white"
                       style={{
-                        background: `linear-gradient(135deg, ${colors.primary}, ${colors.emerald})`,
-                        borderRadius: "12px",
-                        boxShadow: `0 4px 12px ${colors.emerald}30`,
+                        background: "linear-gradient(135deg, #0d9488, #059669)",
+                        boxShadow: "0 2px 12px rgba(13,148,136,.25)",
                       }}
                     >
-                      Sign Up
-                    </motion.button>
+                      Sign up free
+                    </button>
                   </Link>
-                </div>
-
-                {/* Footer Info */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="pt-4 text-center"
-                >
-                  <p
-                    className="text-xs"
-                    style={{
-                      color: colors.textMuted,
-                    }}
-                  >
-                    Your health insights, always safe.
-                  </p>
                 </motion.div>
+
               </div>
             </motion.div>
           </>
