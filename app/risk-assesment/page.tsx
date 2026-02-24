@@ -139,7 +139,7 @@ export default function HealthCheckPage() {
               alt="Health professional"
               width={480}
               height={560}
-              className="w-full max-w-[320px] object-contain object-bottom lg:max-w-[420px]"
+              className="w-full max-w-[320px] object-contain rounded-lg object-bottom lg:max-w-[420px]"
               priority
             />
           </div>

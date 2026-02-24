@@ -1,434 +1,402 @@
+/* eslint-disable react-hooks/refs */
 "use client";
 
 import Image from "next/image";
-import { ArrowRight, CheckCircle, Shield, Clock, Heart, Users, ChevronDown } from "lucide-react";
+import { ArrowRight, Shield, Clock, Heart, Users, ChevronRight, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import HowItWorks from "@/components/landingpage/how-it-works";
-import { useState } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
+
+function useInView(threshold = 0.15) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); io.disconnect(); } },
+      { threshold }
+    );
+    if (ref.current) io.observe(ref.current);
+    return () => io.disconnect();
+  }, [threshold]);
+  return { ref, visible };
+}
+
+const benefits = [
+  { icon: Shield, title: "Private & Secure",      desc: "Your health data is encrypted and never shared without your explicit consent."               },
+  { icon: Clock,  title: "Results in Minutes",    desc: "Get instant risk assessment results powered by AI trained on validated clinical data."        },
+  { icon: Heart,  title: "Personalised Plan",     desc: "Receive health recommendations based on your unique risk profile and lifestyle factors."      },
+  { icon: Users,  title: "Expert-Backed Science", desc: "Our assessments are developed with leading healthcare professionals and researchers."         },
+];
+
+const journeySteps = [
+  {
+    n: "01",
+    title: "Answer simple questions",
+    body: "No medical jargon. Straightforward questions about your lifestyle, family history, and current health — taking under 2 minutes.",
+    checks: ["Quick 2-minute completion", "Progress saved automatically", "Clear explanations for every question"],
+  },
+  {
+    n: "02",
+    title: "AI scores your risk",
+    body: "Our model analyses your responses against validated clinical benchmarks across 12 NCD conditions instantly.",
+    checks: ["Validated against clinical standards", "Considers multiple health dimensions", "Results available in seconds"],
+  },
+  {
+    n: "03",
+    title: "Get your personal report",
+    body: "A clear, actionable risk profile with prevention tips and, where needed, referrals to nearby care.",
+    checks: ["Visual risk score breakdown", "Personalised lifestyle recommendations", "Referral to nearby health centres"],
+  },
+];
+
+const faqs = [
+  { q: "How accurate is the assessment?",        a: "Our AI-powered assessment is validated against clinical standards and continuously refined with real-world data from healthcare professionals."                            },
+  { q: "Is my health information secure?",        a: "Yes. We use strong encryption and comply with international healthcare data protection standards. Your information is never sold or shared without explicit consent." },
+  { q: "How long does the assessment take?",      a: "Under 2 minutes. 12 simple questions about your lifestyle, health history, and habits."                                                                              },
+  { q: "What happens after I get my results?",    a: "You'll receive a detailed risk profile with personalised recommendations. If needed, we'll connect you with nearby healthcare facilities."                           },
+  { q: "Do I need any medical equipment?",        a: "No equipment needed. The assessment uses self-reported information. Knowing basic vitals like blood pressure can improve accuracy if you have them."                  },
+];
 
 export default function HowItWorksPage() {
+  const { isDark } = useTheme();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const toggleFaq = (index: number) => {
-    setOpenFaq(openFaq === index ? null : index);
-  };
-  const benefits = [
-    {
-      icon: Shield,
-      title: "100% Private & Secure",
-      description: "Your health data is encrypted and never shared without your consent. We prioritize your privacy above all.",
-    },
-    {
-      icon: Clock,
-      title: "Results in Minutes",
-      description: "Get instant risk assessment results powered by advanced AI algorithms trained on millions of health records.",
-    },
-    {
-      icon: Heart,
-      title: "Personalized Care Plan",
-      description: "Receive customized health recommendations based on your unique risk profile and lifestyle factors.",
-    },
-    {
-      icon: Users,
-      title: "Expert-Backed Science",
-      description: "Our assessments are developed in collaboration with leading healthcare professionals and researchers.",
-    },
-  ];
+  const bg    = isDark ? "#0e1117" : "#ffffff";
+  const bgAlt = isDark ? "#161b25" : "#f0f4f8";
+  const h     = isDark ? "text-white"     : "text-slate-900";
+  const p     = isDark ? "text-slate-400" : "text-slate-500";
+  const ln    = isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)";
 
-  const stats = [
-    { number: "1240+", label: "Health Assessments Completed" },
-    { number: "95%", label: "Accuracy Rate" },
-    { number: "50+", label: "Healthcare Partners" },
-    { number: "24/7", label: "Available Support" },
-  ];
-
-  const faqs = [
-    {
-      question: "How accurate is the health risk assessment?",
-      answer: "Our AI-powered assessment has a 95% accuracy rate, validated against clinical standards and continuously improved with real-world data from healthcare professionals.",
-    },
-    {
-      question: "Is my health information secure?",
-      answer: "Absolutely. We use bank-level encryption and comply with international healthcare data protection standards. Your information is never sold or shared without explicit consent.",
-    },
-    {
-      question: "How long does the assessment take?",
-      answer: "The complete assessment takes just 5-7 minutes. You'll answer simple questions about your lifestyle, health history, and current symptoms.",
-    },
-    {
-      question: "What happens after I get my results?",
-      answer: "You'll receive a detailed risk report with personalized recommendations. If needed, we'll connect you with nearby healthcare facilities for further consultation.",
-    },
-    {
-      question: "Do I need any medical equipment?",
-      answer: "No equipment needed! Our assessment uses your self-reported information. However, knowing basic vitals like blood pressure can improve accuracy.",
-    },
-  ];
+  const heroRef    = useInView(0.1);
+  const benefitRef = useInView();
+  const journeyRef = useInView();
+  const faqRef     = useInView();
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen transition-colors duration-500" style={{ background: bg }}>
       <Navbar />
 
-      {/* Hero Section - Redesigned */}
-      <section className="relative min-h-screen overflow-hidden bg-white">
-        {/* Background Text Effect */}
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
-          <div className="text-[12rem] sm:text-[16rem] md:text-[20rem] lg:text-[25rem] xl:text-[30rem] font-black text-gray-100/30 whitespace-nowrap animate-pulse">
-            HMEX
-          </div>
-        </div>
+      {/* ── HERO ── */}
+      <section className="relative w-full overflow-hidden" style={{ background: bg }}>
+        {/* Subtle teal quadrant */}
+        <div
+          className="pointer-events-none absolute right-0 top-0 h-[65%] w-[50%]"
+          style={{
+            background: isDark
+              ? "radial-gradient(ellipse at 85% 15%, rgba(13,148,136,.08) 0%, transparent 65%)"
+              : "radial-gradient(ellipse at 85% 15%, rgba(13,148,166,.10) 0%, transparent 65%)",
+          }}
+        />
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-12 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-screen max-w-7xl mx-auto py-12 lg:py-0">
-            {/* Left Content */}
-            <div className="space-y-6 lg:space-y-8 animate-fade-in-up">
-              
-              
-              {/* Main Heading with Background Text */}
-              <div className="relative">
-                <h1 className="text-3xl sm:text-4xl md:text-4xl lg:text-5xl font-bold leading-tight">
-                  <span className="block text-[#1a3a52] mb-2">
-                    Understanding Your
-                  </span>
-                  <span className="block text-[#1a3a52]">
-                    Health Risk Has
-                  </span>
-                  <span className="block text-[#1a3a52]">
-                    Never Been
-                  </span>
-                  <span className="block bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent animate-gradient">
-                    This Easy
-                  </span>
-                </h1>
-              </div>
+        <div className="relative z-10 mx-auto grid min-h-screen max-w-7xl grid-cols-1 items-center gap-10 px-6 py-28 lg:grid-cols-2 lg:gap-20 lg:px-16 lg:py-0">
+          <div
+            className="flex flex-col gap-7"
+            style={{
+              opacity: heroRef.visible ? 1 : 0,
+              transform: heroRef.visible ? "translateY(0)" : "translateY(16px)",
+              transition: "opacity .7s ease, transform .7s ease",
+            }}
+            ref={heroRef.ref}
+          >
+            <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+              How It Works
+            </p>
 
-              <p className="text-sm sm:text-base lg:text-lg leading-relaxed text-gray-600 max-w-xl">
-                Discover how our AI-powered platform helps you take control of your health through simple questions, instant insights, and personalized care guidance.
-              </p>
+            <h1 className={`text-[clamp(2rem,3.8vw,3rem)] font-bold leading-[1.13] tracking-tight ${h}`}>
+              Understanding your risk
+              <br />
+              <span className="bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">
+                has never been simpler.
+              </span>
+            </h1>
 
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link href="/questions">
-                  <button className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base lg:text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white hover:scale-105">
-                    Start Free Assessment
-                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1" />
-                  </button>
-                </Link>
-                <button className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base lg:text-lg font-semibold transition-all duration-300 border-2 border-teal-500 text-teal-600 hover:bg-teal-50">
-                  Watch Demo
+            <p className={`max-w-[40ch] text-[15px] leading-[1.8] ${p}`}>
+              Our AI-powered platform helps you take control of your health
+              through simple questions, instant insights, and personalised
+              care guidance — in under two minutes.
+            </p>
+
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
+              <Link href="/questions">
+                <button
+                  className="group inline-flex w-full items-center justify-center gap-2.5 rounded-lg px-7 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-[.98] sm:w-auto"
+                  style={{
+                    background: "linear-gradient(135deg, #0d9488, #059669)",
+                    boxShadow: "0 4px 18px rgba(13,148,136,.28)",
+                  }}
+                >
+                  Start Free Assessment
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </button>
-              </div>
-            </div>
-
-            {/* Right Image - Better sized */}
-            <div className="relative h-[400px] sm:h-125 lg:h-[600px] animate-fade-in">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-100 to-emerald-100 rounded-[3rem] transform rotate-6"></div>
-              <div className="relative h-full rounded-[3rem] overflow-hidden transform -rotate-3 hover:rotate-0 transition-transform duration-500">
-                <Image
-                  src="/assets/works.png"
-                  alt="Healthcare professional"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
+              </Link>
+              <span className={`text-[12px] ${p}`}>Free · Under 2 minutes</span>
             </div>
           </div>
-        </div>
 
-        {/* Floating Elements */}
-        <div className="absolute top-20 right-10 w-20 h-20 bg-teal-200 rounded-full blur-3xl opacity-40 animate-float"></div>
-        <div className="absolute bottom-32 left-10 w-32 h-32 bg-emerald-200 rounded-full blur-3xl opacity-40 animate-float-delayed"></div>
+          <div className="relative flex items-end justify-center">
+            <div
+              className="absolute inset-0 -z-10"
+              style={{
+                background: "radial-gradient(ellipse at 50% 72%, rgba(13,148,136,.12) 0%, transparent 62%)",
+                animation: "breathe 8s ease-in-out infinite",
+              }}
+            />
+            <Image
+              src="/assets/works.png"
+              alt="Healthcare professional"
+              width={480}
+              height={560}
+              className="w-full max-w-[320px] rounded-lg object-contain object-bottom lg:max-w-[420px]"
+              priority
+            />
+          </div>
+        </div>
       </section>
 
-      {/* How It Works Component */}
+      {/* ── HOW IT WORKS COMPONENT ── */}
       <HowItWorks />
 
-      {/* Benefits Section - Light Theme Cards */}
-      <section className="py-16 sm:py-20 bg-gradient-to-br from-emerald-50 via-teal-50 to-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1a5f7a] mb-4">
-                Why Choose HMEX Health Assessment?
-              </h2>
-              <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto px-4">
-                We combine cutting-edge technology with medical expertise to provide you with the most accurate and actionable health insights.
-              </p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-              {benefits.map((benefit, index) => {
-                const Icon = benefit.icon;
-                return (
-                  <div
-                    key={index}
-                    className="bg-white border-2 border-gray-100 p-6 sm:p-8 rounded-3xl hover:border-teal-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 group"
-                  >
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-teal-50 group-hover:bg-gradient-to-br group-hover:from-teal-500 group-hover:to-emerald-500 rounded-2xl flex items-center justify-center mb-4 sm:mb-6 transition-all duration-300">
-                      <Icon className="w-6 h-6 sm:w-7 sm:h-7 text-teal-600 group-hover:text-white transition-colors duration-300" />
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-bold text-[#1a5f7a] mb-2 sm:mb-3">
-                      {benefit.title}
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                      {benefit.description}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
+      {/* ── BENEFITS ── */}
+      <section
+        ref={benefitRef.ref}
+        className="w-full py-24 md:py-28 transition-colors duration-500"
+        style={{ background: bgAlt }}
+      >
+        <div className="mx-auto max-w-7xl px-6 lg:px-16">
+          <div
+            className="mb-14"
+            style={{
+              opacity: benefitRef.visible ? 1 : 0,
+              transform: benefitRef.visible ? "translateY(0)" : "translateY(14px)",
+              transition: "opacity .7s ease, transform .7s ease",
+            }}
+          >
+            <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+              Why HMEX
+            </p>
+            <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+              Built for real life.
+            </h2>
           </div>
-        </div>
-      </section>
 
-      {/* Visual Journey Section */}
-      <section className="py-16 sm:py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1a5f7a] mb-4 px-4">
-                A Visual Journey Through Your Assessment
-              </h2>
-              <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto px-4">
-                See how simple and intuitive our platform makes understanding your health risks.
-              </p>
-            </div>
-
-            <div className="space-y-16 sm:space-y-20">
-              {/* Step 1 */}
-              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="space-y-4 sm:space-y-6 px-4">
-                  <div className="inline-block px-4 py-2 bg-teal-100 rounded-full text-teal-700 text-xs sm:text-sm font-bold">
-                    STEP 1
-                  </div>
-                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1a5f7a]">
-                    Answer Simple Questions
-                  </h3>
-                  <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                    No medical jargon or complicated forms. Just straightforward questions about your lifestyle, family history, and current health.
-                  </p>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-teal-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Quick 5-7 minute completion time</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-teal-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Progress saved automatically</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-teal-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Clear explanations for every question</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
-                  <Image
-                    src="https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=800&q=80"
-                    alt="Person filling health questionnaire"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              </div>
-
-              {/* Step 2 */}
-              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] order-2 lg:order-1 rounded-3xl overflow-hidden shadow-2xl">
-                  <Image
-                    src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80"
-                    alt="AI analyzing health data"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="space-y-4 sm:space-y-6 order-1 lg:order-2 px-4">
-                  <div className="inline-block px-4 py-2 bg-emerald-100 rounded-full text-emerald-700 text-xs sm:text-sm font-bold">
-                    STEP 2
-                  </div>
-                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1a5f7a]">
-                    AI-Powered Analysis
-                  </h3>
-                  <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                    Our advanced machine learning algorithms analyze your responses instantly and provide accurate predictions.
-                  </p>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Validated against clinical standards</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Considers multiple health dimensions</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Results available in seconds</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                <div className="space-y-4 sm:space-y-6 px-4">
-                  <div className="inline-block px-4 py-2 bg-purple-100 rounded-full text-purple-700 text-xs sm:text-sm font-bold">
-                    STEP 3
-                  </div>
-                  <h3 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1a5f7a]">
-                    Get Your Personalized Report
-                  </h3>
-                  <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                    Receive a comprehensive report with actionable recommendations tailored to your situation.
-                  </p>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Visual risk score breakdown</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Personalized lifestyle recommendations</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm sm:text-base text-gray-700">Downloadable PDF report</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="relative h-[300px] sm:h-[400px] lg:h-[500px] rounded-3xl overflow-hidden shadow-2xl">
-                  <Image
-                    src="https://images.unsplash.com/photo-1666214280557-f1b5022eb634?w=800&q=80"
-                    alt="Health report on tablet"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section - Matching Design Image */}
-      <section className="py-16 sm:py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1a5f7a] mb-4 px-4">
-                Trusted by Thousands
-              </h2>
-              <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto px-4">
-                Join the growing community taking control of their health with HMEX
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-              {stats.map((stat, index) => (
+          <div className="grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-4" style={{ background: ln }}>
+            {benefits.map((b, i) => {
+              const Icon = b.icon;
+              return (
                 <div
-                  key={index}
-                  className="relative bg-white border border-gray-200 p-8 sm:p-10 rounded-2xl text-center transition-all duration-300 hover:shadow-xl hover:border-teal-300 overflow-hidden group"
+                  key={i}
+                  className="flex flex-col gap-4 p-8 transition-colors duration-500"
+                  style={{
+                    background: bgAlt,
+                    opacity: benefitRef.visible ? 1 : 0,
+                    transform: benefitRef.visible ? "translateY(0)" : "translateY(12px)",
+                    transition: `opacity .55s ease ${i * 90}ms, transform .55s ease ${i * 90}ms`,
+                  }}
                 >
-                  {/* Background Number Effect */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-                    <span className="text-[8rem] sm:text-[10rem] lg:text-[12rem] font-black text-gray-100 opacity-30 group-hover:opacity-40 transition-opacity">
-                      {stat.number.charAt(0)}
-                    </span>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${isDark ? "bg-teal-500/12 text-teal-400" : "bg-teal-500/10 text-teal-600"}`}>
+                    <Icon className="h-[17px] w-[17px]" />
                   </div>
-
-                  {/* Content */}
-                  <div className="relative z-10">
-                    <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-teal-600 mb-3">
-                      {stat.number}
-                    </div>
-                    <div className="text-gray-700 text-sm sm:text-base font-medium">
-                      {stat.label}
-                    </div>
+                  <div>
+                    <h3 className={`mb-2 text-[14.5px] font-bold ${h}`}>{b.title}</h3>
+                    <p className={`text-[13px] leading-[1.75] ${p}`}>{b.desc}</p>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* FAQ Section - Accordion Style */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12 sm:mb-16">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1a5f7a] mb-4 px-4">
-                Frequently Asked Questions
+      {/* ── VISUAL JOURNEY ── */}
+      <section
+        ref={journeyRef.ref}
+        className="w-full py-24 md:py-28 transition-colors duration-500"
+        style={{ background: bg }}
+      >
+        <div className="mx-auto max-w-7xl px-6 lg:px-16">
+          <div
+            className="mb-16"
+            style={{
+              opacity: journeyRef.visible ? 1 : 0,
+              transform: journeyRef.visible ? "translateY(0)" : "translateY(14px)",
+              transition: "opacity .7s ease, transform .7s ease",
+            }}
+          >
+            <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+              Step by Step
+            </p>
+            <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+              Your journey, visualised.
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-px md:grid-cols-3" style={{ background: ln }}>
+            {journeySteps.map((step, i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-6 p-8 md:p-10 transition-colors duration-500"
+                style={{
+                  background: bg,
+                  opacity: journeyRef.visible ? 1 : 0,
+                  transform: journeyRef.visible ? "translateY(0)" : "translateY(16px)",
+                  transition: `opacity .6s ease ${i * 130}ms, transform .6s ease ${i * 130}ms`,
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className="text-[11px] font-bold tabular-nums"
+                    style={{ color: isDark ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.18)" }}
+                  >
+                    {step.n}
+                  </span>
+                  <div className="h-px flex-1 mx-4" style={{ background: ln }} />
+                </div>
+
+                <div>
+                  <h3 className={`mb-3 text-[15px] font-bold ${h}`}>{step.title}</h3>
+                  <p className={`text-[13.5px] leading-[1.8] ${p}`}>{step.body}</p>
+                </div>
+
+                <ul className="flex flex-col gap-2.5 pt-1">
+                  {step.checks.map((c, ci) => (
+                    <li key={ci} className="flex items-center gap-2.5">
+                      <CheckCircle className={`h-3.5 w-3.5 shrink-0 ${isDark ? "text-teal-400" : "text-teal-500"}`} />
+                      <span className={`text-[12.5px] ${p}`}>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section
+        ref={faqRef.ref}
+        className="w-full py-24 md:py-28 transition-colors duration-500"
+        style={{ background: bgAlt }}
+      >
+        <div className="mx-auto max-w-3xl px-6">
+          <div
+            className="mb-14"
+            style={{
+              opacity: faqRef.visible ? 1 : 0,
+              transform: faqRef.visible ? "translateY(0)" : "translateY(14px)",
+              transition: "opacity .7s ease, transform .7s ease",
+            }}
+          >
+            <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+              FAQ
+            </p>
+            <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+              Common questions.
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-0">
+            {faqs.map((faq, i) => (
+              <div
+                key={i}
+                className="border-b"
+                style={{
+                  borderColor: ln,
+                  opacity: faqRef.visible ? 1 : 0,
+                  transform: faqRef.visible ? "translateY(0)" : "translateY(10px)",
+                  transition: `opacity .5s ease ${i * 70}ms, transform .5s ease ${i * 70}ms`,
+                }}
+              >
+                <button
+                  className="flex w-full items-center justify-between gap-4 py-5 text-left"
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                >
+                  <span className={`text-[14.5px] font-semibold ${h}`}>{faq.q}</span>
+                  <ChevronRight
+                    className={`h-4 w-4 shrink-0 transition-transform duration-200 ${p} ${openFaq === i ? "rotate-90" : ""}`}
+                  />
+                </button>
+                {openFaq === i && (
+                  <p className={`pb-5 text-[13.5px] leading-[1.8] ${p}`}>{faq.a}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BOTTOM CTA ── */}
+      <section className="w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2">
+          {/* Teal left */}
+          <div
+            className="relative flex flex-col justify-between gap-8 overflow-hidden px-10 py-14 md:px-16 md:py-16 xl:px-20"
+            style={{ background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)" }}
+          >
+            <div
+              className="pointer-events-none absolute -right-12 -top-12 h-64 w-64 rounded-full opacity-[.07]"
+              style={{ border: "44px solid #fff", animation: "breathe 9s ease-in-out infinite" }}
+            />
+            <div className="relative z-10 flex flex-col gap-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">Ready?</p>
+              <h2 className="text-[clamp(1.7rem,3.4vw,2.6rem)] font-bold leading-[1.12] tracking-tight text-white">
+                Take control of
+                <br />your health today.
               </h2>
-              <p className="text-base sm:text-lg text-gray-600 px-4">
-                Everything you need to know about our health assessment
+              <p className="max-w-[34ch] text-[14px] leading-[1.8] text-white/70">
+                A two-minute risk check that could change how you approach your
+                health for years to come. Free, private, clinically informed.
               </p>
             </div>
-
-            <div className="space-y-4">
-              {faqs.map((faq, index) => (
-                <div
-                  key={index}
-                  className="bg-white border border-gray-200 rounded-xl overflow-hidden transition-all duration-300 hover:border-teal-300 hover:shadow-md"
-                >
-                  <button
-                    onClick={() => toggleFaq(index)}
-                    className="w-full flex items-center justify-between p-6 text-left"
-                  >
-                    <h3 className="text-base sm:text-lg font-bold text-[#1a5f7a] pr-4">
-                      {faq.question}
-                    </h3>
-                    <ChevronDown
-                      className={`w-5 h-5 sm:w-6 sm:h-6 text-teal-600 flex-shrink-0 transition-transform duration-300 ${
-                        openFaq === index ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                  <div
-                    className={`transition-all duration-300 ease-in-out ${
-                      openFaq === index ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-                    } overflow-hidden`}
-                  >
-                    <div className="px-6 pb-6">
-                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="relative z-10">
+              <Link href="/questions">
+                <button className="group inline-flex items-center gap-3 rounded-lg bg-white px-6 py-3.5 text-sm font-bold text-teal-700 transition-all hover:bg-white/92 active:scale-[.98]">
+                  Start Free Assessment
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-white transition-transform group-hover:translate-x-0.5">
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </button>
+              </Link>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* CTA Section */}
-      <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-50 to-gray-100">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-12">
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-gradient-to-br from-teal-600 to-emerald-600 rounded-3xl p-8 sm:p-12 lg:p-16 text-center relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-48 sm:w-64 h-48 sm:h-64 bg-white/10 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-48 sm:w-64 h-48 sm:h-64 bg-white/10 rounded-full blur-3xl"></div>
-              
-              <div className="relative z-10">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6 px-4">
-                  Ready to Take Control of Your Health?
-                </h2>
-                <p className="text-base sm:text-lg text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
-                  Start your free health risk assessment now and get personalized insights in minutes.
-                </p>
-                <Link href="/questions">
-                  <button className="group inline-flex items-center gap-3 px-8 sm:px-10 py-4 sm:py-5 rounded-full text-base sm:text-lg font-semibold transition-all duration-300 shadow-2xl hover:shadow-3xl bg-white text-teal-600 hover:bg-gray-50 hover:scale-105">
-                    Begin Your Free Assessment
-                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 transition-transform group-hover:translate-x-1" />
-                  </button>
-                </Link>
-                <p className="text-white/80 mt-4 sm:mt-6 text-xs sm:text-sm px-4">
-                  No credit card required • 100% Private & Secure • Takes only 5 minutes
-                </p>
+          {/* Dark right */}
+          <div
+            className={`flex flex-col justify-between gap-8 px-10 py-14 md:px-16 md:py-16 xl:px-20 transition-colors duration-500 ${isDark ? "bg-[#161b25]" : "bg-white border border-slate-200"}`}
+          >
+            <div className="flex flex-col gap-4">
+              <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-white/40" : "text-slate-400"}`}>
+                Why It Matters
+              </p>
+              <h3 className={`text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold leading-[1.15] tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                Prevention is always
+                <br />
+                <span className="text-teal-500">cheaper than treatment.</span>
+              </h3>
+              <p className={`max-w-[38ch] text-[14px] leading-[1.8] ${isDark ? "text-white/50" : "text-slate-500"}`}>
+                NCDs cause 74% of all deaths globally — yet up to 80% are
+                preventable with early awareness and simple lifestyle changes.
+              </p>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div className="h-px w-full" style={{ background: ln }} />
+              <div className="grid grid-cols-3 gap-4">
+                {[{ v: "2 min", l: "to complete" }, { v: "12", l: "conditions checked" }, { v: "Free", l: "always" }].map((s, i) => (
+                  <div key={i} className="flex flex-col gap-1">
+                    <span className={`text-[1.05rem] font-bold tabular-nums ${isDark ? "text-white" : "text-slate-900"}`}>{s.v}</span>
+                    <span className={`text-[11px] ${isDark ? "text-white/35" : "text-slate-400"}`}>{s.l}</span>
+                  </div>
+                ))}
               </div>
+              <div className="h-px w-full" style={{ background: ln }} />
+              <Link href="/how-it-works">
+                <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-teal-500 transition-colors hover:text-teal-400">
+                  See how it works
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
             </div>
           </div>
         </div>
@@ -437,72 +405,9 @@ export default function HowItWorksPage() {
       <Footer />
 
       <style jsx>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-20px);
-          }
-        }
-
-        @keyframes float-delayed {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-30px);
-          }
-        }
-
-        @keyframes gradient {
-          0%, 100% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-        }
-
-        .animate-fade-in-up {
-          animation: fade-in-up 0.8s ease-out;
-        }
-
-        .animate-fade-in {
-          animation: fade-in 1s ease-out;
-        }
-
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-
-        .animate-float-delayed {
-          animation: float-delayed 8s ease-in-out infinite;
-        }
-
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
+        @keyframes breathe {
+          0%, 100% { transform: scale(1);    opacity: 1;   }
+          50%       { transform: scale(1.1); opacity: .65; }
         }
       `}</style>
     </div>

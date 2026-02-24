@@ -13,7 +13,7 @@ const navItems = [
   { label: "Home",            href: "/"               },
   { label: "Risk Assessment", href: "/risk-assesment" },
   { label: "About",           href: "/about"          },
-  { label: "How It Works",    href: "#how-it-works"   },
+  { label: "How It Works",    href: "/how-it-works"   },
   { label: "Corporate",       href: "/corporate"      },
   { label: "Contact",         href: "/contact"        },
 ];
