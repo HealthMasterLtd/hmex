@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import Image from "next/image";
@@ -262,7 +263,7 @@ function WhyWeExist({ isDark, bgAlt, h, p }: any) {
             Why We Exist
           </p>
           <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
-            The gap we're
+            The gap we&apos;re
             <br />closing.
           </h2>
           <p className={`max-w-[40ch] text-[15px] leading-[1.8] ${p}`}>
@@ -607,7 +608,7 @@ function JoinUs({ isDark, bgAlt, h, p, ln }: any) {
           <p className={`max-w-[38ch] text-[15px] leading-[1.8] ${p}`}>
             We are building this platform with communities, healthcare workers,
             and partners who believe in preventive care. If you share our
-            vision, we'd love to work together.
+            vision, we&apos;d love to work together.
           </p>
 
           <div className="h-px w-full" style={{ background: ln }} />
