@@ -48,7 +48,7 @@ function useCountUp(target: number, duration = 1200, start = false) {
 const team = [
   { name: "Irene Dushime",     role: "CEO",             image: "/assets/new/Irene.jpg"   },
   { name: "Bonheur",           role: "COO",             image: "/assets/new/bonheur.JPG" },
-  { name: "Brian Chege",       role: "CTO",             image: "/assets/new/Brian.jpg"   },
+  { name: "Brian Chege",       role: "CTO",             image: "/assets/new/brian.jpeg"   },
   { name: "Mucyo Papy Blaise", role: "Developer",       image: "/assets/14.png"          },
   { name: "Francis",           role: "Product Manager", image: "/assets/new/Francis.JPG" },
 ];
