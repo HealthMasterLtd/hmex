@@ -519,7 +519,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const bg      = isDark ? "#060c18" : "#f0f4f9";
+  const bg      = isDark ? "#060c18" : "#ffffff";
   const cardBg  = isDark ? "#0d1323" : "#ffffff";
   const border  = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
   const textH   = isDark ? "#f0f4f8" : "#0f172a";

@@ -6,7 +6,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
 
-// ─── LAYOUT CONTEXT (so child pages can read collapsed state if needed) ────────
+// ─── LAYOUT CONTEXT ────────────────────────────────────────────────────────────
 interface LayoutContextType {
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (v: boolean) => void;
@@ -30,26 +30,22 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isDark } = useTheme();
 
-  // Sidebar collapse — persisted in localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // On mount, restore sidebar state
   useEffect(() => {
     const saved = localStorage.getItem("hmex-sidebar-collapsed");
     if (saved !== null) setSidebarCollapsed(saved === "true");
     setMounted(true);
   }, []);
 
-  // Persist sidebar state
   const handleToggleCollapse = () => {
     const next = !sidebarCollapsed;
     setSidebarCollapsed(next);
     localStorage.setItem("hmex-sidebar-collapsed", String(next));
   };
 
-  // Close mobile drawer on resize to desktop
   useEffect(() => {
     const onResize = () => {
       if (window.innerWidth >= 1024) setMobileOpen(false);
@@ -58,9 +54,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const pageBg = isDark ? "#080c16" : "#f1f5f9";
+  // Page bg — slightly different from sidebar so curves are visible
+  const pageBg = isDark ? "#080c16" : "#eef2f7";
 
-  // Prevent layout flash before mount
   if (!mounted) {
     return (
       <div
@@ -74,11 +70,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <LayoutContext.Provider
       value={{ sidebarCollapsed, setSidebarCollapsed, mobileOpen, setMobileOpen }}
     >
+      {/*
+        Outer wrapper: the "page bg" colour shows around the sidebar's
+        rounded corners (top-right and bottom-left), giving that inset
+        curved look without breaking the layout.
+      */}
       <div
-        className="flex h-screen overflow-hidden"
+        className="flex h-screen overflow-hidden p-2 gap-2"
         style={{ background: pageBg }}
       >
-        {/* ── SIDEBAR ── */}
+        {/* ── SIDEBAR — gets border-radius top-right + bottom-left ── */}
         <DashboardSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={handleToggleCollapse}
@@ -86,15 +87,24 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onMobileClose={() => setMobileOpen(false)}
         />
 
-        {/* ── MAIN COLUMN ── */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* ── MAIN COLUMN — also rounded to match aesthetic ── */}
+        <div
+          className="flex flex-col flex-1 min-w-0 overflow-hidden"
+          style={{
+            borderRadius: 16,
+            background: isDark ? "#0b1120" : "#ffffff",
+            boxShadow: isDark
+              ? "0 0 0 1px rgba(255,255,255,0.05), 0 8px 40px rgba(0,0,0,0.4)"
+              : "0 0 0 1px rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)",
+          }}
+        >
           {/* Header */}
           <DashboardHeader onMobileMenuOpen={() => setMobileOpen(true)} />
 
           {/* Page content */}
           <main
             className="flex-1 overflow-y-auto overflow-x-hidden"
-            style={{ background: pageBg }}
+            style={{ background: "transparent" }}
           >
             <div
               className="mx-auto px-5 py-6 lg:px-7 lg:py-7"
