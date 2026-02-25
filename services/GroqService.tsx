@@ -744,6 +744,260 @@ Tone: warm, evidence-based, hopeful. Not alarmist. Written for a non-medical rea
     return { ...assessment, detailedAnalysis: data.choices[0].message.content.trim() };
   }
 
+  // ─── NEW METHOD: GENERATE RECOMMENDATIONS ─────────────────────────────────
+
+  /**
+   * Generate personalised recommendations based on the assessment
+   * This can be called after the assessment is complete to get detailed recommendations
+   */
+  async generateRecommendations(assessment: DualRiskAssessment): Promise<any> {
+    if (!this.API_KEY) {
+      console.log('⚠️ No Groq API key — using fallback recommendations');
+      return this.getFallbackRecommendations(assessment);
+    }
+
+    try {
+      const age = Number(this.ans('age')) || 0;
+      const gender = String(this.ans('gender') || '');
+      const bmi = this.calcBMI();
+      const waist = String(this.ans('waist_circumference') || '');
+      
+      const allAnswers = this.answers.map(a => `• ${a.question}: "${a.value}"`).join('\n');
+
+      const prompt = `You are a clinical AI specialised in diabetes and hypertension prevention for East African populations (Rwanda/Kenya).
+
+PATIENT ASSESSMENT RESULTS:
+- Age: ${age} years
+- Gender: ${gender}
+- BMI: ${bmi.toFixed(1)} (${this.getBMICategory(bmi)})
+- Waist: ${waist}
+- Diabetes risk level: ${assessment.diabetesRisk.level} (score: ${assessment.diabetesRisk.score}, ${assessment.diabetesRisk.percentage})
+- Hypertension risk level: ${assessment.hypertensionRisk.level} (score: ${assessment.hypertensionRisk.score}, ${assessment.hypertensionRisk.percentage})
+- Summary: ${assessment.summary}
+
+PATIENT ANSWERS:
+${allAnswers || '(baseline data only)'}
+
+Generate exactly 12 highly personalised, evidence-based health recommendations for this specific patient.
+Distribute across these 6 categories (2 per category):
+1. nutrition
+2. physical_activity
+3. stress_sleep
+4. medical
+5. lifestyle
+6. monitoring
+
+Rules:
+- Be HIGHLY SPECIFIC to their risk levels, BMI, waist, age, and answers
+- Reference East African food staples where relevant (ugali, beans, matoke, sweet potatoes, leafy greens, sorghum, sukuma wiki)
+- Be warm, practical, and achievable — not clinical jargon
+- For urgent/high priority items, be direct about urgency
+- Each action must be a concrete, single sentence the patient can do this week
+- Set locallyRelevant: true when you mention local foods, health centres, or cultural context
+- Set evidenceBased: true for all clinically validated recommendations
+- Use appropriate emoji icons (🚶, 🥗, 💧, 🧂, 😴, 🧘, 🏥, etc.)
+
+Respond ONLY with a valid JSON array. No markdown. No explanation. Format:
+[
+  {
+    "title": "Short title (3-5 words)",
+    "description": "1-2 sentences explaining why this matters for them.",
+    "action": "Specific single sentence of what to do.",
+    "frequency": "Daily",
+    "category": "nutrition",
+    "priority": "high",
+    "icon": "🥗",
+    "evidenceBased": true,
+    "locallyRelevant": true
+  }
+]`;
+
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.MODEL,
+          messages: [
+            {
+              role: "system",
+              content: "You output ONLY valid JSON arrays. No other text, no markdown, no backticks.",
+            },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 2800,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Groq ${res.status}`);
+      const data = await res.json();
+      const raw: string = data.choices[0].message.content.trim();
+      const clean = raw.replace(/```json|```/gi, "").trim();
+      const match = clean.match(/\[[\s\S]*\]/);
+      if (!match) throw new Error("No JSON array found in response");
+      
+      const parsed = JSON.parse(match[0]);
+      console.log(`✅ Generated ${parsed.length} recommendations`);
+      return parsed;
+    } catch (e) {
+      console.error("[GroqService] generateRecommendations error:", e);
+      return this.getFallbackRecommendations(assessment);
+    }
+  }
+
+  // ─── HELPER METHODS FOR RECOMMENDATIONS ───────────────────────────────────
+
+  private getBMICategory(bmi: number): string {
+    if (bmi < 18.5) return 'underweight';
+    if (bmi < 25) return 'normal';
+    if (bmi < 30) return 'overweight';
+    if (bmi < 35) return 'obese';
+    return 'severely obese';
+  }
+
+  private getFallbackRecommendations(assessment: DualRiskAssessment): any[] {
+    const dHigh = assessment.diabetesRisk.level === 'high' || assessment.diabetesRisk.level === 'very-high';
+    const hHigh = assessment.hypertensionRisk.level === 'high' || assessment.hypertensionRisk.level === 'very-high';
+    
+    return [
+      {
+        title: "Daily 30-min Walk",
+        description: "Regular walking is one of the most powerful tools to lower both blood sugar and blood pressure. Even a brisk 30-minute walk each day produces measurable improvements within weeks.",
+        action: "Walk briskly for 30 minutes every morning before breakfast, 5 days this week.",
+        frequency: "Daily",
+        category: "physical_activity",
+        priority: dHigh || hHigh ? "urgent" : "high",
+        icon: "🚶",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Reduce Ugali Portions",
+        description: "High-glycaemic staples like ugali, white rice, and posho raise blood sugar rapidly. Replacing half your portion with beans or vegetables significantly reduces metabolic load.",
+        action: "Replace half your ugali or white rice serving with beans, lentils, or steamed vegetables at lunch and dinner.",
+        frequency: "Every meal",
+        category: "nutrition",
+        priority: dHigh ? "urgent" : "high",
+        icon: "🍛",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Cut Sugary Drinks",
+        description: "Sodas, sweetened uji, and energy drinks contribute directly to insulin resistance and weight gain. Replacing them with water or unsweetened tea has immediate benefits.",
+        action: "Replace all sodas and sweetened drinks with water, black tea, or lemon water this week.",
+        frequency: "Daily",
+        category: "nutrition",
+        priority: "high",
+        icon: "💧",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Reduce Salt Intake",
+        description: "Excess salt is the leading dietary driver of hypertension. Most East African diets are high in salt through processed snacks and table salt.",
+        action: "Remove the salt shaker from the table and avoid adding extra salt to cooked food.",
+        frequency: "Daily",
+        category: "nutrition",
+        priority: hHigh ? "urgent" : "high",
+        icon: "🧂",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Book a Blood Pressure Check",
+        description: "Getting a professional blood pressure reading at your nearest health centre takes less than 5 minutes and gives you a critical baseline.",
+        action: "Visit your nearest health centre or pharmacy to get a blood pressure reading this week.",
+        frequency: "Once (then monthly)",
+        category: "medical",
+        priority: hHigh ? "urgent" : "high",
+        icon: "🏥",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Fasting Blood Sugar Test",
+        description: "A simple fasting glucose test can confirm or rule out diabetes or prediabetes. Early detection is the most powerful tool you have.",
+        action: "Ask your doctor for a fasting blood glucose test at your next visit.",
+        frequency: "Once (then annually)",
+        category: "medical",
+        priority: dHigh ? "urgent" : "medium",
+        icon: "🩸",
+        evidenceBased: true,
+        locallyRelevant: false,
+      },
+      {
+        title: "7-8 Hours of Sleep",
+        description: "Poor sleep directly raises cortisol, blood sugar, and blood pressure. Improving sleep quality is one of the most underestimated metabolic interventions.",
+        action: "Set a consistent bedtime and wake time, aiming for 7-8 hours with no screens in the last 30 minutes.",
+        frequency: "Nightly",
+        category: "stress_sleep",
+        priority: "medium",
+        icon: "😴",
+        evidenceBased: true,
+        locallyRelevant: false,
+      },
+      {
+        title: "Stress Reduction Routine",
+        description: "Chronic stress elevates cortisol, which raises blood sugar and constricts blood vessels. Even 10 minutes of calm daily reduces this burden measurably.",
+        action: "Spend 10 minutes each evening in quiet rest, prayer, or deep breathing before bed.",
+        frequency: "Daily",
+        category: "stress_sleep",
+        priority: "medium",
+        icon: "🧘",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Eat More Leafy Greens",
+        description: "Vegetables like sukuma wiki, spinach, and amaranth are rich in magnesium, potassium, and fibre — all protective against both diabetes and hypertension.",
+        action: "Add a serving of dark leafy greens (sukuma wiki, spinach, or amaranth) to at least one meal daily.",
+        frequency: "Daily",
+        category: "nutrition",
+        priority: "medium",
+        icon: "🥬",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+      {
+        title: "Monthly Weight Check",
+        description: "Tracking your weight monthly helps you catch upward trends early. Even a 5-10% weight loss significantly reduces risk for both conditions.",
+        action: "Weigh yourself on the same scale every first Monday of the month and log the result.",
+        frequency: "Monthly",
+        category: "monitoring",
+        priority: "medium",
+        icon: "⚖️",
+        evidenceBased: true,
+        locallyRelevant: false,
+      },
+      {
+        title: "Limit Alcohol",
+        description: "Alcohol raises blood pressure and adds empty calories that worsen insulin resistance. Even moderate reduction has measurable cardiovascular benefits.",
+        action: "Limit alcohol to no more than 1-2 drinks per week, or eliminate entirely if your risk is high.",
+        frequency: "Weekly",
+        category: "lifestyle",
+        priority: "medium",
+        icon: "🚫",
+        evidenceBased: true,
+        locallyRelevant: false,
+      },
+      {
+        title: "Annual Comprehensive Check",
+        description: "A full metabolic panel including blood glucose, blood pressure, cholesterol, and kidney function gives your doctor the full picture to guide your care.",
+        action: "Schedule a comprehensive metabolic health check-up at your nearest hospital or health centre.",
+        frequency: "Annually",
+        category: "monitoring",
+        priority: "low",
+        icon: "📋",
+        evidenceBased: true,
+        locallyRelevant: true,
+      },
+    ];
+  }
+
   // ─── HELPERS ──────────────────────────────────────────────────────────────
 
   private ans(id: string): any { return this.answers.find(a => a.questionId === id)?.value; }
