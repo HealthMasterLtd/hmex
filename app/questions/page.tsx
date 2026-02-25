@@ -1,717 +1,825 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  Info,
-  AlertCircle,
-  Loader2,
-  Calendar,
-  User,
-  Ruler,
-  Scale,
-  Activity,
-  Utensils,
-  Users,
-  CloudRain,
-  Moon,
-  Brain,
-  Pill,
-  Heart,
-  Stethoscope,
-  Thermometer,
-  Droplets,
-  Bed,
-  Clock,
-  Zap,
-  Baby,
-  Coffee,
-  Cloud,
-  AlertTriangle,
-  CheckCircle,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight
+  ChevronRight, ChevronLeft, Loader2, AlertCircle, Sparkles,
+  Activity, Calendar, User, Scale, Heart, Brain, Utensils,
+  Droplets, Moon, Shield, Clock, Users, Info, CheckCircle, Zap,
 } from "lucide-react";
-import { Answers, DisplayQuestion } from "@/types/questions.type";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { groqService } from "@/services/GroqService";
+import { groqService, WAIST_OPTIONS } from "@/services/GroqService";
 import type { Question } from "@/services/GroqService";
+import { holdAssessmentLocally } from "@/services/AppwriteService";
+import { holdRecommendationsLocally } from "@/services/RecommendationService";
 import Navbar from "@/components/landingpage/navbar";
-import Footer from "@/components/ui/Footer";
+import { useTheme } from "@/contexts/ThemeContext";
 
-const HealthCheckQuestions: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [answers, setAnswers] = useState<Answers>({});
-  const [currentQuestion, setCurrentQuestion] = useState<DisplayQuestion | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isGeneratingNext, setIsGeneratingNext] = useState<boolean>(false);
+// ─── ICON MAPPING ─────────────────────────────────────────────────────────────
+const ICON_MAP: Record<string, React.ReactNode> = {
+  age: <Calendar className="w-5 h-5" />,
+  gender: <User className="w-5 h-5" />,
+  height_weight: <Scale className="w-5 h-5" />,
+  waist_circumference: <Activity className="w-5 h-5" />,
+  physical_activity: <Activity className="w-5 h-5" />,
+  sedentary_time: <Clock className="w-5 h-5" />,
+  vegetables_fruits: <Utensils className="w-5 h-5" />,
+  family_history_diabetes: <Users className="w-5 h-5" />,
+  family_history_hypertension: <Users className="w-5 h-5" />,
+  smoking: <Shield className="w-5 h-5" />,
+  alcohol: <Droplets className="w-5 h-5" />,
+  sleep_duration: <Moon className="w-5 h-5" />,
+  stress_level: <Brain className="w-5 h-5" />,
+  occupation: <Clock className="w-5 h-5" />,
+  previous_high_glucose: <Droplets className="w-5 h-5" />,
+  sugary_drinks: <Droplets className="w-5 h-5" />,
+  gestational_diabetes: <Heart className="w-5 h-5" />,
+  gestational_diabetes_detail: <Heart className="w-5 h-5" />,
+  pcos: <Zap className="w-5 h-5" />,
+  processed_foods: <Utensils className="w-5 h-5" />,
+  blood_pressure_history: <Heart className="w-5 h-5" />,
+  salt_intake: <Droplets className="w-5 h-5" />,
+  sleep_apnea: <Moon className="w-5 h-5" />,
+  kidney_disease: <Shield className="w-5 h-5" />,
+  preeclampsia: <Heart className="w-5 h-5" />,
+  anxiety: <Brain className="w-5 h-5" />,
+  medications: <Shield className="w-5 h-5" />,
+};
+
+const SUBTITLES: Record<string, string> = {
+  age: "Age is one of the strongest predictors of metabolic disease risk.",
+  gender: "Biological sex influences how risk factors develop and present.",
+  height_weight: "We'll calculate your BMI — a key metabolic health indicator.",
+  waist_circumference: "Abdominal fat distribution is more predictive than overall weight alone.",
+  physical_activity: "Regular movement is one of the most powerful protective factors.",
+  vegetables_fruits: "Daily plant foods directly impact blood sugar and blood pressure.",
+  family_history_diabetes: "Genetics play a significant role in diabetes risk.",
+  family_history_hypertension: "Family history helps calibrate your hypertension risk accurately.",
+  previous_high_glucose: "Past glucose elevations are clinically significant markers.",
+  blood_pressure_history: "Previous blood pressure readings are the strongest hypertension predictor.",
+  default: "Your answer helps build a more accurate, personalised risk profile.",
+};
+
+function getCategoryLabel(step: number): string {
+  if (step <= 2) return "Getting to know you";
+  if (step <= 4) return "Body composition";
+  if (step <= 9) return "Risk factor assessment";
+  return "Personalised follow-up";
+}
+
+// ─── PROGRESS DOTS ────────────────────────────────────────────────────────────
+function ProgressDots({ total, current }: { total: number; current: number }) {
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {Array.from({ length: Math.min(total, 15) }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-full transition-all duration-500"
+          style={{
+            width: i < current ? 20 : 6,
+            height: 6,
+            backgroundColor:
+              i < current
+                ? "#0FBB7D"
+                : i === current
+                ? "rgba(15,187,125,0.4)"
+                : "rgba(15,187,125,0.15)",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── GENERATING SCREEN (shown while AI builds recommendations) ────────────────
+function GeneratingScreen({ isDark }: { isDark: boolean }) {
+  const C = {
+    bg: isDark ? "#0A0F1C" : "#F4F7FB",
+    text: isDark ? "#F9FAFB" : "#0F172A",
+    muted: isDark ? "#8B95A8" : "#64748B",
+    primary: "#0FBB7D",
+  };
+
+  const steps = [
+    "Analysing your risk profile…",
+    "Generating personalised recommendations…",
+    "Preparing your health report…",
+  ];
+  const [stepIdx, setStepIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setStepIdx(i => Math.min(i + 1, steps.length - 1)), 2000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center transition-colors duration-300"
+      style={{ backgroundColor: C.bg }}
+    >
+      <div className="text-center space-y-6 max-w-xs">
+        <div className="relative inline-flex">
+          <div
+            className="w-16 h-16 rounded-full border-4 animate-spin"
+            style={{
+              borderColor: "transparent",
+              borderTopColor: C.primary,
+              borderRightColor: `${C.primary}33`,
+            }}
+          />
+          <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: C.primary }} />
+        </div>
+        <div>
+          <p
+            className="text-xs font-bold uppercase tracking-widest mb-2"
+            style={{ color: C.primary }}
+          >
+            Almost Done
+          </p>
+          <h2 className="text-xl font-bold mb-1" style={{ color: C.text }}>
+            {steps[stepIdx]}
+          </h2>
+          <p className="text-sm" style={{ color: C.muted }}>
+            Your personalised health report is being generated.
+          </p>
+        </div>
+        {/* Progress bar */}
+        <div
+          className="h-1.5 rounded-full overflow-hidden mx-auto w-48"
+          style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-[2000ms] ease-out"
+            style={{
+              width: stepIdx === 0 ? "30%" : stepIdx === 1 ? "65%" : "90%",
+              background: "linear-gradient(90deg, #0FBB7D, #059669)",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
+export default function PreLoginAssessmentPage() {
+  const { isDark } = useTheme();
   const router = useRouter();
 
-  // Icon mapping for questions
-  const iconMap: Record<string, React.ReactNode> = {
-    // Baseline icons
-    age: <Calendar className="w-8 h-8 text-blue-600" />,
-    gender: <User className="w-8 h-8 text-purple-600" />,
-    height_weight: <><Ruler className="w-8 h-8 text-green-600" /><Scale className="w-8 h-8 text-orange-600" /></>,
-    waist_circumference: <Activity className="w-8 h-8 text-red-600" />,
+  const [step, setStep] = useState(1);
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string | number | boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  // "generating" = assessment done, now building AI recommendations in background
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
 
-    // Shared risk factors
-    physical_activity: <Activity className="w-8 h-8 text-green-600" />,
-    sedentary_time: <Clock className="w-8 h-8 text-gray-600" />,
-    vegetables_fruits: <Utensils className="w-8 h-8 text-emerald-600" />,
-    family_history_diabetes: <Users className="w-8 h-8 text-indigo-600" />,
-    family_history_hypertension: <Users className="w-8 h-8 text-violet-600" />,
-    smoking: <Cloud className="w-8 h-8 text-gray-600" />,
-    alcohol: <Droplets className="w-8 h-8 text-amber-600" />,
-    sleep_duration: <Moon className="w-8 h-8 text-blue-600" />,
-    stress_level: <Brain className="w-8 h-8 text-red-600" />,
-    occupation: <Clock className="w-8 h-8 text-gray-700" />,
-
-    // Diabetes-specific
-    previous_high_glucose: <Thermometer className="w-8 h-8 text-red-600" />,
-    when_last_glucose_tested: <Calendar className="w-8 h-8 text-blue-600" />,
-    sugary_drinks: <Droplets className="w-8 h-8 text-pink-600" />,
-    gestational_diabetes: <Baby className="w-8 h-8 text-pink-600" />,
-    gestational_diabetes_detail: <Baby className="w-8 h-8 text-pink-600" />,
-    pcos: <Zap className="w-8 h-8 text-purple-600" />,
-    processed_foods: <Utensils className="w-8 h-8 text-orange-600" />,
-
-    // Hypertension-specific
-    blood_pressure_history: <Heart className="w-8 h-8 text-red-600" />,
-    when_last_bp_checked: <Calendar className="w-8 h-8 text-blue-600" />,
-    salt_intake: <CloudRain className="w-8 h-8 text-blue-500" />,
-    sleep_apnea: <Bed className="w-8 h-8 text-indigo-600" />,
-    kidney_disease: <Pill className="w-8 h-8 text-red-700" />,
-    preeclampsia: <Baby className="w-8 h-8 text-red-600" />,
-    anxiety: <Brain className="w-8 h-8 text-yellow-600" />,
-    medications: <Pill className="w-8 h-8 text-purple-600" />,
-
-    // AI-generated questions
-    ai_sleep: <Moon className="w-8 h-8 text-blue-600" />,
-    ai_stress: <Brain className="w-8 h-8 text-red-600" />,
-    ai_diet: <Utensils className="w-8 h-8 text-green-600" />,
-    ai_activity: <Activity className="w-8 h-8 text-emerald-600" />,
-    ai_family: <Users className="w-8 h-8 text-indigo-600" />,
-    ai_symptoms: <AlertTriangle className="w-8 h-8 text-orange-600" />,
-    ai_medical: <Stethoscope className="w-8 h-8 text-blue-700" />,
+  const C = {
+    bg: isDark ? "#0A0F1C" : "#F4F7FB",
+    cardBg: isDark ? "#141928" : "#FFFFFF",
+    border: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
+    text: isDark ? "#F9FAFB" : "#0F172A",
+    muted: isDark ? "#8B95A8" : "#64748B",
+    primary: "#0FBB7D",
+    primaryFaint: isDark ? "rgba(15,187,125,0.10)" : "rgba(15,187,125,0.07)",
   };
 
   useEffect(() => {
-    loadNextQuestion();
+    groqService.reset();
+    loadQuestion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadNextQuestion = async (): Promise<void> => {
+  const loadQuestion = async () => {
+    setLoading(true);
+    setVisible(false);
     try {
-      setIsLoading(true);
-      setError(null);
+      const next = await groqService.getNextQuestion();
 
-      const question = await groqService.getNextQuestion();
-
-      if (question === null) {
+      if (!next) {
+        // ── ASSESSMENT COMPLETE ─────────────────────────────────────────────
+        // Show "generating" screen immediately so user doesn't see a blank
+        setGenerating(true);
+        setLoading(false);
+      
+        const assessment = await groqService.generateRiskAssessment();
+        const allAnswers = groqService.getAnswers();
+      
+        // Save assessment to localStorage (0 XP — pre-login users earn no XP)
+        holdAssessmentLocally(assessment, allAnswers, 0);
+      
+        // Generate recommendations first, then store them
+        try {
+          // First generate recommendations from the assessment
+          const recommendations = await groqService.generateRecommendations(assessment);
+          
+          // Then store them with the assessment and answers
+          await holdRecommendationsLocally(assessment, allAnswers, recommendations);
+        } catch (error) {
+          console.error("Failed to generate recommendations:", error);
+          // Still proceed even if recommendations fail - user can regenerate later
+        }
+      
+        // Navigate to review — the review page reads from sessionStorage/localStorage
+        try {
+          sessionStorage.setItem(
+            "hmex_review",
+            JSON.stringify({ 
+              assessment, 
+              answers: allAnswers, 
+              xpEarned: 0 
+            })
+          );
+        } catch { /* private mode */ }
+      
         router.push("/review");
         return;
       }
 
-      const displayQuestion = convertToDisplayQuestion(question, currentStep);
-      setCurrentQuestion(displayQuestion);
-    } catch (err) {
-      console.error('Error loading question:', err);
-      setError('Failed to load question. Please try again.');
-    } finally {
-      setIsLoading(false);
+      const patched =
+        next.type === "yesno" && !next.options
+          ? { ...next, options: ["Yes", "No"] }
+          : next;
+
+      setQuestion(patched);
+      setTimeout(() => {
+        setLoading(false);
+        setVisible(true);
+      }, 80);
+    } catch {
+      setError("Could not load the next question. Please try again.");
+      setLoading(false);
     }
   };
 
-  const convertToDisplayQuestion = (question: Question, step: number): DisplayQuestion => {
-    const category = getCategoryFromStep(step);
-    const icon = iconMap[question.id] || <Info className="w-8 h-8 text-teal-600" />;
-    const subtitle = getSubtitleFromQuestion(question);
-    const progress = Math.round((step / groqService.getMaxQuestions()) * 100);
+  const currentAnswer = question ? answers[question.id] : undefined;
+  const hasAnswer =
+    currentAnswer !== undefined && currentAnswer !== "" && currentAnswer !== null;
+  const progress = Math.min(
+    100,
+    Math.round((step / groqService.getMaxQuestions()) * 100)
+  );
 
-    const displayQuestion: DisplayQuestion = {
-      id: question.id,
-      type: question.id,
-      category,
-      stepOf: `Step ${step} of ~${groqService.getMaxQuestions()}`,
-      icon: icon,
-      question: question.question,
-      subtitle,
-      progress,
-      hasImages: false,
-      hasInput: false,
-      hasDoubleInput: false,
-      required: question.required,
-      aiGenerated: question.aiGenerated,
-      tooltip: question.tooltip,
-    };
-
-    // Special handling for height_weight (dual input)
-    if (question.id === 'height_weight') {
-      displayQuestion.hasDoubleInput = true;
-      displayQuestion.inputs = [
-        {
-          label: 'Height',
-          placeholder: 'Enter height in cm',
-          unit: 'cm'
-        },
-        {
-          label: 'Weight',
-          placeholder: 'Enter weight in kg',
-          unit: 'kg'
-        }
-      ];
-    }
-    // Handle different question types
-    else switch (question.type) {
-      case 'slider':
-        displayQuestion.hasInput = true;
-        displayQuestion.inputLabel = question.question;
-        displayQuestion.inputUnit = question.unit || '';
-        displayQuestion.inputPlaceholder = `Enter value (${question.min}-${question.max})`;
-        displayQuestion.min = question.min;
-        displayQuestion.max = question.max;
-        displayQuestion.unit = question.unit;
-        break;
-
-      case 'yesno':
-        displayQuestion.options = [
-          { value: 'Yes', label: 'Yes', icon: <CheckCircle className="w-5 h-5 text-green-600" /> },
-          { value: 'No', label: 'No', icon: <AlertCircle className="w-5 h-5 text-red-600" /> }
-        ];
-        break;
-      
-
-      case 'multiple':
-        displayQuestion.options = question.options?.map(opt => ({
-          value: opt,
-          label: opt
-        })) || [];
-
-        // Special handling for waist circumference with images
-        if (question.id === 'waist_circumference') {
-          displayQuestion.hasImages = true;
-          displayQuestion.options = [
-            {
-              value: 'Slim waist',
-              label: 'Slim',
-              image: '👤',
-              description: 'Waist <94cm (men) / <80cm (women)'
-            },
-            {
-              value: 'Moderate waist',
-              label: 'Moderate',
-              image: '👤',
-              description: 'Waist 94-102cm (men) / 80-88cm (women)'
-            },
-            {
-              value: 'Large waist',
-              label: 'Large',
-              image: '👤',
-              description: 'Waist >102cm (men) / >88cm (women)'
-            }
-          ];
-        }
-        break;
-
-      case 'text':
-        displayQuestion.hasInput = true;
-        displayQuestion.inputLabel = question.question;
-        displayQuestion.inputPlaceholder = 'Type your answer here...';
-        break;
-    }
-
-    return displayQuestion;
-  };
-
-  const getCategoryFromStep = (step: number): string => {
-    if (step <= 4) return 'Baseline Assessment';
-    if (step <= 8) return 'Risk Factor Assessment';
-    return 'Personalized Follow-up';
-  };
-
-  const getSubtitleFromQuestion = (question: Question): string => {
-    if (question.aiGenerated) {
-      return "This personalized question was generated based on your unique profile to better understand your specific risk factors.";
-    }
-
-    const subtitleMap: Record<string, string> = {
-      age: 'Age helps us understand your baseline risk for both diabetes and high blood pressure.',
-      gender: 'Biological sex affects how conditions develop and their risk patterns.',
-      height_weight: 'Height and weight are used to calculate your BMI, a key indicator of metabolic health.',
-      waist_circumference: 'Belly fat is particularly dangerous for both diabetes and high blood pressure.',
-      physical_activity: 'Regular physical activity is one of the most powerful preventive measures for both conditions.',
-      vegetables_fruits: 'Fruits and vegetables provide fiber for blood sugar control and minerals for blood pressure regulation.',
-      previous_high_glucose: 'Previous high blood sugar is one of the strongest predictors of future diabetes.',
-      blood_pressure_history: 'High blood pressure and diabetes often occur together as part of metabolic syndrome.',
-      family_history_diabetes: 'Diabetes has a strong genetic component that significantly increases risk.',
-      family_history_hypertension: 'High blood pressure runs in families, indicating genetic predisposition.',
-    };
-
-    return subtitleMap[question.id] || 'Your answer helps us provide a more accurate and personalized risk assessment.';
-  };
-
-  const handleNext = async (): Promise<void> => {
-    if (!currentQuestion) return;
-
-    // For height_weight, combine values
-    if (currentQuestion.id === 'height_weight' && currentQuestion.inputs) {
-      const height = answers['height'] || '';
-      const weight = answers['weight'] || '';
-      if (!height || !weight) {
-        setError('Please enter both height and weight.');
-        return;
-      }
-
-      // Save combined answer
-      const question: Question = {
-        id: currentQuestion.id,
-        question: currentQuestion.question,
-        type: currentQuestion.type as any,
-        options: currentQuestion.options?.map(o => o.value),
-        min: currentQuestion.min,
-        max: currentQuestion.max,
-        unit: currentQuestion.unit,
-        required: currentQuestion.required,
-        aiGenerated: currentQuestion.aiGenerated,
-        condition: undefined,
-        tooltip: currentQuestion.tooltip,
-      };
-
-      groqService.saveAnswer(question, `${height}/${weight}`);
-    } else {
-      // Validate regular answer
-      const answer = answers[currentQuestion.type];
-      if (currentQuestion.required && !answer && answer !== 0) {
-        setError('Please answer this question before continuing.');
-        return;
-      }
-
-      // Save answer to service
-      const question: Question = {
-        id: currentQuestion.id,
-        question: currentQuestion.question,
-        type: currentQuestion.type as any,
-        options: currentQuestion.options?.map(o => o.value),
-        min: currentQuestion.min,
-        max: currentQuestion.max,
-        unit: currentQuestion.unit,
-        required: currentQuestion.required,
-        aiGenerated: currentQuestion.aiGenerated,
-        condition: undefined,
-        tooltip: currentQuestion.tooltip,
-      };
-
-      groqService.saveAnswer(question, answer);
-    }
-
-    // Move to next question
-    setIsGeneratingNext(true);
-    setCurrentStep(currentStep + 1);
-    await loadNextQuestion();
-    setIsGeneratingNext(false);
-  };
-
-  const handleBack = (): void => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      setError('To maintain assessment accuracy, please continue forward. Use the "Next" button to proceed.');
-    }
-  };
-
-  const handleOptionSelect = (value: string): void => {
-    if (!currentQuestion) return;
-    setAnswers({ ...answers, [currentQuestion.type]: value });
+  const handleSelect = (value: string | number | boolean) => {
+    if (!question) return;
+    setAnswers(prev => ({ ...prev, [question.id]: value }));
     setError(null);
   };
 
-  const handleInputChange = (field: string, value: string): void => {
-    if (!currentQuestion) return;
-
-    if (currentQuestion.hasDoubleInput && currentQuestion.inputs) {
-      setAnswers({ ...answers, [field]: value });
-    } else if (currentQuestion.hasInput && (currentQuestion.min !== undefined || currentQuestion.max !== undefined)) {
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue)) {
-        setAnswers({ ...answers, [currentQuestion.type]: numValue });
+  const handleNext = async () => {
+    if (!question) return;
+    if (question.id === "height_weight") {
+      const h = answers["_height"];
+      const w = answers["_weight"];
+      if (!h || !w) {
+        setError("Please enter both your height and weight.");
+        return;
       }
+      groqService.saveAnswer(question, `${h}/${w}`);
     } else {
-      setAnswers({ ...answers, [currentQuestion.type]: value });
+      if (question.required && !hasAnswer) {
+        setError("Please answer this question to continue.");
+        return;
+      }
+      groqService.saveAnswer(question, currentAnswer ?? "");
     }
-    setError(null);
+    setVisible(false);
+    setSubmitting(true);
+    await new Promise(r => setTimeout(r, 280));
+    setStep(s => s + 1);
+    await loadQuestion();
+    setSubmitting(false);
   };
 
-  // Loading state
-  if (isLoading && !currentQuestion) {
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(s => s - 1);
+      setError(null);
+    }
+  };
+
+  // ── WAIST ─────────────────────────────────────────────────────────────────
+  const renderWaistCircumference = () => (
+    <div className="space-y-4">
+      <p className="text-sm text-center pb-1" style={{ color: C.muted }}>
+        Pick the body shape that most closely matches yours
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {WAIST_OPTIONS.map(opt => {
+          const sel = currentAnswer === opt.value;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => handleSelect(opt.value)}
+              className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+              style={{
+                backgroundColor: sel ? C.primaryFaint : C.cardBg,
+                borderColor: sel ? C.primary : C.border,
+                boxShadow: sel ? `0 0 0 3px ${C.primary}22` : "none",
+              }}
+            >
+              <div className="relative w-full h-28 rounded-xl overflow-hidden">
+                <Image src={opt.img} alt={opt.label} fill className="object-contain" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-bold" style={{ color: sel ? C.primary : C.text }}>
+                  {opt.label}
+                </p>
+                <p className="text-[10px] leading-tight mt-0.5" style={{ color: C.muted }}>
+                  {opt.hint}
+                </p>
+              </div>
+              {sel && <CheckCircle size={16} style={{ color: C.primary }} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ── HEIGHT / WEIGHT ───────────────────────────────────────────────────────
+  const renderHeightWeight = () => (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-4">
+        {[
+          { key: "_height", label: "Height", unit: "cm", placeholder: "e.g. 170" },
+          { key: "_weight", label: "Weight", unit: "kg", placeholder: "e.g. 72" },
+        ].map(({ key, label, unit, placeholder }) => (
+          <div key={key}>
+            <label
+              className="block mb-2 text-xs font-bold uppercase tracking-widest"
+              style={{ color: C.muted }}
+            >
+              {label}
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder={placeholder}
+                value={String(answers[key] ?? "")}
+                onChange={e => {
+                  setAnswers(prev => ({ ...prev, [key]: e.target.value }));
+                  setError(null);
+                }}
+                className="w-full px-4 py-3.5 pr-12 rounded-xl border-2 text-base focus:outline-none transition-all"
+                style={{
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#F8FAFC",
+                  borderColor: C.border,
+                  color: C.text,
+                }}
+              />
+              <span
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold"
+                style={{ color: C.muted }}
+              >
+                {unit}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-center text-sm" style={{ color: C.muted }}>
+        We&apos;ll calculate your BMI automatically.
+      </p>
+    </div>
+  );
+
+  // ── DIET IMAGES ───────────────────────────────────────────────────────────
+  const renderDietImages = () => {
+    if (question?.id !== "vegetables_fruits") return null;
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-3xl shadow-xl p-12 max-w-md">
-          <Loader2 className="w-16 h-16 animate-spin text-teal-600 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">
-            Preparing Your Assessment
-          </h2>
-          <p className="text-gray-600">
-            Loading personalized questions based on medical guidelines...
-          </p>
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        {[
+          {
+            src: "/assets/images/diets.png",
+            caption: "Vegetables, fruits & berries protect blood sugar and blood pressure.",
+          },
+          {
+            src: "/assets/images/drinks.png",
+            caption: "What you drink matters too — water and low-sugar drinks protect metabolic health.",
+          },
+        ].map(({ src, caption }) => (
+          <div
+            key={src}
+            className="overflow-hidden rounded-xl border"
+            style={{ borderColor: C.border }}
+          >
+            <div className="relative w-full h-32">
+              <Image src={src} alt={caption} fill className="object-cover" />
+            </div>
+            <div className="p-3">
+              <p className="text-[11px] leading-relaxed" style={{ color: C.muted }}>
+                {caption}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ── OPTIONS ───────────────────────────────────────────────────────────────
+  const renderOptions = () => {
+    if (!question?.options) return null;
+    const isYesNo = question.type === "yesno";
+    return (
+      <div className={`grid gap-2.5 ${isYesNo ? "grid-cols-2" : "grid-cols-1"}`}>
+        {question.options.map((opt, i) => {
+          const sel = currentAnswer === opt;
+          const isYes = opt === "Yes" || opt === "yes";
+          return (
+            <button
+              key={i}
+              onClick={() => handleSelect(opt)}
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
+              style={{
+                backgroundColor: sel
+                  ? C.primaryFaint
+                  : isDark
+                  ? "rgba(255,255,255,0.02)"
+                  : "#FAFBFC",
+                borderColor: sel ? C.primary : C.border,
+                boxShadow: sel ? `0 0 0 3px ${C.primary}18` : "none",
+              }}
+            >
+              {isYesNo ? (
+                <div
+                  className="flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold shrink-0"
+                  style={{
+                    backgroundColor: sel
+                      ? C.primary
+                      : isDark
+                      ? "rgba(255,255,255,0.08)"
+                      : "rgba(0,0,0,0.05)",
+                    color: sel ? "#fff" : C.muted,
+                  }}
+                >
+                  {isYes ? "✓" : "✕"}
+                </div>
+              ) : (
+                <div
+                  className="w-4 h-4 rounded-full border-2 shrink-0 transition-all"
+                  style={{
+                    borderColor: sel ? C.primary : C.border,
+                    backgroundColor: sel ? C.primary : "transparent",
+                  }}
+                />
+              )}
+              <span
+                className="text-sm leading-snug"
+                style={{ color: sel ? C.primary : C.text, fontWeight: sel ? 600 : 400 }}
+              >
+                {opt}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ── SLIDER ────────────────────────────────────────────────────────────────
+  const renderSlider = () => {
+    if (question?.type !== "slider") return null;
+    const val = Number(currentAnswer ?? question.min ?? 0);
+    const min = question.min ?? 0;
+    const max = question.max ?? 100;
+    const pct = ((val - min) / (max - min)) * 100;
+
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-1">
+          <div className="text-6xl font-black tabular-nums" style={{ color: C.primary }}>
+            {val}
+          </div>
+          <div
+            className="text-sm font-semibold uppercase tracking-wider"
+            style={{ color: C.muted }}
+          >
+            {question.unit}
+          </div>
+        </div>
+        <div className="relative pt-2 pb-8 px-2">
+          <div
+            className="h-3 rounded-full overflow-hidden"
+            style={{
+              backgroundColor: isDark
+                ? "rgba(255,255,255,0.06)"
+                : "rgba(0,0,0,0.06)",
+            }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-100"
+              style={{
+                width: `${pct}%`,
+                background: "linear-gradient(90deg, #0FBB7D, #059669)",
+              }}
+            />
+          </div>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            value={val}
+            onChange={e => handleSelect(Number(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+          <div
+            className="absolute top-0.5 w-7 h-7 rounded-full shadow-lg border-4 border-white pointer-events-none transition-all duration-100"
+            style={{ left: `calc(${pct}% - 14px)`, backgroundColor: C.primary }}
+          />
+        </div>
+        <div
+          className="flex justify-between text-xs font-semibold"
+          style={{ color: C.muted }}
+        >
+          <span>
+            {min} {question.unit}
+          </span>
+          <span>
+            {max} {question.unit}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // ── GENERATING SCREEN ─────────────────────────────────────────────────────
+  if (generating) {
+    return <GeneratingScreen isDark={isDark} />;
+  }
+
+  // ── INITIAL LOADING ───────────────────────────────────────────────────────
+  if (loading && !question) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center transition-colors duration-300"
+        style={{ backgroundColor: C.bg }}
+      >
+        <div className="text-center space-y-6">
+          <div className="relative inline-flex">
+            <div
+              className="w-16 h-16 rounded-full border-4 animate-spin"
+              style={{
+                borderColor: "transparent",
+                borderTopColor: C.primary,
+                borderRightColor: `${C.primary}33`,
+              }}
+            />
+            <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: C.primary }} />
+          </div>
+          <div>
+            <p
+              className="text-xs font-bold uppercase tracking-widest mb-2"
+              style={{ color: C.primary }}
+            >
+              Preparing Assessment
+            </p>
+            <h2 className="text-xl font-bold" style={{ color: C.text }}>
+              Personalising your questions…
+            </h2>
+            <p className="text-sm mt-1" style={{ color: C.muted }}>
+              This takes just a moment
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!currentQuestion) {
+  if (!question && !loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-3xl shadow-xl p-12 max-w-md">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">
-            Assessment Error
+      <div
+        className="min-h-screen flex items-center justify-center px-6"
+        style={{ backgroundColor: C.bg }}
+      >
+        <div className="text-center space-y-4">
+          <AlertCircle className="mx-auto w-12 h-12 text-red-500" />
+          <h2 className="text-xl font-bold" style={{ color: C.text }}>
+            Something went wrong
           </h2>
-          <p className="text-gray-600 mb-6">
-            Unable to load the next question. Please try refreshing the page.
+          <p className="text-sm" style={{ color: C.muted }}>
+            Unable to load questions. Please refresh and try again.
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-teal-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-teal-700 transition"
+            className="px-6 py-3 rounded-xl font-semibold text-white"
+            style={{ background: `linear-gradient(135deg, ${C.primary}, #059669)` }}
           >
-            Refresh Page
+            Refresh
           </button>
         </div>
       </div>
     );
   }
 
-  const isLastStep = groqService.getQuestionCount() >= groqService.getMaxQuestions();
-
+  // ── MAIN RENDER ───────────────────────────────────────────────────────────
   return (
-    
-    <div className="min-h-screen  bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 ">
-     <Navbar/>
-      <div className="max-w-4xl mx-auto p-4 sm:p-6">
-      
-        {/* Header with Progress */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+    <div
+      className="min-h-screen transition-colors duration-300"
+      style={{ backgroundColor: C.bg }}
+    >
+      <Navbar />
+
+      <div className="max-w-2xl mx-auto px-5 py-10 lg:px-8">
+        {/* Header */}
+        <div className="mb-7 space-y-3">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Health Risk Assessment</h1>
-              <p className="text-gray-600 text-sm">Personalized diabetes & hypertension screening</p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm font-medium text-gray-700 mb-1">
-                {currentQuestion.stepOf}
-              </div>
-              <div className="text-xs text-gray-500">
-                {groqService.getProgress()}% complete
-              </div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-teal-500 to-blue-600 transition-all duration-500"
-              style={{ width: `${currentQuestion.progress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Category Badge */}
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-900 to-teal-800 text-white px-4 py-2 rounded-full text-sm font-semibold">
-            {currentQuestion.aiGenerated ? (
-              <>
-                <Zap className="w-4 h-4 text-yellow-300" />
-                <span>AI Personalized</span>
-              </>
-            ) : (
-              <>
-                <TrendingUp className="w-4 h-4" />
-                <span>{currentQuestion.category}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Question Card */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-8">
-          {/* Question Header */}
-          <div className="flex items-start gap-4 mb-8">
-            <div className="flex-shrink-0">
-              <div className="p-3 bg-gradient-to-br from-blue-100 to-teal-100 rounded-2xl">
-                {currentQuestion.icon}
-              </div>
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
-                {currentQuestion.question}
-              </h2>
-              <p className="text-gray-700 text-base leading-relaxed">
-                {currentQuestion.subtitle}
+              <p
+                className="text-[11px] font-bold uppercase tracking-widest mb-0.5"
+                style={{ color: question?.aiGenerated ? "#8B5CF6" : C.primary }}
+              >
+                {question?.aiGenerated ? "✦ AI Personalised" : getCategoryLabel(step)}
+              </p>
+              <p className="text-sm" style={{ color: C.muted }}>
+                Question {step} of {groqService.getMaxQuestions()}
               </p>
             </div>
+            <span
+              className="text-sm font-bold tabular-nums"
+              style={{ color: C.muted }}
+            >
+              {progress}%
+            </span>
+          </div>
+          <ProgressDots total={groqService.getMaxQuestions()} current={step - 1} />
+        </div>
+
+        {/* Card */}
+        <div
+          className="rounded-2xl border overflow-hidden transition-all duration-300"
+          style={{
+            backgroundColor: C.cardBg,
+            borderColor: C.border,
+            opacity: visible ? 1 : 0,
+            transform: visible ? "translateY(0)" : "translateY(18px)",
+            boxShadow: isDark
+              ? "0 8px 32px rgba(0,0,0,0.4)"
+              : "0 8px 32px rgba(0,0,0,0.06)",
+          }}
+        >
+          {/* Card header */}
+          <div
+            className="flex items-start gap-4 p-6 border-b"
+            style={{ borderColor: C.border }}
+          >
+            <div
+              className="flex items-center justify-center w-11 h-11 rounded-xl shrink-0"
+              style={{
+                backgroundColor: question?.aiGenerated
+                  ? "rgba(139,92,246,0.12)"
+                  : C.primaryFaint,
+                color: question?.aiGenerated ? "#8B5CF6" : C.primary,
+              }}
+            >
+              {ICON_MAP[question?.id ?? ""] ?? <Activity className="w-5 h-5" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2
+                className="text-[17px] font-bold leading-snug mb-1.5"
+                style={{ color: C.text }}
+              >
+                {question?.question}
+              </h2>
+              <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
+                {SUBTITLES[question?.id ?? ""] ?? SUBTITLES.default}
+              </p>
+            </div>
+            {question?.aiGenerated && (
+              <span
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0"
+                style={{ backgroundColor: "rgba(139,92,246,0.12)", color: "#8B5CF6" }}
+              >
+                <Sparkles className="w-3 h-3" />
+                AI
+              </span>
+            )}
           </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* AI Explanation Banner */}
-          {currentQuestion.aiGenerated && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
-              <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-purple-600" />
-                <p className="text-purple-700 text-sm font-medium">
-                  AI Insight: This question was dynamically generated to better understand your unique risk profile.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Question Input Area */}
-          <div className="mb-8">
-            {/* Double Input for height/weight */}
-            {currentQuestion.hasDoubleInput && currentQuestion.inputs && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {currentQuestion.inputs.map((input, idx) => (
-                    <div key={idx} className="space-y-2">
-                      <label className="block text-gray-800 font-medium">
-                        {input.label}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          placeholder={input.placeholder}
-                          value={answers[input.label.toLowerCase()] as string || ''}
-                          onChange={(e) => handleInputChange(input.label.toLowerCase(), e.target.value)}
-                          className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none transition text-lg text-gray-900 placeholder:text-gray-500"
-                        />
-                        <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">
-                          {input.unit}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-sm text-gray-600 text-center">
-                  We&apos;ll calculate your BMI automatically from these measurements.
-                </p>
+          {/* Card body */}
+          <div className="p-6 space-y-4">
+            {error && (
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+                style={{
+                  backgroundColor: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#EF4444",
+                }}
+              >
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
               </div>
             )}
 
-            {/* Slider Input */}
-            {currentQuestion.hasInput && currentQuestion.min !== undefined && currentQuestion.max !== undefined && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700 font-medium">
-                    {currentQuestion.min} {currentQuestion.unit}
-                  </span>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-teal-600">
-                      {answers[currentQuestion.type] || currentQuestion.min} {currentQuestion.unit}
-                    </div>
-                    <div className="text-sm text-gray-600">Current selection</div>
-                  </div>
-                  <span className="text-gray-700 font-medium">
-                    {currentQuestion.max} {currentQuestion.unit}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={currentQuestion.min}
-                  max={currentQuestion.max}
-                  value={answers[currentQuestion.type] as number || currentQuestion.min}
-                  onChange={(e) => handleInputChange(currentQuestion.type, e.target.value)}
-                  className="w-full h-3 bg-gradient-to-r from-teal-100 to-blue-100 rounded-full appearance-none slider-thumb"
-                />
+            {question?.aiGenerated && (
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+                style={{
+                  backgroundColor: "rgba(139,92,246,0.07)",
+                  border: "1px solid rgba(139,92,246,0.15)",
+                  color: "#8B5CF6",
+                }}
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>This question was tailored to your personal risk profile.</span>
               </div>
             )}
 
-            {/* Text Input */}
-            {currentQuestion.hasInput && currentQuestion.min === undefined && (
+            {renderDietImages()}
+
+            {question?.id === "waist_circumference" && renderWaistCircumference()}
+            {question?.id === "height_weight" && renderHeightWeight()}
+            {question?.type === "slider" &&
+              question.id !== "height_weight" &&
+              renderSlider()}
+            {question?.options &&
+              question.id !== "waist_circumference" &&
+              renderOptions()}
+            {question?.type === "text" && question.id !== "height_weight" && (
               <input
                 type="text"
-                placeholder={currentQuestion.inputPlaceholder}
-                value={answers[currentQuestion.type] as string || ''}
-                onChange={(e) => handleInputChange(currentQuestion.type, e.target.value)}
-                className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none transition text-lg text-gray-900 placeholder:text-gray-500"
+                placeholder="Type your answer…"
+                value={String(currentAnswer ?? "")}
+                onChange={e => handleSelect(e.target.value)}
+                className="w-full px-4 py-3.5 rounded-xl border-2 text-base focus:outline-none transition-all"
+                style={{
+                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#F8FAFC",
+                  borderColor: C.border,
+                  color: C.text,
+                }}
               />
             )}
 
-            {/* Multiple Choice Options */}
-            {currentQuestion.options && !currentQuestion.hasInput && !currentQuestion.hasDoubleInput && (
-              <div className="space-y-3">
-                <div className={`grid gap-3 ${currentQuestion.options.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-                    currentQuestion.options.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
-                      'grid-cols-1'
-                  }`}>
-                  {currentQuestion.options.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleOptionSelect(option.value)}
-                      className={`p-4 rounded-2xl border-2 transition-all text-left ${answers[currentQuestion.type] === option.value
-                          ? 'border-teal-500 bg-gradient-to-r from-teal-50 to-blue-50 shadow-md'
-                          : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-sm'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        {option.icon && <span>{option.icon}</span>}
-                        <div>
-                          <div className="font-semibold text-gray-900">
-                            {option.label}
-                          </div>
-                          {option.description && (
-                            <div className="text-sm text-gray-600 mt-1">
-                              {option.description}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Image Options for waist circumference */}
-            {currentQuestion.hasImages && currentQuestion.options && (
-              <div className="space-y-6">
-                <div className="text-center mb-6">
-                  <p className="text-gray-800 font-semibold mb-2">
-                    Select the image that best matches your body shape
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    This helps us assess central obesity, a key risk factor for both conditions
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {currentQuestion.options.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleOptionSelect(option.value)}
-                      className={`p-4 rounded-2xl border-2 transition-all ${answers[currentQuestion.type] === option.value
-                          ? 'border-teal-500 bg-gradient-to-r from-teal-50 to-blue-50 shadow-lg'
-                          : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-md'
-                        }`}
-                    >
-                      <div className="bg-gray-100 rounded-xl p-6 mb-3 flex items-center justify-center">
-                        <div className="text-4xl">{option.image}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-bold text-gray-900 mb-1">
-                          {option.label}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {option.description}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+            {question?.tooltip && (
+              <div
+                className="flex items-start gap-3 px-4 py-3 rounded-xl text-[12px] leading-relaxed"
+                style={{
+                  backgroundColor: isDark
+                    ? "rgba(255,255,255,0.03)"
+                    : "rgba(0,0,0,0.02)",
+                  color: C.muted,
+                }}
+              >
+                <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                {question.tooltip}
               </div>
             )}
           </div>
-
-          {/* Tooltip if available */}
-          {currentQuestion.tooltip && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <div className="flex items-start gap-2">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-blue-800 text-sm">{currentQuestion.tooltip}</p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mt-8">
+        <div className="mt-7 flex items-center justify-between">
           <button
             onClick={handleBack}
-            disabled={currentStep === 1}
-            className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition ${currentStep === 1
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+            disabled={step === 1}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none"
+            style={{
+              color: C.muted,
+              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+            }}
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
             Back
           </button>
 
           <button
-            onClick={() => {
-              if (isLastStep) {
-                router.push("/review");
-              } else {
-                handleNext();
-              }
+            onClick={handleNext}
+            disabled={submitting}
+            className="flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+            style={{
+              background: `linear-gradient(135deg, ${C.primary}, #059669)`,
+              boxShadow: "0 4px 16px rgba(15,187,125,0.28)",
             }}
-            disabled={isGeneratingNext}
-            className="bg-gradient-to-r from-teal-600 to-blue-600 text-white px-8 py-4 rounded-full font-semibold hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {isGeneratingNext ? (
+            {submitting ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Generating next question...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Analysing…
               </>
-            ) : isLastStep ? (
-              <>
-                See My Risk Assessment
-                <ChevronRight className="w-5 h-5" />
-              </>
+            ) : groqService.getQuestionCount() >= groqService.getMaxQuestions() ? (
+              "View Results"
             ) : (
               <>
-                Next Question
-                <ChevronRight className="w-5 h-5" />
+                Continue
+                <ChevronRight className="w-4 h-4" />
               </>
             )}
           </button>
         </div>
 
-        {/* Assessment Info */}
-        <div className="text-center mt-6 text-sm text-gray-500">
-          <p>Question {currentStep} • Based on FINDRISC & Framingham validated frameworks</p>
-          <p className="mt-1">Your responses are confidential and used only for risk assessment</p>
-        </div>
+        <p
+          className="mt-8 text-center text-[11px]"
+          style={{
+            color: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.25)",
+          }}
+        >
+          Based on FINDRISC & Framingham validated frameworks · Private & confidential
+        </p>
       </div>
-<Footer/>
-      <style jsx>{`
-        .slider-thumb::-webkit-slider-thumb {
-          appearance: none;
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%);
-          cursor: pointer;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          border: 3px solid white;
-        }
-
-        .slider-thumb::-moz-range-thumb {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%);
-          cursor: pointer;
-          border: 3px solid white;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .slider-thumb::-webkit-slider-track {
-          background: linear-gradient(to right, #5eead4 0%, #7dd3fc 100%);
-height: 12px;
-border-radius: 6px;
-}
-    .slider-thumb::-moz-range-track {
-      background: linear-gradient(to right, #5eead4 0%, #7dd3fc 100%);
-      height: 12px;
-      border-radius: 6px;
-    }
-  `}</style>
     </div>
   );
-};
-export default HealthCheckQuestions;
+}

@@ -9,6 +9,8 @@ import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
+import { claimPendingAssessment, getPendingAssessment } from "@/services/AppwriteService";
+import { claimPendingRecommendations, getPendingRecommendations } from "@/services/RecommendationService";
 import {
   Heart,
   Sun,
@@ -23,6 +25,8 @@ import {
   ArrowRight,
   Shield,
   Loader2,
+  CheckCircle,
+  Sparkles,
 } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
@@ -79,9 +83,9 @@ export default function SignUpPage() {
   const router = useRouter();
   const { signUp, loginWithGoogle, loading, error, clearError, user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
 
-  // Form state
+  // ── ALL HOOKS MUST BE HERE BEFORE ANY CONDITIONAL RETURN ──
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -93,15 +97,30 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [passwordStrength, setPasswordStrength] = useState(0);
-
-  useEffect(() => setMounted(true), []);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [newUserId, setNewUserId] = useState<string | null>(null);
+  const [savingAssessment, setSavingAssessment] = useState(false);
+  const [assessmentSaved, setAssessmentSaved] = useState(false);
+  const [hasPendingAssessment, setHasPendingAssessment] = useState(false);
   
-  // Redirect to dashboard if already logged in
-  useEffect(() => {
-    if (user) router.push("/dashboard");
-  }, [user, router]);
+  // NEW: Recommendations state
+  const [savingRecommendations, setSavingRecommendations] = useState(false);
+  const [recommendationsSaved, setRecommendationsSaved] = useState(false);
+  const [hasPendingReco, setHasPendingReco] = useState(false);
+  const savedAssessmentIdRef = useRef<string | null>(null);
 
-  // Password strength calculator
+  useEffect(() => {
+    setMounted(true);
+    const pending = getPendingAssessment();
+    setHasPendingAssessment(!!pending);
+    // NEW: Check for pending recommendations
+    setHasPendingReco(!!getPendingRecommendations());
+  }, []);
+
+  useEffect(() => {
+    if (user && !signupSuccess) router.push("/dashboard");
+  }, [user, router, signupSuccess]);
+
   useEffect(() => {
     let strength = 0;
     const pw = formData.password;
@@ -112,6 +131,64 @@ export default function SignUpPage() {
     setPasswordStrength(strength);
   }, [formData.password]);
 
+  // Capture userId from user context after signup (handles delayed auth update / Google path)
+  useEffect(() => {
+    if (signupSuccess && user && !newUserId) {
+      const uid = (user as any).$id || (user as any).uid || (user as any).id;
+      if (uid) setNewUserId(uid);
+    }
+  }, [user, signupSuccess, newUserId]);
+
+  // STAGE 1: Claim pending assessment from localStorage → Appwrite
+  useEffect(() => {
+    if (!newUserId || !hasPendingAssessment) return;
+    
+    setSavingAssessment(true);
+    claimPendingAssessment(newUserId)
+      .then((saved) => {
+        if (saved) {
+          console.log('✅ Assessment saved to Appwrite:', saved.$id);
+          savedAssessmentIdRef.current = saved.$id;
+          setAssessmentSaved(true);
+        }
+      })
+      .catch((err) => console.error('Failed to claim assessment:', err))
+      .finally(() => setSavingAssessment(false));
+  }, [newUserId, hasPendingAssessment]);
+
+  // STAGE 2: Claim pending recommendations from localStorage → Appwrite
+  // Fires AFTER assessment is saved so we have a real assessmentId to link to
+  useEffect(() => {
+    if (!assessmentSaved || !newUserId || !hasPendingReco) return;
+    const assessmentId = savedAssessmentIdRef.current;
+    if (!assessmentId) return;
+
+    setSavingRecommendations(true);
+    claimPendingRecommendations(newUserId, assessmentId)
+      .then((saved) => {
+        if (saved) {
+          console.log('✅ Recommendations saved to Appwrite:', saved.$id);
+          setRecommendationsSaved(true);
+        }
+      })
+      .catch((err) => console.error('Failed to claim recommendations:', err))
+      .finally(() => setSavingRecommendations(false));
+  }, [assessmentSaved, newUserId, hasPendingReco]);
+
+  // Edge case: If there's NO pending assessment but there ARE recommendations
+  useEffect(() => {
+    if (!newUserId || hasPendingAssessment || !hasPendingReco) return;
+
+    setSavingRecommendations(true);
+    claimPendingRecommendations(newUserId, "unlinked")
+      .then((saved) => {
+        if (saved) setRecommendationsSaved(true);
+      })
+      .catch(console.error)
+      .finally(() => setSavingRecommendations(false));
+  }, [newUserId, hasPendingAssessment, hasPendingReco]);
+
+  // ── HANDLERS ──
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     clearError();
     setValidationError(null);
@@ -119,38 +196,29 @@ export default function SignUpPage() {
   };
 
   const validate = () => {
-    if (!formData.fullName.trim()) {
-      setValidationError("Please enter your full name");
-      return false;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setValidationError("Please enter a valid email");
-      return false;
-    }
-    if (formData.password.length < 8) {
-      setValidationError("Password must be at least 8 characters");
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setValidationError("Passwords don't match");
-      return false;
-    }
+    if (!formData.fullName.trim()) { setValidationError("Please enter your full name"); return false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { setValidationError("Please enter a valid email"); return false; }
+    if (formData.password.length < 8) { setValidationError("Password must be at least 8 characters"); return false; }
+    if (formData.password !== formData.confirmPassword) { setValidationError("Passwords don't match"); return false; }
     return true;
   };
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    await signUp({
+    const result = await signUp({
       fullName: formData.fullName.trim(),
       email: formData.email.trim(),
       password: formData.password,
     });
+    if (result !== undefined) {
+      const uid = (result as any).$id || (result as any).userId || (result as any).id;
+      if (uid) setNewUserId(uid);
+    }
+    if (!error) setSignupSuccess(true);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !loading) {
-      handleSubmit();
-    }
+    if (e.key === 'Enter' && !loading) handleSubmit();
   };
 
   const getStrengthColor = () => {
@@ -167,6 +235,9 @@ export default function SignUpPage() {
     return "Strong";
   };
 
+  const isSaving = savingAssessment || savingRecommendations;
+
+  // ── CONDITIONAL RETURN — after ALL hooks ──
   if (!mounted) return null;
 
   const colors = {
@@ -186,6 +257,162 @@ export default function SignUpPage() {
     "No credit card required",
     "Your data stays private and secure",
   ];
+
+  // Success screen content with both assessment and recommendation status
+  const SuccessContent = (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="text-center"
+    >
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+        className="flex items-center justify-center mx-auto mb-5 w-16 h-16 rounded-full"
+        style={{ background: `color-mix(in srgb, ${colors.primary} 15%, transparent)` }}
+      >
+        <CheckCircle className="w-8 h-8" style={{ color: colors.primary }} />
+      </motion.div>
+
+      <motion.h2
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="text-2xl font-black mb-1"
+        style={{ letterSpacing: "-0.04em", color: colors.text }}
+      >
+        Welcome, {formData.fullName.split(' ')[0] || 'there'}!
+      </motion.h2>
+
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="text-sm mb-6"
+        style={{ color: colors.muted }}
+      >
+        Your account has been created successfully.
+      </motion.p>
+
+      {/* Assessment Status */}
+      {hasPendingAssessment && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-4 p-4 text-left"
+          style={{
+            background: isDark ? "rgba(15, 187, 125, 0.08)" : "rgba(15, 187, 125, 0.06)",
+            border: `1px solid ${isDark ? "rgba(15, 187, 125, 0.2)" : "rgba(15, 187, 125, 0.25)"}`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              {savingAssessment ? (
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
+              ) : assessmentSaved ? (
+                <CheckCircle className="w-4 h-4" style={{ color: colors.primary }} />
+              ) : (
+                <Sparkles className="w-4 h-4" style={{ color: colors.primary }} />
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold mb-0.5" style={{ color: colors.primary }}>
+                {savingAssessment
+                  ? "Saving your health assessment..."
+                  : assessmentSaved
+                  ? "Assessment saved to your account"
+                  : "Health assessment found"}
+              </p>
+              <p className="text-xs" style={{ color: colors.muted }}>
+                {savingAssessment
+                  ? "Linking your results to your new account."
+                  : assessmentSaved
+                  ? "Your results are saved and ready in your dashboard."
+                  : "Your recent health assessment will be saved."}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Recommendations Status */}
+      {hasPendingReco && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.44 }}
+          className="mb-6 p-4 text-left"
+          style={{
+            background: isDark ? "rgba(15, 187, 125, 0.08)" : "rgba(15, 187, 125, 0.06)",
+            border: `1px solid ${isDark ? "rgba(15, 187, 125, 0.2)" : "rgba(15, 187, 125, 0.25)"}`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              {savingRecommendations ? (
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
+              ) : recommendationsSaved ? (
+                <CheckCircle className="w-4 h-4" style={{ color: colors.primary }} />
+              ) : (
+                <Sparkles className="w-4 h-4" style={{ color: colors.primary }} />
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold mb-0.5" style={{ color: colors.primary }}>
+                {savingRecommendations
+                  ? "Saving your personalised recommendations..."
+                  : recommendationsSaved
+                  ? "Recommendations saved to your account"
+                  : "AI recommendations ready"}
+              </p>
+              <p className="text-xs" style={{ color: colors.muted }}>
+                {savingRecommendations
+                  ? "Linking your recommendations to your account."
+                  : recommendationsSaved
+                  ? "Your personalised plan is ready in your dashboard."
+                  : "Generated during your assessment — will be saved."}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.48 }}
+        onClick={() => router.push("/dashboard")}
+        disabled={isSaving}
+        className="w-full py-3 px-4 text-sm font-semibold transition-all group"
+        style={{
+          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+          color: "white",
+          opacity: isSaving ? 0.7 : 1,
+        }}
+      >
+        <span className="flex items-center justify-center gap-2">
+          {isSaving ? (
+            <><Loader2 className="w-4 h-4 animate-spin" />Please wait...</>
+          ) : (
+            <>Go to Dashboard<ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>
+          )}
+        </span>
+      </motion.button>
+
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-xs mt-4"
+        style={{ color: colors.muted }}
+      >
+        Your health data is encrypted and private.
+      </motion.p>
+    </motion.div>
+  );
 
   return (
     <div className="min-h-screen relative" style={{ background: colors.bg }}>
@@ -249,266 +476,278 @@ export default function SignUpPage() {
         <div className="flex-1 relative z-10 flex flex-col justify-end pb-8">
           <div className="mx-5">
             <div className="p-6 rounded-t-3xl" style={{ background: colors.surface }}>
-              <h2 className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-                Create account
-              </h2>
-              <p className="text-sm mb-6" style={{ color: colors.muted }}>
-                Start your health journey today
-              </p>
 
-              {/* Tab Switcher */}
-              <div className="flex gap-2 p-1 mb-6" style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6" }}>
-                <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: colors.surface, color: colors.text }}>
-                  Sign up
-                </div>
-                <Link href="/login" className="flex-1 py-2 text-center text-sm font-medium" style={{ color: colors.muted }}>
-                  Sign in
-                </Link>
-              </div>
+              <AnimatePresence mode="wait">
+                {signupSuccess ? (
+                  <motion.div key="mobile-success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    {SuccessContent}
+                  </motion.div>
+                ) : (
+                  <motion.div key="mobile-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <h2 className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: colors.text }}>
+                      Create account
+                    </h2>
+                    <p className="text-sm mb-6" style={{ color: colors.muted }}>
+                      Start your health journey today
+                    </p>
 
-              {/* Error message */}
-              <AnimatePresence>
-                {(validationError || error) && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-4 p-3 flex items-start gap-2"
-                    style={{
-                      background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
-                      border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
-                    }}
-                  >
-                    <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
-                    <p className="text-xs" style={{ color: "#EF4444" }}>{validationError || error}</p>
+                    {/* Tab Switcher */}
+                    <div className="flex gap-2 p-1 mb-6" style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6" }}>
+                      <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: colors.surface, color: colors.text }}>
+                        Sign up
+                      </div>
+                      <Link href="/login" className="flex-1 py-2 text-center text-sm font-medium" style={{ color: colors.muted }}>
+                        Sign in
+                      </Link>
+                    </div>
+
+                    {/* Error message */}
+                    <AnimatePresence>
+                      {(validationError || error) && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mb-4 p-3 flex items-start gap-2"
+                          style={{
+                            background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
+                            border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
+                          }}
+                        >
+                          <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
+                          <p className="text-xs" style={{ color: "#EF4444" }}>{validationError || error}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Form Fields */}
+                    <div className="space-y-4">
+                      {/* Full Name */}
+                      <div>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                          Full Name
+                        </label>
+                        <div className="relative">
+                          <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                          <input
+                            type="text"
+                            name="fullName"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            onKeyPress={handleKeyPress}
+                            placeholder="John Doe"
+                            disabled={loading}
+                            className="w-full pl-10 pr-3 py-2.5 text-sm"
+                            style={{
+                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
+                              color: colors.text,
+                              border: "none",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email */}
+                      <div>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                          Email Address
+                        </label>
+                        <div className="relative">
+                          <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                          <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            onKeyPress={handleKeyPress}
+                            placeholder="you@example.com"
+                            disabled={loading}
+                            className="w-full pl-10 pr-3 py-2.5 text-sm"
+                            style={{
+                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
+                              color: colors.text,
+                              border: "none",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Password */}
+                      <div>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                          Password
+                        </label>
+                        <div className="relative">
+                          <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            onKeyPress={handleKeyPress}
+                            placeholder="••••••••"
+                            disabled={loading}
+                            className="w-full pl-10 pr-10 py-2.5 text-sm"
+                            style={{
+                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
+                              color: colors.text,
+                              border: "none",
+                              outline: "none",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: colors.muted }}
+                          >
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        {formData.password && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="mt-2 space-y-1"
+                          >
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4].map((i) => (
+                                <div
+                                  key={i}
+                                  className="h-1 flex-1 transition-all"
+                                  style={{
+                                    background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                            <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>
+                              {getStrengthText()} password
+                            </p>
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Confirm Password */}
+                      <div>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                          Confirm Password
+                        </label>
+                        <div className="relative">
+                          <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleChange}
+                            onKeyPress={handleKeyPress}
+                            placeholder="••••••••"
+                            disabled={loading}
+                            className="w-full pl-10 pr-10 py-2.5 text-sm"
+                            style={{
+                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
+                              color: colors.text,
+                              border: "none",
+                              outline: "none",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            style={{ color: colors.muted }}
+                          >
+                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        {formData.confirmPassword && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="mt-1 flex items-center gap-1.5 text-xs font-medium"
+                            style={{
+                              color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438",
+                            }}
+                          >
+                            {formData.password === formData.confirmPassword ? (
+                              <><Check size={12} /> Passwords match</>
+                            ) : (
+                              <><AlertCircle size={12} /> Passwords don&apos;t match</>
+                            )}
+                          </motion.div>
+                        )}
+                      </div>
+
+                      {/* Submit Button */}
+                      <button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="w-full py-3 px-4 text-sm font-semibold transition-all mt-2"
+                        style={{
+                          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                          color: "white",
+                          opacity: loading ? 0.7 : 1,
+                        }}
+                      >
+                        {loading ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Creating...
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            Create Account
+                            <ArrowRight size={16} />
+                          </span>
+                        )}
+                      </button>
+
+                      {/* Divider */}
+                      <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t" style={{ borderColor: colors.border }} />
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                          <span className="px-2" style={{ background: colors.surface, color: colors.muted }}>
+                            or continue with
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Google Button */}
+                      <button
+                        onClick={loginWithGoogle}
+                        disabled={loading}
+                        className="w-full py-2.5 px-4 text-sm font-medium border flex items-center justify-center gap-2"
+                        style={{
+                          background: colors.surface,
+                          borderColor: colors.border,
+                          color: colors.text,
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        Continue with Google
+                      </button>
+
+                      {/* Sign In Link */}
+                      <p className="text-center text-sm mt-4" style={{ color: colors.muted }}>
+                        Already have an account?{" "}
+                        <Link href="/login" className="font-semibold" style={{ color: colors.primary }}>
+                          Sign in
+                        </Link>
+                      </p>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Form Fields */}
-              <div className="space-y-4">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder="John Doe"
-                      disabled={loading}
-                      className="w-full pl-10 pr-3 py-2.5 text-sm"
-                      style={{
-                        background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                        color: colors.text,
-                        border: "none",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder="you@example.com"
-                      disabled={loading}
-                      className="w-full pl-10 pr-3 py-2.5 text-sm"
-                      style={{
-                        background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                        color: colors.text,
-                        border: "none",
-                        outline: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div>
-                  <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder="••••••••"
-                      disabled={loading}
-                      className="w-full pl-10 pr-10 py-2.5 text-sm"
-                      style={{
-                        background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                        color: colors.text,
-                        border: "none",
-                        outline: "none",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: colors.muted }}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  {formData.password && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      className="mt-2 space-y-1"
-                    >
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4].map((i) => (
-                          <div
-                            key={i}
-                            className="h-1 flex-1 transition-all"
-                            style={{
-                              background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>
-                        {getStrengthText()} password
-                      </p>
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder="••••••••"
-                      disabled={loading}
-                      className="w-full pl-10 pr-10 py-2.5 text-sm"
-                      style={{
-                        background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                        color: colors.text,
-                        border: "none",
-                        outline: "none",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2"
-                      style={{ color: colors.muted }}
-                    >
-                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  {formData.confirmPassword && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="mt-1 flex items-center gap-1.5 text-xs font-medium"
-                      style={{
-                        color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438",
-                      }}
-                    >
-                      {formData.password === formData.confirmPassword ? (
-                        <><Check size={12} /> Passwords match</>
-                      ) : (
-                        <><AlertCircle size={12} /> Passwords don&apos;t match</>
-                      )}
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="w-full py-3 px-4 text-sm font-semibold transition-all mt-2"
-                  style={{
-                    background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                    color: "white",
-                    opacity: loading ? 0.7 : 1,
-                  }}
-                >
-                  {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Creating...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      Create Account
-                      <ArrowRight size={16} />
-                    </span>
-                  )}
-                </button>
-
-                {/* Divider */}
-                <div className="relative my-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t" style={{ borderColor: colors.border }} />
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="px-2" style={{ background: colors.surface, color: colors.muted }}>
-                      or continue with
-                    </span>
-                  </div>
-                </div>
-
-                {/* Google Button */}
-                <button
-                  onClick={loginWithGoogle}
-                  disabled={loading}
-                  className="w-full py-2.5 px-4 text-sm font-medium border flex items-center justify-center gap-2"
-                  style={{
-                    background: colors.surface,
-                    borderColor: colors.border,
-                    color: colors.text,
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                  Continue with Google
-                </button>
-
-                {/* Sign In Link */}
-                <p className="text-center text-sm mt-4" style={{ color: colors.muted }}>
-                  Already have an account?{" "}
-                  <Link href="/login" className="font-semibold" style={{ color: colors.primary }}>
-                    Sign in
-                  </Link>
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -570,7 +809,7 @@ export default function SignUpPage() {
                 </div>
 
                 {/* Security Notice */}
-                <div className="flex gap-3 p-4" style={{ 
+                <div className="flex gap-3 p-4" style={{
                   background: `color-mix(in srgb, ${colors.primary} 10%, transparent)`,
                   border: `1px solid color-mix(in srgb, ${colors.primary} 20%, transparent)`,
                 }}>
@@ -579,282 +818,306 @@ export default function SignUpPage() {
                 </div>
               </div>
 
-              {/* RIGHT SIDE - Form */}
+              {/* RIGHT SIDE - Form or Success */}
               <div className="w-full max-w-md mx-auto lg:mx-0">
-                <div className="p-8" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-                      Create account
-                    </h2>
-                    <p className="text-sm mt-1" style={{ color: colors.muted }}>
-                      Free health assessments. No credit card required.
-                    </p>
-                  </div>
+                <AnimatePresence mode="wait">
+                  {signupSuccess ? (
+                    <motion.div
+                      key="desktop-success"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      transition={{ duration: 0.35 }}
+                      className="p-8"
+                      style={{ background: colors.surface, border: `1px solid ${colors.border}` }}
+                    >
+                      {SuccessContent}
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="desktop-form"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      transition={{ duration: 0.35 }}
+                    >
+                      <div className="p-8" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+                        <div className="mb-6">
+                          <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: colors.text }}>
+                            Create account
+                          </h2>
+                          <p className="text-sm mt-1" style={{ color: colors.muted }}>
+                            Free health assessments. No credit card required.
+                          </p>
+                        </div>
 
-                  {/* Error message */}
-                  <AnimatePresence>
-                    {(validationError || error) && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mb-6 p-3 flex items-start gap-2"
-                        style={{
-                          background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
-                          border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
-                        }}
-                      >
-                        <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
-                        <p className="text-sm" style={{ color: "#EF4444" }}>{validationError || error}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        {/* Error message */}
+                        <AnimatePresence>
+                          {(validationError || error) && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mb-6 p-3 flex items-start gap-2"
+                              style={{
+                                background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
+                                border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
+                              }}
+                            >
+                              <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
+                              <p className="text-sm" style={{ color: "#EF4444" }}>{validationError || error}</p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
 
-                  {/* Form Fields */}
-                  <div className="space-y-4">
-                    {/* Full Name */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                        Full Name
-                      </label>
-                      <div className="relative">
-                        <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                        <input
-                          type="text"
-                          name="fullName"
-                          value={formData.fullName}
-                          onChange={handleChange}
-                          onKeyPress={handleKeyPress}
-                          onFocus={() => setFocusedField("name")}
-                          onBlur={() => setFocusedField(null)}
-                          placeholder="John Doe"
-                          disabled={loading}
-                          className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
-                          style={{
-                            background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                            borderColor: focusedField === "name" ? colors.primary : colors.border,
-                            color: colors.text,
-                            outline: "none",
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Email */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          onKeyPress={handleKeyPress}
-                          onFocus={() => setFocusedField("email")}
-                          onBlur={() => setFocusedField(null)}
-                          placeholder="you@example.com"
-                          disabled={loading}
-                          className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
-                          style={{
-                            background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                            borderColor: focusedField === "email" ? colors.primary : colors.border,
-                            color: colors.text,
-                            outline: "none",
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Password */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                        Password
-                      </label>
-                      <div className="relative">
-                        <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          name="password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          onKeyPress={handleKeyPress}
-                          onFocus={() => setFocusedField("password")}
-                          onBlur={() => setFocusedField(null)}
-                          placeholder="••••••••"
-                          disabled={loading}
-                          className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
-                          style={{
-                            background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                            borderColor: focusedField === "password" ? colors.primary : colors.border,
-                            color: colors.text,
-                            outline: "none",
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
-                          style={{ color: colors.muted }}
-                        >
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                      {formData.password && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          className="mt-2 space-y-2"
-                        >
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4].map((i) => (
-                              <div
-                                key={i}
-                                className="h-1 flex-1 transition-all"
+                        {/* Form Fields */}
+                        <div className="space-y-4">
+                          {/* Full Name */}
+                          <div>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                              Full Name
+                            </label>
+                            <div className="relative">
+                              <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                              <input
+                                type="text"
+                                name="fullName"
+                                value={formData.fullName}
+                                onChange={handleChange}
+                                onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("name")}
+                                onBlur={() => setFocusedField(null)}
+                                placeholder="John Doe"
+                                disabled={loading}
+                                className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
                                 style={{
-                                  background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
+                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
+                                  borderColor: focusedField === "name" ? colors.primary : colors.border,
+                                  color: colors.text,
+                                  outline: "none",
                                 }}
                               />
-                            ))}
+                            </div>
                           </div>
-                          <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>
-                            {getStrengthText()} password
+
+                          {/* Email */}
+                          <div>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                              Email Address
+                            </label>
+                            <div className="relative">
+                              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                              <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("email")}
+                                onBlur={() => setFocusedField(null)}
+                                placeholder="you@example.com"
+                                disabled={loading}
+                                className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
+                                style={{
+                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
+                                  borderColor: focusedField === "email" ? colors.primary : colors.border,
+                                  color: colors.text,
+                                  outline: "none",
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Password */}
+                          <div>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                              Password
+                            </label>
+                            <div className="relative">
+                              <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                              <input
+                                type={showPassword ? "text" : "password"}
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("password")}
+                                onBlur={() => setFocusedField(null)}
+                                placeholder="••••••••"
+                                disabled={loading}
+                                className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
+                                style={{
+                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
+                                  borderColor: focusedField === "password" ? colors.primary : colors.border,
+                                  color: colors.text,
+                                  outline: "none",
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2"
+                                style={{ color: colors.muted }}
+                              >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
+                            </div>
+                            {formData.password && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                className="mt-2 space-y-2"
+                              >
+                                <div className="flex gap-1">
+                                  {[1, 2, 3, 4].map((i) => (
+                                    <div
+                                      key={i}
+                                      className="h-1 flex-1 transition-all"
+                                      style={{
+                                        background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>
+                                  {getStrengthText()} password
+                                </p>
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Confirm Password */}
+                          <div>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
+                              Confirm Password
+                            </label>
+                            <div className="relative">
+                              <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
+                              <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("confirm")}
+                                onBlur={() => setFocusedField(null)}
+                                placeholder="••••••••"
+                                disabled={loading}
+                                className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
+                                style={{
+                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
+                                  borderColor: focusedField === "confirm" ? colors.primary : colors.border,
+                                  color: colors.text,
+                                  outline: "none",
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2"
+                                style={{ color: colors.muted }}
+                              >
+                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                              </button>
+                            </div>
+                            {formData.confirmPassword && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="mt-1 flex items-center gap-1.5 text-xs font-medium"
+                                style={{
+                                  color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438",
+                                }}
+                              >
+                                {formData.password === formData.confirmPassword ? (
+                                  <><Check size={14} /> Passwords match</>
+                                ) : (
+                                  <><AlertCircle size={14} /> Passwords don&apos;t match</>
+                                )}
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {/* Submit Button */}
+                          <button
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="w-full py-3 px-4 text-sm font-semibold transition-all group mt-2"
+                            style={{
+                              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                              color: "white",
+                              opacity: loading ? 0.7 : 1,
+                            }}
+                          >
+                            <span className="flex items-center justify-center gap-2">
+                              {loading ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Creating Account...
+                                </>
+                              ) : (
+                                <>
+                                  Create Account
+                                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                </>
+                              )}
+                            </span>
+                          </button>
+
+                          {/* Divider */}
+                          <div className="relative my-6">
+                            <div className="absolute inset-0 flex items-center">
+                              <div className="w-full border-t" style={{ borderColor: colors.border }} />
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                              <span className="px-3" style={{ background: colors.surface, color: colors.muted }}>
+                                or continue with
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Google Button */}
+                          <button
+                            onClick={loginWithGoogle}
+                            disabled={loading}
+                            className="w-full py-3 px-4 border text-sm font-medium flex items-center justify-center gap-3 transition-all"
+                            style={{
+                              background: colors.surface,
+                              borderColor: colors.border,
+                              color: colors.text,
+                            }}
+                          >
+                            <svg width="20" height="20" viewBox="0 0 24 24">
+                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                            </svg>
+                            Continue with Google
+                          </button>
+
+                          {/* Sign In Link */}
+                          <p className="text-center text-sm mt-6" style={{ color: colors.muted }}>
+                            Already have an account?{" "}
+                            <Link
+                              href="/login"
+                              className="font-semibold hover:underline underline-offset-4"
+                              style={{ color: colors.primary }}
+                            >
+                              Sign in
+                            </Link>
                           </p>
-                        </motion.div>
-                      )}
-                    </div>
 
-                    {/* Confirm Password */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                        Confirm Password
-                      </label>
-                      <div className="relative">
-                        <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          name="confirmPassword"
-                          value={formData.confirmPassword}
-                          onChange={handleChange}
-                          onKeyPress={handleKeyPress}
-                          onFocus={() => setFocusedField("confirm")}
-                          onBlur={() => setFocusedField(null)}
-                          placeholder="••••••••"
-                          disabled={loading}
-                          className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
-                          style={{
-                            background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                            borderColor: focusedField === "confirm" ? colors.primary : colors.border,
-                            color: colors.text,
-                            outline: "none",
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
-                          style={{ color: colors.muted }}
-                        >
-                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
+                          <div className="text-center mt-3">
+                            <Link href="/" className="text-xs hover:underline underline-offset-4" style={{ color: colors.subtle }}>
+                              ← Back to home
+                            </Link>
+                          </div>
+                        </div>
                       </div>
-                      {formData.confirmPassword && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="mt-1 flex items-center gap-1.5 text-xs font-medium"
-                          style={{
-                            color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438",
-                          }}
-                        >
-                          {formData.password === formData.confirmPassword ? (
-                            <><Check size={14} /> Passwords match</>
-                          ) : (
-                            <><AlertCircle size={14} /> Passwords don&apos;t match</>
-                          )}
-                        </motion.div>
-                      )}
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                      onClick={handleSubmit}
-                      disabled={loading}
-                      className="w-full py-3 px-4 text-sm font-semibold transition-all group mt-2"
-                      style={{
-                        background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                        color: "white",
-                        opacity: loading ? 0.7 : 1,
-                      }}
-                    >
-                      <span className="flex items-center justify-center gap-2">
-                        {loading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Creating Account...
-                          </>
-                        ) : (
-                          <>
-                            Create Account
-                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                          </>
-                        )}
-                      </span>
-                    </button>
-
-                    {/* Divider */}
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t" style={{ borderColor: colors.border }} />
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="px-3" style={{ background: colors.surface, color: colors.muted }}>
-                          or continue with
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Google Button */}
-                    <button
-                      onClick={loginWithGoogle}
-                      disabled={loading}
-                      className="w-full py-3 px-4 border text-sm font-medium flex items-center justify-center gap-3 transition-all"
-                      style={{
-                        background: colors.surface,
-                        borderColor: colors.border,
-                        color: colors.text,
-                      }}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                      </svg>
-                      Continue with Google
-                    </button>
-
-                    {/* Sign In Link */}
-                    <p className="text-center text-sm mt-6" style={{ color: colors.muted }}>
-                      Already have an account?{" "}
-                      <Link
-                        href="/login"
-                        className="font-semibold hover:underline underline-offset-4"
-                        style={{ color: colors.primary }}
-                      >
-                        Sign in
-                      </Link>
-                    </p>
-
-                    <div className="text-center mt-3">
-                      <Link href="/" className="text-xs hover:underline underline-offset-4" style={{ color: colors.subtle }}>
-                        ← Back to home
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
             </div>

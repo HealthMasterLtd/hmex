@@ -1,398 +1,528 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Loader2, 
-  AlertCircle, 
-  Droplet,
-  Heart,
-  ArrowRight,
-  MessageCircle,
-  RefreshCw,
-  Apple,
-  Activity,
-  Stethoscope,
-  AlertTriangle,
-  Info
+import {
+  Loader2, AlertCircle, ArrowRight, RefreshCw, CheckCircle,
+  AlertTriangle, Droplet, Heart, TrendingUp, Shield, Zap,
+  ChevronDown, ChevronUp, MessageCircle, Lock, Sparkles,
+  Star, Activity,
+  CirclePlus,
 } from "lucide-react";
 import { groqService } from "@/services/GroqService";
 import type { DualRiskAssessment } from "@/services/GroqService";
-import "@/styles/review.scss";
 import Navbar from "@/components/landingpage/navbar";
-
 import Footer from "@/components/ui/Footer";
+import { useTheme } from "@/contexts/ThemeContext";
 
-const RiskPreviewPage: React.FC = () => {
-  const [assessment, setAssessment] = useState<DualRiskAssessment | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    generateAssessment();
-  }, []);
-
-  const generateAssessment = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const result = await groqService.generateRiskAssessment();
-      setAssessment(result);
-    } catch (err) {
-      console.error('Error generating assessment:', err);
-      setError('Failed to generate your risk assessment. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLoginSignUp = () => {
-    router.push('/login');
-  };
-
-  const getRiskColor = (level: string): string => {
-    switch (level) {
-      case 'low':
-        return 'bg-green-500';
-      case 'slightly-elevated':
-        return 'bg-yellow-500';
-      case 'moderate':
-        return 'bg-orange-500';
-      case 'high':
-        return 'bg-red-500';
-      case 'very-high':
-        return 'bg-red-700';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
-  const getRiskScore = (level: string): string => {
-    switch (level) {
-      case 'low':
-        return '2/20';
-      case 'slightly-elevated':
-        return '5/20';
-      case 'moderate':
-        return '8/20';
-      case 'high':
-        return '14/20';
-      case 'very-high':
-        return '18/20';
-      default:
-        return '0/20';
-    }
-  };
-
-  const getRecommendations = (type: 'diabetes' | 'hypertension', level: string) => {
-    if (type === 'diabetes') {
-      return [
-        'Schedule regular health check-ups with your doctor',
-        'Reduce intake of sugary drinks and processed foods',
-        'Increase physical activity to at least 150 minutes per week'
-      ];
-    } else {
-      return [
-        'Monitor your blood pressure regularly at home',
-        'Reduce salt intake significantly',
-        'Increase potassium-rich foods like bananas and leafy greens'
-      ];
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-3xl shadow-xl p-12 max-w-md border border-gray-100 animate-scale-in">
-          <div className="loading-spinner">
-            <Loader2 className="w-16 h-16 text-teal-500 mx-auto mb-6" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">
-            Analyzing Your Health Profile
-          </h2>
-          <p className="text-gray-600">
-            Generating your personalized risk assessment...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !assessment) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-3xl shadow-xl p-12 max-w-md border border-gray-100 animate-fade-in-up">
-          <AlertCircle className="w-16 h-16 text-rose-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">
-            Assessment Failed
-          </h2>
-          <p className="text-gray-600 mb-6">
-            {error || 'Unable to generate your risk assessment'}
-          </p>
-          <button
-            onClick={() => router.push('/questions')}
-            className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition-all duration-300 hover-lift"
-          >
-            Start Over
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <Navbar/>
-      
-      {/* Main Content Area with Green Background */}
-      <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          
-          {/* Header */}
-          <div className="text-center mb-12 animate-fade-in-down">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-              Here is your quick risk snapshot
-            </h1>
-          </div>
-
-          {/* Risk Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            
-            {/* Diabetes Risk Card */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Droplet className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Diabetes Risk</h3>
-                    <p className="text-sm text-gray-500">Type 2 Diabetes Assessment</p>
-                  </div>
-                </div>
-                <AlertTriangle className="w-6 h-6 text-amber-500" />
-              </div>
-
-              {/* Risk Level */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-2xl font-bold ${
-                    assessment.diabetesRisk.level === 'low' ? 'text-green-600' :
-                    assessment.diabetesRisk.level === 'moderate' ? 'text-orange-600' :
-                    'text-red-600'
-                  }`}>
-                    {assessment.diabetesRisk.level.charAt(0).toUpperCase() + assessment.diabetesRisk.level.slice(1).replace('-', ' ')}
-                  </span>
-                  <span className="text-gray-600 font-semibold">
-                    Score: {getRiskScore(assessment.diabetesRisk.level)}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className={`h-3 rounded-full ${getRiskColor(assessment.diabetesRisk.level)}`}
-                    style={{
-                      width: assessment.diabetesRisk.level === 'low' ? '20%' :
-                             assessment.diabetesRisk.level === 'moderate' ? '50%' :
-                             assessment.diabetesRisk.level === 'high' ? '80%' : '30%'
-                    }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Recommendations Preview */}
-              <div className="space-y-2">
-                {getRecommendations('diabetes', assessment.diabetesRisk.level).map((rec, idx) => (
-                  <div key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-                    <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span>{rec}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Blur overlay for locked content */}
-              <div className="mt-6 relative">
-                <div className="blur-sm opacity-50 pointer-events-none">
-                  <div className="h-20 bg-gray-100 rounded-xl"></div>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <button
-                    onClick={handleLoginSignUp}
-                    className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-6 py-2 rounded-full text-sm font-semibold hover:shadow-lg transition-all"
-                  >
-                    Sign Up to See More
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Hypertension Risk Card */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 transform hover:scale-105 transition-all duration-300">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-red-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Hypertension Risk</h3>
-                    <p className="text-sm text-gray-500">High Blood Pressure Assessment</p>
-                  </div>
-                </div>
-                <AlertTriangle className="w-6 h-6 text-amber-500" />
-              </div>
-
-              {/* Risk Level */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-2xl font-bold ${
-                    assessment.hypertensionRisk.level === 'low' ? 'text-green-600' :
-                    assessment.hypertensionRisk.level === 'moderate' ? 'text-orange-600' :
-                    'text-red-600'
-                  }`}>
-                    {assessment.hypertensionRisk.level.charAt(0).toUpperCase() + assessment.hypertensionRisk.level.slice(1).replace('-', ' ')}
-                  </span>
-                  <span className="text-gray-600 font-semibold">
-                    Score: {getRiskScore(assessment.hypertensionRisk.level)}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className={`h-3 rounded-full ${getRiskColor(assessment.hypertensionRisk.level)}`}
-                    style={{
-                      width: assessment.hypertensionRisk.level === 'low' ? '20%' :
-                             assessment.hypertensionRisk.level === 'moderate' ? '50%' :
-                             assessment.hypertensionRisk.level === 'high' ? '80%' : '30%'
-                    }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Recommendations Preview */}
-              <div className="space-y-2">
-                {getRecommendations('hypertension', assessment.hypertensionRisk.level).map((rec, idx) => (
-                  <div key={idx} className="flex items-start gap-2 text-sm text-gray-700">
-                    <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <span>{rec}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Blur overlay for locked content */}
-              <div className="mt-6 relative">
-                <div className="blur-sm opacity-50 pointer-events-none">
-                  <div className="h-20 bg-gray-100 rounded-xl"></div>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <button
-                    onClick={handleLoginSignUp}
-                    className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-6 py-2 rounded-full text-sm font-semibold hover:shadow-lg transition-all"
-                  >
-                    Sign Up to See More
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Action Cards */}
-          <div className="grid sm:grid-cols-3 gap-6 mb-8">
-            
-            {/* Nutrition Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center transform hover:scale-105 transition-all">
-              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Apple className="w-8 h-8 text-teal-600" />
-              </div>
-              <h4 className="font-bold text-gray-900 mb-2">Nutrition Matters</h4>
-              <p className="text-sm text-gray-600">
-                Focus on whole foods, vegetables, and balanced meals
-              </p>
-            </div>
-
-            {/* Stay Active Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center transform hover:scale-105 transition-all">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Activity className="w-8 h-8 text-blue-600" />
-              </div>
-              <h4 className="font-bold text-gray-900 mb-2">Stay Active</h4>
-              <p className="text-sm text-gray-600">
-                Aim for 150 minutes of moderate exercise per week
-              </p>
-            </div>
-
-            {/* Regular Checkups Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 text-center transform hover:scale-105 transition-all">
-              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Stethoscope className="w-8 h-8 text-pink-600" />
-              </div>
-              <h4 className="font-bold text-gray-900 mb-2">Regular Checkups</h4>
-              <p className="text-sm text-gray-600">
-                Visit your doctor for routine health screenings
-              </p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
-            <button
-              onClick={handleLoginSignUp}
-              className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold px-8 py-4 rounded-full shadow-xl transition-all duration-300 flex items-center gap-3 hover:scale-105"
-            >
-              <MessageCircle className="w-5 h-5" />
-              Chat With a Doctor on WhatsApp
-            </button>
-            
-            <button
-              onClick={() => router.push('/questions')}
-              className="bg-white hover:bg-gray-50 text-gray-700 font-semibold px-8 py-4 rounded-full shadow-lg transition-all duration-300 flex items-center gap-3 hover:scale-105"
-            >
-              <RefreshCw className="w-5 h-5" />
-              Take Assessment Again
-            </button>
-          </div>
-
-          {/* Disclaimer */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-2xl border border-white/30 p-6 text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Info className="w-5 h-5 text-white" />
-              <span className="font-bold text-white">Disclaimer:</span>
-            </div>
-            <p className="text-white text-sm max-w-4xl mx-auto">
-              This risk assessment is for educational purposes only and should not be considered medical advice. Always consult with qualified healthcare professionals for diagnosis and treatment.
-            </p>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Full Report Teaser Section */}
-      <div className="py-16 px-4 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-            Want Your Complete Health Analysis?
-          </h2>
-          <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Sign up for free to unlock detailed recommendations, personalized action plans, and downloadable reports
-          </p>
-          
-          <button
-            onClick={handleLoginSignUp}
-            className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold px-12 py-5 rounded-full shadow-2xl transition-all duration-300 inline-flex items-center gap-3 hover:scale-105 text-lg"
-          >
-            Get Your Full Report Free
-            <ArrowRight className="w-6 h-6" />
-          </button>
-          
-          <p className="text-gray-500 text-sm mt-4">
-            No credit card required • Instant access • 100% Secure
-          </p>
-        </div>
-      </div>
-
-      <Footer/>
-    </div>
-  );
+// ─── RISK META ─────────────────────────────────────────────────────────────────
+const LEVEL_META: Record<string, {
+  label: string; colour: string; bg: string; bar: string; pct: number; emoji: string;
+}> = {
+  'low':               { label: 'Low',              colour: '#22c55e', bg: 'rgba(34,197,94,.08)',   bar: '#22c55e', pct: 15, emoji: '🟢' },
+  'slightly-elevated': { label: 'Slightly Elevated', colour: '#eab308', bg: 'rgba(234,179,8,.08)',  bar: '#eab308', pct: 38, emoji: '🟡' },
+  'moderate':          { label: 'Moderate',          colour: '#f97316', bg: 'rgba(249,115,22,.09)', bar: '#f97316', pct: 58, emoji: '🟠' },
+  'high':              { label: 'High',              colour: '#ef4444', bg: 'rgba(239,68,68,.09)',  bar: '#ef4444', pct: 78, emoji: '🔴' },
+  'very-high':         { label: 'Very High',         colour: '#dc2626', bg: 'rgba(220,38,38,.11)',  bar: '#dc2626', pct: 95, emoji: '🔴' },
 };
 
-export default RiskPreviewPage;
+// ─── HOOKS ────────────────────────────────────────────────────────────────────
+function useCountUp(target: number, duration = 1200, enabled = true) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let start: number | null = null;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      const ease = 1 - (1 - p) ** 3;
+      setVal(Math.round(ease * target));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration, enabled]);
+  return val;
+}
+
+function useInView(threshold = 0.1) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVis(true); io.disconnect(); } },
+      { threshold }
+    );
+    if (ref.current) io.observe(ref.current);
+    return () => io.disconnect();
+  }, [threshold]);
+  return { ref, vis };
+}
+
+// ─── RISK GAUGE CARD ─────────────────────────────────────────────────────────
+function RiskGauge({
+  level, label, icon, isDark, delay = 0,
+}: {
+  level: string; label: string; icon: React.ReactNode; isDark: boolean; delay?: number;
+}) {
+  const meta = LEVEL_META[level] ?? LEVEL_META.low;
+  const { ref, vis } = useInView();
+  const pct = useCountUp(meta.pct, 1100, vis);
+
+  const cardBg = isDark ? '#0e1521' : '#ffffff';
+  const textH = isDark ? '#f1f5f9' : '#0f172a';
+  const textM = isDark ? '#6b7a96' : '#64748b';
+  const trackBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+  return (
+    <div
+      ref={ref}
+      className="rounded-2xl p-6 transition-all duration-700"
+      style={{
+        background: cardBg,
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+        opacity: vis ? 1 : 0,
+        transform: vis ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.97)',
+        transitionDelay: `${delay}ms`,
+        boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 4px 24px rgba(0,0,0,0.05)',
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-xl"
+            style={{ background: meta.bg, color: meta.colour }}
+          >
+            {icon}
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: textM }}>{label}</p>
+            <p className="text-[15px] font-bold" style={{ color: meta.colour }}>{meta.label}</p>
+          </div>
+        </div>
+        <span className="text-[2.2rem] font-black tabular-nums" style={{ color: meta.colour }}>{pct}%</span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-2 w-full rounded-full overflow-hidden mb-4" style={{ background: trackBg }}>
+        <div
+          className="h-full rounded-full transition-all duration-[1.1s] ease-out"
+          style={{ width: vis ? `${meta.pct}%` : '0%', background: `linear-gradient(90deg, ${meta.bar}, ${meta.bar}cc)` }}
+        />
+      </div>
+
+      {/* 5-segment scale */}
+      <div className="grid grid-cols-5 gap-1">
+        {(['low', 'slightly-elevated', 'moderate', 'high', 'very-high'] as const).map(lvl => {
+          const m = LEVEL_META[lvl];
+          const active = lvl === level;
+          return (
+            <div key={lvl} className="flex flex-col items-center gap-1.5">
+              <div
+                className="h-1.5 w-full rounded-full transition-all duration-300"
+                style={{ background: active ? m.bar : trackBg, opacity: active ? 1 : 0.5 }}
+              />
+              <span
+                className="text-[8.5px] text-center leading-tight"
+                style={{ color: active ? m.colour : textM, fontWeight: active ? 700 : 400 }}
+              >
+                {m.label.split(' ')[0]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── ANIMATED SIGNUP CTA ─────────────────────────────────────────────────────
+function SignupCTA({ isDark, onSignup }: { isDark: boolean; onSignup: () => void }) {
+  const { ref, vis } = useInView(0.2);
+  const [hovered, setHovered] = useState(false);
+
+  const features = [
+    'Full risk score breakdown',
+    'Downloadable PDF report',
+    'Track progress over time',
+    'Nearest health centre referral',
+    'Personalised action plan',
+  ];
+
+  return (
+    <div
+      ref={ref}
+      className="relative overflow-hidden rounded-2xl"
+      style={{
+        background: isDark
+          ? 'linear-gradient(135deg, #0d1a2e 0%, #0e1e2e 50%, #091520 100%)'
+          : 'linear-gradient(135deg, #f0fdf9 0%, #ecfdf5 50%, #f0f9ff 100%)',
+        border: `1px solid ${isDark ? 'rgba(13,148,136,0.25)' : 'rgba(13,148,136,0.2)'}`,
+        opacity: vis ? 1 : 0,
+        transform: vis ? 'translateY(0)' : 'translateY(24px)',
+        transition: 'opacity 0.8s ease, transform 0.8s ease',
+        boxShadow: isDark
+          ? '0 0 60px rgba(13,148,136,0.08), 0 8px 32px rgba(0,0,0,0.4)'
+          : '0 0 60px rgba(13,148,136,0.06), 0 8px 32px rgba(0,0,0,0.06)',
+      }}
+    >
+      {/* Decorative glow orbs */}
+      <div
+        className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.18) 0%, transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(5,150,105,0.12) 0%, transparent 70%)' }}
+      />
+
+      <div className="relative p-7">
+        {/* Lock badge */}
+        <div className="flex items-center gap-2 mb-5">
+          <div
+            className="flex items-center justify-center w-8 h-8 rounded-lg"
+            style={{ background: 'rgba(13,148,136,0.15)' }}
+          >
+            <Lock className="w-4 h-4 text-teal-500" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-teal-500">Unlock your full report</p>
+            <p className="text-[11px]" style={{ color: isDark ? '#4b6279' : '#94a3b8' }}>Free — no credit card needed</p>
+          </div>
+        </div>
+
+        {/* Blurred features */}
+        <div className="space-y-2.5 mb-6">
+          {features.map((feat, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2.5 transition-all duration-300"
+              style={{
+                filter: `blur(${i >= 2 ? 3 : 0}px)`,
+                opacity: i >= 2 ? 0.4 : 0.85,
+              }}
+            >
+              <CheckCircle className="w-4 h-4 shrink-0" style={{ color: i < 2 ? '#0d9488' : isDark ? '#334155' : '#94a3b8' }} />
+              <p
+                className="text-[13px]"
+                style={{ color: i < 2 ? (isDark ? '#e2e8f0' : '#0f172a') : (isDark ? '#334155' : '#94a3b8') }}
+              >
+                {feat}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Stars */}
+        <div className="flex items-center gap-1 mb-5">
+          {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />)}
+          <span className="text-[11px] font-semibold ml-1.5" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            Trusted by thousands across East Africa
+          </span>
+        </div>
+
+        {/* CTA button */}
+        <button
+          onClick={onSignup}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl text-base font-bold text-white transition-all duration-300"
+          style={{
+            background: 'linear-gradient(135deg, #0d9488, #059669)',
+            boxShadow: hovered
+              ? '0 8px 30px rgba(13,148,136,0.5), 0 0 0 4px rgba(13,148,136,0.15)'
+              : '0 4px 16px rgba(13,148,136,0.3)',
+            transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+          }}
+        >
+          <CirclePlus className="w-4 h-4" />
+          Create free account
+          <ArrowRight className={`w-4 h-4 transition-transform duration-200 ${hovered ? 'translate-x-1' : ''}`} />
+        </button>
+
+        <p className="text-center text-[11px] mt-3" style={{ color: isDark ? '#334155' : '#94a3b8' }}>
+          Save results · Track over time · Unlock full insights
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── SECTION CARD ─────────────────────────────────────────────────────────────
+function SectionCard({
+  icon, accentColor, label, children, isDark, delay = 0,
+}: {
+  icon: React.ReactNode;
+  accentColor: string;
+  label: string;
+  children: React.ReactNode;
+  isDark: boolean;
+  delay?: number;
+}) {
+  const { ref, vis } = useInView(0.08);
+  return (
+    <div
+      ref={ref}
+      className="rounded-2xl p-5 transition-all duration-700"
+      style={{
+        background: isDark ? '#0e1521' : '#ffffff',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+        boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.25)' : '0 4px 24px rgba(0,0,0,0.04)',
+        opacity: vis ? 1 : 0,
+        transform: vis ? 'translateY(0)' : 'translateY(16px)',
+        transitionDelay: `${delay}ms`,
+      }}
+    >
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: `${accentColor}18`, color: accentColor }}>
+          {icon}
+        </div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : '#94a3b8' }}>{label}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── MAIN REVIEW PAGE ─────────────────────────────────────────────────────────
+export default function ReviewPage() {
+  const { isDark } = useTheme();
+  const router = useRouter();
+
+  const [assessment, setAssessment] = useState<DualRiskAssessment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+
+  const textH = isDark ? '#f1f5f9' : '#0f172a';
+  const textM = isDark ? '#6b7a96' : '#64748b';
+  const bg = isDark ? '#080d18' : '#f1f5fb';
+
+  useEffect(() => { generate(); }, []);
+
+  const generate = async () => {
+    setLoading(true); setError(null);
+    try {
+      const r = await groqService.generateRiskAssessment();
+      setAssessment(r);
+    } catch {
+      setError("Failed to generate your assessment. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Loading
+  if (loading) return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 transition-colors duration-500" style={{ background: bg }}>
+      <div className="flex flex-col items-center gap-6 text-center">
+        <div className="relative">
+          <div
+            className="h-20 w-20 animate-spin rounded-full border-4"
+            style={{ borderColor: 'transparent', borderTopColor: '#0d9488', borderRightColor: 'rgba(13,148,136,0.2)' }}
+          />
+          <Activity className="absolute inset-0 m-auto h-7 w-7 text-teal-500" />
+        </div>
+        <div>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-teal-500">Analysing your responses</p>
+          <h2 className="text-[1.15rem] font-bold" style={{ color: textH }}>Generating your personalised report…</h2>
+          <p className="text-[13px] mt-2" style={{ color: textM }}>Our AI is reviewing your risk factors</p>
+        </div>
+        {/* Loading progress bar */}
+        <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(13,148,136,0.15)' }}>
+          <div
+            className="h-full rounded-full animate-pulse"
+            style={{ width: '70%', background: 'linear-gradient(90deg, #0d9488, #059669)' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  // Error
+  if (error || !assessment) return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center" style={{ background: bg }}>
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
+        <AlertCircle className="h-8 w-8 text-red-500" />
+      </div>
+      <div>
+        <h2 className="text-[1.15rem] font-bold mb-1" style={{ color: textH }}>Assessment failed</h2>
+        <p className="text-[13.5px]" style={{ color: textM }}>{error || "Unable to generate your report."}</p>
+      </div>
+      <button
+        onClick={() => router.push('/questions')}
+        className="rounded-xl px-7 py-3 text-sm font-bold text-white"
+        style={{ background: 'linear-gradient(135deg,#0d9488,#059669)', boxShadow: '0 4px 16px rgba(13,148,136,0.3)' }}
+      >
+        Start over
+      </button>
+    </div>
+  );
+
+  const dLevel = assessment.diabetesRisk.level;
+  const hLevel = assessment.hypertensionRisk.level;
+  const anyUrgent = !!assessment.urgentActions?.length;
+
+  return (
+    <div className="min-h-screen transition-colors duration-500" style={{ background: bg }}>
+      <Navbar />
+
+      <div className="mx-auto max-w-2xl px-5 pb-28 pt-12 lg:px-8">
+
+        {/* ── HERO ── */}
+        <div className="mb-10 text-center space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-500">Your Risk Snapshot</p>
+          <h1 className="text-[clamp(1.7rem,4vw,2.5rem)] font-black leading-tight tracking-tight" style={{ color: textH }}>
+            Your personalised<br />health risk report.
+          </h1>
+          <p className="mx-auto max-w-[38ch] text-[13.5px] leading-relaxed" style={{ color: textM }}>
+            Based on your answers and validated clinical frameworks (FINDRISC & Framingham).
+            This is a screening tool — not a medical diagnosis.
+          </p>
+        </div>
+
+        {/* ── URGENT ACTIONS ── */}
+        {anyUrgent && (
+          <div
+            className="mb-6 rounded-2xl px-5 py-4"
+            style={{
+              background: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)',
+              border: '1px solid rgba(239,68,68,0.2)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-red-500">Action recommended</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {assessment.urgentActions!.map((a, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                  <p className="text-[13px] leading-relaxed" style={{ color: isDark ? '#fca5a5' : '#b91c1c' }}>{a}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── RISK GAUGES ── */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <RiskGauge level={dLevel} label="Diabetes Risk" icon={<Droplet className="h-5 w-5" />} isDark={isDark} delay={0} />
+          <RiskGauge level={hLevel} label="Hypertension Risk" icon={<Heart className="h-5 w-5" />} isDark={isDark} delay={120} />
+        </div>
+
+        {/* ── SUMMARY ── */}
+        <SectionCard icon={<TrendingUp className="w-4 h-4" />} accentColor="#0d9488" label="Summary" isDark={isDark} delay={100}>
+          <p className="text-[13.5px] leading-relaxed" style={{ color: textH }}>{assessment.summary}</p>
+        </SectionCard>
+
+        <div className="my-4" />
+
+        {/* ── KEY FINDINGS ── */}
+        <SectionCard icon={<Shield className="w-4 h-4" />} accentColor="#6366f1" label="Key Findings" isDark={isDark} delay={150}>
+          <div className="flex flex-col gap-3">
+            {assessment.keyFindings.map((f, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#6366f1' }} />
+                <p className="text-[13px] leading-relaxed" style={{ color: textH }}>{f}</p>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        <div className="my-4" />
+
+        {/* ── RECOMMENDATIONS ── */}
+        <SectionCard icon={<CheckCircle className="w-4 h-4" />} accentColor="#10b981" label="Recommendations" isDark={isDark} delay={200}>
+          <div className="flex flex-col gap-3">
+            {assessment.recommendations.map((r, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                <p className="text-[13px] leading-relaxed" style={{ color: textH }}>{r}</p>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        <div className="my-4" />
+
+        {/* ── AI DETAILED ANALYSIS ── */}
+        {assessment.detailedAnalysis && (
+          <div
+            className="mb-4 rounded-2xl overflow-hidden"
+            style={{
+              background: isDark ? '#0e1521' : '#ffffff',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+              boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.25)' : '0 4px 24px rgba(0,0,0,0.04)',
+            }}
+          >
+            <button
+              onClick={() => setShowDetail(v => !v)}
+              className="flex w-full items-center justify-between px-5 py-4 transition-colors"
+              style={{ color: textH }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: 'rgba(139,92,246,0.12)' }}>
+                  <Zap className="h-4 w-4 text-violet-500" />
+                </div>
+                <p className="text-[13px] font-semibold">AI Detailed Analysis</p>
+              </div>
+              {showDetail
+                ? <ChevronUp className="h-4 w-4" style={{ color: textM }} />
+                : <ChevronDown className="h-4 w-4" style={{ color: textM }} />
+              }
+            </button>
+            {showDetail && (
+              <div
+                className="border-t px-5 py-5 text-[13px] leading-[1.9] space-y-3"
+                style={{ borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', color: textM }}
+              >
+                {assessment.detailedAnalysis.split('\n').map((para, i) =>
+                  para.trim() ? <p key={i}>{para}</p> : null
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── SIGNUP CTA ── */}
+        <div className="my-6">
+          <SignupCTA isDark={isDark} onSignup={() => router.push('/login')} />
+        </div>
+
+        {/* ── ACTION STRIP ── */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            onClick={() => router.push('/questions')}
+            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-semibold transition-all hover:opacity-80"
+            style={{
+              background: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
+              color: textH,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`,
+              boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.05)',
+            }}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retake assessment
+          </button>
+          <button
+            onClick={() => window.open('https://wa.me/250789399765', '_blank')}
+            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-bold text-white transition-all hover:opacity-90 active:scale-95"
+            style={{ background: '#25d366', boxShadow: '0 4px 16px rgba(37,211,102,0.28)' }}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Chat with a doctor
+          </button>
+        </div>
+
+        {/* ── DISCLAIMER ── */}
+        <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.3)' }}>
+          This tool is for educational screening purposes only and does not constitute medical advice.
+          Always consult a qualified healthcare professional for diagnosis and treatment.
+        </p>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}

@@ -7,7 +7,7 @@ const TeamSection = () => {
   const team = [
     { name: "Irene Dushime", role: "CEO", bg: "bg-[#00C896]", image: "/assets/new/Irene.jpg" },
     { name: "Bonheur", role: "COO", bg: "bg-[#0B2E6F]", image: "/assets/new/bonheur.JPG" },
-    { name: "Brian Chege", role: "CTO", bg: "bg-[#00C896]", image: "/assets/new/Brian.jpg" },
+    { name: "Brian Chege", role: "CTO", bg: "bg-[#00C896]", image: "/assets/new/brian.jpeg" },
     { name: "Mucyo Papy Blaise", role: "Developer", bg: "bg-[#00C896]", image: "/assets/14.png" },
     { name: "Francis", role: "Product Manager", bg: "bg-[#0B2E6F]", image: "/assets/new/Francis.JPG" },
   ];
