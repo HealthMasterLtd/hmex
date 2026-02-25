@@ -234,7 +234,7 @@ function XpBadge({ userId, isDark }: { userId: string; isDark: boolean }) {
             >
               <span className="text-[11px]">🎉</span>
               <p className="text-[11px] font-semibold" style={{ color: "#0d9488" }}>
-                You've unlocked a free consultation!
+                You&apos;ve unlocked a free consultation!
               </p>
             </div>
           ) : (

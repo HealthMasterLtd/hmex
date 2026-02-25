@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { claimPendingAssessment, getPendingAssessment } from "@/services/AppwriteService";
+import { claimPendingRecommendations, getPendingRecommendations } from "@/services/RecommendationService";
 import {
   Heart,
   Sun,
@@ -101,11 +102,19 @@ export default function SignUpPage() {
   const [savingAssessment, setSavingAssessment] = useState(false);
   const [assessmentSaved, setAssessmentSaved] = useState(false);
   const [hasPendingAssessment, setHasPendingAssessment] = useState(false);
+  
+  // NEW: Recommendations state
+  const [savingRecommendations, setSavingRecommendations] = useState(false);
+  const [recommendationsSaved, setRecommendationsSaved] = useState(false);
+  const [hasPendingReco, setHasPendingReco] = useState(false);
+  const savedAssessmentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
     const pending = getPendingAssessment();
     setHasPendingAssessment(!!pending);
+    // NEW: Check for pending recommendations
+    setHasPendingReco(!!getPendingRecommendations());
   }, []);
 
   useEffect(() => {
@@ -130,20 +139,54 @@ export default function SignUpPage() {
     }
   }, [user, signupSuccess, newUserId]);
 
-  // Once we have a userId, claim the pending assessment from localStorage → Appwrite
+  // STAGE 1: Claim pending assessment from localStorage → Appwrite
   useEffect(() => {
     if (!newUserId || !hasPendingAssessment) return;
+    
     setSavingAssessment(true);
     claimPendingAssessment(newUserId)
       .then((saved) => {
         if (saved) {
           console.log('✅ Assessment saved to Appwrite:', saved.$id);
+          savedAssessmentIdRef.current = saved.$id;
           setAssessmentSaved(true);
         }
       })
       .catch((err) => console.error('Failed to claim assessment:', err))
       .finally(() => setSavingAssessment(false));
   }, [newUserId, hasPendingAssessment]);
+
+  // STAGE 2: Claim pending recommendations from localStorage → Appwrite
+  // Fires AFTER assessment is saved so we have a real assessmentId to link to
+  useEffect(() => {
+    if (!assessmentSaved || !newUserId || !hasPendingReco) return;
+    const assessmentId = savedAssessmentIdRef.current;
+    if (!assessmentId) return;
+
+    setSavingRecommendations(true);
+    claimPendingRecommendations(newUserId, assessmentId)
+      .then((saved) => {
+        if (saved) {
+          console.log('✅ Recommendations saved to Appwrite:', saved.$id);
+          setRecommendationsSaved(true);
+        }
+      })
+      .catch((err) => console.error('Failed to claim recommendations:', err))
+      .finally(() => setSavingRecommendations(false));
+  }, [assessmentSaved, newUserId, hasPendingReco]);
+
+  // Edge case: If there's NO pending assessment but there ARE recommendations
+  useEffect(() => {
+    if (!newUserId || hasPendingAssessment || !hasPendingReco) return;
+
+    setSavingRecommendations(true);
+    claimPendingRecommendations(newUserId, "unlinked")
+      .then((saved) => {
+        if (saved) setRecommendationsSaved(true);
+      })
+      .catch(console.error)
+      .finally(() => setSavingRecommendations(false));
+  }, [newUserId, hasPendingAssessment, hasPendingReco]);
 
   // ── HANDLERS ──
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,7 +210,7 @@ export default function SignUpPage() {
       email: formData.email.trim(),
       password: formData.password,
     });
-    if (result) {
+    if (result !== undefined) {
       const uid = (result as any).$id || (result as any).userId || (result as any).id;
       if (uid) setNewUserId(uid);
     }
@@ -192,6 +235,8 @@ export default function SignUpPage() {
     return "Strong";
   };
 
+  const isSaving = savingAssessment || savingRecommendations;
+
   // ── CONDITIONAL RETURN — after ALL hooks ──
   if (!mounted) return null;
 
@@ -213,7 +258,7 @@ export default function SignUpPage() {
     "Your data stays private and secure",
   ];
 
-  // Success screen content (reused in both mobile and desktop)
+  // Success screen content with both assessment and recommendation status
   const SuccessContent = (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
@@ -251,12 +296,13 @@ export default function SignUpPage() {
         Your account has been created successfully.
       </motion.p>
 
+      {/* Assessment Status */}
       {hasPendingAssessment && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mb-6 p-4 text-left"
+          className="mb-4 p-4 text-left"
           style={{
             background: isDark ? "rgba(15, 187, 125, 0.08)" : "rgba(15, 187, 125, 0.06)",
             border: `1px solid ${isDark ? "rgba(15, 187, 125, 0.2)" : "rgba(15, 187, 125, 0.25)"}`,
@@ -292,21 +338,63 @@ export default function SignUpPage() {
         </motion.div>
       )}
 
+      {/* Recommendations Status */}
+      {hasPendingReco && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.44 }}
+          className="mb-6 p-4 text-left"
+          style={{
+            background: isDark ? "rgba(15, 187, 125, 0.08)" : "rgba(15, 187, 125, 0.06)",
+            border: `1px solid ${isDark ? "rgba(15, 187, 125, 0.2)" : "rgba(15, 187, 125, 0.25)"}`,
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              {savingRecommendations ? (
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
+              ) : recommendationsSaved ? (
+                <CheckCircle className="w-4 h-4" style={{ color: colors.primary }} />
+              ) : (
+                <Sparkles className="w-4 h-4" style={{ color: colors.primary }} />
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold mb-0.5" style={{ color: colors.primary }}>
+                {savingRecommendations
+                  ? "Saving your personalised recommendations..."
+                  : recommendationsSaved
+                  ? "Recommendations saved to your account"
+                  : "AI recommendations ready"}
+              </p>
+              <p className="text-xs" style={{ color: colors.muted }}>
+                {savingRecommendations
+                  ? "Linking your recommendations to your account."
+                  : recommendationsSaved
+                  ? "Your personalised plan is ready in your dashboard."
+                  : "Generated during your assessment — will be saved."}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <motion.button
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45 }}
+        transition={{ delay: 0.48 }}
         onClick={() => router.push("/dashboard")}
-        disabled={savingAssessment}
+        disabled={isSaving}
         className="w-full py-3 px-4 text-sm font-semibold transition-all group"
         style={{
           background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
           color: "white",
-          opacity: savingAssessment ? 0.7 : 1,
+          opacity: isSaving ? 0.7 : 1,
         }}
       >
         <span className="flex items-center justify-center gap-2">
-          {savingAssessment ? (
+          {isSaving ? (
             <><Loader2 className="w-4 h-4 animate-spin" />Please wait...</>
           ) : (
             <>Go to Dashboard<ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>

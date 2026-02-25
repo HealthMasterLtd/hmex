@@ -291,7 +291,7 @@ export function AlertBanner({ type = "info", message, onDismiss }: AlertBannerPr
       className="flex items-start gap-3 px-4 py-3 mb-5"
       style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 4 }}
     >
-      <AlertTriangle size={14} strokeWidth={2} style={{ color: c.icon, marginTop: 1, shrink: 0 }} />
+      <AlertTriangle size={14} strokeWidth={2} style={{ color: c.icon, marginTop: 1 }} />
       <p className="flex-1 text-[12.5px] leading-relaxed" style={{ color: c.text }}>{message}</p>
       {onDismiss && (
         <button

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -16,16 +17,18 @@ import {
   X,
   HelpCircle,
   Bell,
+  Lightbulb,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
 
 // ─── NAV ITEMS ────────────────────────────────────────────────────────────────
 const PRIMARY_NAV = [
-  { id: "overview",   label: "Overview",       icon: LayoutDashboard, href: "/dashboard" },
-  { id: "assessment", label: "New Assessment",  icon: Activity,        href: "/dashboard/assessment" },
-  { id: "history",    label: "History",         icon: History,         href: "/dashboard/history" },
-  { id: "profile",    label: "My Profile",      icon: User,            href: "/dashboard/profile" },
+  { id: "overview",        label: "Overview",         icon: LayoutDashboard, href: "/dashboard" },  
+  { id: "recommendations", label: "Recommendations",  icon: Lightbulb,       href: "/dashboard/recommendations" },
+  { id: "history",         label: "History",          icon: History,         href: "/dashboard/history" },
+  { id: "assessment",      label: "New Assessment",   icon: Activity,        href: "/dashboard/assessment" },
+  { id: "profile",         label: "My Profile",       icon: User,            href: "/dashboard/profile" },
 ];
 
 const SECONDARY_NAV = [
@@ -230,30 +233,27 @@ export default function DashboardSidebar({
 
       {/* ── Brand ── */}
       <div
-        className="flex items-center gap-2.5 px-3"
+        className={`flex items-center gap-2.5 px-3 ${collapsed ? "justify-center" : ""}`}
         style={{ height: 56, minHeight: 56, borderBottom: `1px solid ${border}` }}
       >
-        <div
-          className={`flex items-center justify-center shrink-0 ${collapsed ? "mx-auto" : ""}`}
-          style={{
-            width: 32, height: 32,
-            background: "linear-gradient(135deg,#0d9488,#059669)",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(13,148,136,0.3)",
-          }}
-        >
-          <Heart size={15} strokeWidth={2.5} color="#fff" />
-        </div>
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-[14px] font-black tracking-tight" style={{ color: isDark ? "#f0f4f8" : "#0f172a", letterSpacing: "-0.03em" }}>
-              HealthMex
-            </p>
-            <p className="text-[9px] font-bold" style={{ color: muted, letterSpacing: "0.1em" }}>
-              RISK SCREENING
-            </p>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 overflow-hidden rounded-full">
+            <Image
+              src="/white logo.png"
+              alt="HMEX"
+              width={32}
+              height={32}
+              className="h-full w-full object-cover"
+            />
           </div>
-        )}
+          {!collapsed && (
+            <span className="text-[15px] font-bold tracking-tight"
+                style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}
+            >
+              H<span className="text-teal-400">MEX</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── Nav ── */}

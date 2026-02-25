@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
@@ -55,8 +57,8 @@ const XP_CONSULTATION_THRESHOLD = 300;
 
 const HERO_IMAGES = {
   morning:   "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80&auto=format",
-  afternoon: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1400&q=80&auto=format",
-  evening:   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1400&q=80&auto=format",
+  afternoon: "https://plus.unsplash.com/premium_photo-1663100808180-6248dd9cdaa7?q=80&w=1400&auto=format",
+  evening:   "https://images.unsplash.com/photo-1558701056-a01e5f5afcce?q=80&w=1400&auto=format",
   night:     "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1400&q=80&auto=format",
 };
 
@@ -332,7 +334,7 @@ function RiskTrendChart({ assessments, isDark }: { assessments: StoredAssessment
         position: "top" as const,
         labels: {
           color: tickClr,
-          font: { size: 11, weight: "600" as const },
+          font: { size: 11, weight: 600 },
           boxWidth: 10,
           boxHeight: 3,
           padding: 16,
@@ -549,7 +551,7 @@ function AssessmentSelector({
         }}
       >
         <span className="flex items-center gap-2 min-w-0">
-          <History size={12} strokeWidth={2} style={{ color: "#0d9488", shrink: 0 }} />
+          <History size={12} strokeWidth={2} style={{ color: "#0d9488" }} />
           <span className="truncate">
             {selected
               ? `#${selected.assessmentNumber ?? "?"} — ${fmtDate(selected.$createdAt)}`

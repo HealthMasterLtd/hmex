@@ -7,6 +7,7 @@ import {
   AlertTriangle, Droplet, Heart, TrendingUp, Shield, Zap,
   ChevronDown, ChevronUp, MessageCircle, Lock, Sparkles,
   Star, Activity,
+  CirclePlus,
 } from "lucide-react";
 import { groqService } from "@/services/GroqService";
 import type { DualRiskAssessment } from "@/services/GroqService";
@@ -234,7 +235,7 @@ function SignupCTA({ isDark, onSignup }: { isDark: boolean; onSignup: () => void
             transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
           }}
         >
-          <Sparkles className="w-4 h-4" />
+          <CirclePlus className="w-4 h-4" />
           Create free account
           <ArrowRight className={`w-4 h-4 transition-transform duration-200 ${hovered ? 'translate-x-1' : ''}`} />
         </button>

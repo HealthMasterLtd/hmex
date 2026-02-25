@@ -1,21 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-/**
- * /app/dashboard/assessment/page.tsx
- *
- * CRITICAL BUGS FIXED:
- * 1. user?.$id → user?.id  (AuthUser uses `id` not `$id`)
- * 2. Stale closure: loadQuestion() is async and captured null user/0 xp at mount time
- *    Fix: userIdRef and totalXpRef are always fresh — async code reads from refs
- * 3. Wrapped in DashboardLayout so sidebar + header always visible
- *
- * XP: max 3 per question. You have to work for it:
- *   - 1 XP  base per answered question
- *   - +1 XP if answered within 5 seconds (speed bonus)
- *   - +1 XP every 5 consecutive answers (streak bonus, one per 5-block)
- *   - +5 XP flat completion bonus (only on finishing all questions)
- *   Typical full session = ~20–35 XP total
- */
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -32,6 +17,8 @@ import { saveAssessment } from "@/services/AppwriteService";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useRequireAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { generateAndSaveRecommendations } from "@/services/RecommendationService";
+
 
 // ─── ICON MAP ────────────────────────────────────────────────────────────────
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -272,6 +259,11 @@ export default function DashboardAssessmentPage() {
           try {
             const saved = await saveAssessment(uid, assessment, allAnswers, finalXp);
             console.log("[Assessment] Saved OK. doc:", saved.$id);
+            
+            // 🔥 Fire-and-forget — generates AI recommendations in background
+            generateAndSaveRecommendations(saved, uid).catch(e =>
+              console.error("[Recommendations] background generation failed:", e)
+            );
           } catch (e: any) {
             console.error("[Assessment] Appwrite save error:", e);
             setSaveError(`Could not save: ${e?.message ?? "unknown error"}. Your results are still shown below.`);
