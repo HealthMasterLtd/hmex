@@ -87,7 +87,7 @@ export default function Hero() {
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-1 w-1 rounded-full bg-teal-500" />
-              12 conditions
+              3+ conditions
             </span>
           </div>
         </div>
@@ -229,7 +229,7 @@ export default function Hero() {
               className="text-[12px] font-medium"
               style={{ color: surface.muted }}
             >
-              12 conditions screened
+              3+ conditions screened
             </p>
           </div>
         </div>

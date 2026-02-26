@@ -107,10 +107,10 @@ export default function LoginPage() {
   if (!mounted) return null;
 
   const benefits = [
-    "Your health insights are always safe and ready for you",
-    "Access your dashboard, API keys, and usage analytics",
-    "Your data stays private and secure",
-    "Continue your health journey with personalized insights",
+    "Your risk insights and recommendations are always ready for you",
+    "Track your diabetes and hypertension risk over time",
+    "Your health data is private, encrypted, and never sold",
+    "Continue your prevention journey with personalized guidance",
   ];
 
   // Shared styles — all sharp corners
@@ -368,14 +368,7 @@ export default function LoginPage() {
                   ))}
                 </div>
 
-                {/* Security notice */}
-                <div
-                  className="flex gap-3 p-4"
-                  style={{ borderRadius: 0, background: `${accentColor}14`, border: `1px solid ${accentColor}28` }}
-                >
-                  <Shield className="w-5 h-5 mt-0.5 shrink-0" style={{ color: accentColor }} />
-                  <p className="text-sm" style={{ color: surface.text }}>Your data stays private and secure.</p>
-                </div>
+                
               </div>
 
               {/* RIGHT */}
