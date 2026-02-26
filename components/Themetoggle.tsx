@@ -316,43 +316,43 @@ export default function ThemeToggle() {
             <button
               onClick={() => setOpen(true)}
               style={{
-                width: 34,
-                height: 80,
+                width: 44,
+                height: 110,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6,
-                background: S.surface,
+                gap: 8,
+                background: `linear-gradient(180deg, ${S.surface} 0%, ${S.surfaceAlt} 100%)`,
                 borderTop: `1px solid ${S.border}`,
                 borderBottom: `1px solid ${S.border}`,
-                borderLeft: `1px solid ${S.border}`,
+                borderLeft: `2px solid ${accentColor}`,
                 borderRight: "none",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
                 boxShadow: isDark
-                  ? "-4px 0 24px rgba(0,0,0,0.5)"
-                  : "-4px 0 18px rgba(0,0,0,0.1)",
-                animation: pulse ? "tabPulse 0.6s ease-in-out" : "none",
+                  ? `-6px 0 32px rgba(0,0,0,0.6), -2px 0 12px ${accentColor}30`
+                  : `-6px 0 24px rgba(0,0,0,0.13), -2px 0 10px ${accentColor}25`,
+                animation: pulse ? "tabPulse 0.7s ease-in-out" : "none",
               }}
             >
               {/* Icon */}
               {isDark
-                ? <MoonIcon s={14} c={accentColor} />
-                : <SunIcon  s={14} c={accentColor} />
+                ? <MoonIcon s={17} c={accentColor} />
+                : <SunIcon  s={17} c={accentColor} />
               }
 
               {/* Accent dot with ring */}
-              <div style={{ position: "relative", width: 8, height: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ position: "relative", width: 10, height: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{
                   position: "absolute",
-                  width: 16, height: 16,
-                  background: `${accentColor}30`,
+                  width: 20, height: 20,
+                  background: `${accentColor}35`,
                   borderRadius: "50%",
                   animation: "ring 2.4s ease-in-out infinite",
                 }} />
                 <div style={{
-                  width: 7, height: 7,
+                  width: 9, height: 9,
                   borderRadius: "50%",
                   background: accentColor,
                   flexShrink: 0,
@@ -360,7 +360,7 @@ export default function ThemeToggle() {
               </div>
 
               {/* Palette icon */}
-              <PaletteIcon s={13} c={S.muted} />
+              <PaletteIcon s={15} c={accentColor} />
             </button>
           </div>
         )}

@@ -341,11 +341,11 @@ export default function LoginPage() {
 
                 <div className="space-y-3">
                   <h1 className="text-5xl font-black leading-tight" style={{ letterSpacing: "-0.04em", color: surface.text }}>
-                    Welcome back.<br />
-                    <span style={{ color: accentColor }}>Keep building.</span>
+                    Welcome back to<br />
+                    <span style={{ color: accentColor }}>your health journey.</span>
                   </h1>
                   <p className="text-base leading-relaxed max-w-md" style={{ color: surface.muted }}>
-                    Access your dashboard, API keys, and usage analytics. Continue your health journey with personalized insights.
+                  Your risk insights, progress, and recommendations are waiting for you.
                   </p>
                 </div>
 
