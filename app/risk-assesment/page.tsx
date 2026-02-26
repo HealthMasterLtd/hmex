@@ -25,7 +25,7 @@ function useInView(threshold = 0.15) {
 }
 
 const steps = [
-  { n: "01", icon: FileText,    title: "Answer 12 questions", body: "Simple questions about your lifestyle, habits, and history. No jargon, no medical knowledge needed." },
+  { n: "01", icon: FileText,    title: "Answer 14 questions", body: "Simple questions about your lifestyle, habits, and history. No jargon, no medical knowledge needed." },
   { n: "02", icon: ShieldCheck, title: "AI scores your risk",  body: "Your answers are assessed against validated clinical benchmarks across 12 NCD conditions."            },
   { n: "03", icon: Clock,       title: "Get your report",      body: "An instant, personal risk profile with clear prevention tips — ready in under 2 minutes."             },
 ];
@@ -78,7 +78,7 @@ export default function HealthCheckPage() {
               className="max-w-[38ch] text-[15px] leading-[1.8]"
               style={{ color: surface.muted }}
             >
-              Private, fast, and clinically informed. 12 questions.
+              Private, fast, and clinically informed. 14 questions.
               Instant results. A clear picture of your NCD risk — in
               under 2 minutes.
             </p>
