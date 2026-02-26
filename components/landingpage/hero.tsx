@@ -9,8 +9,7 @@ export default function Hero() {
   const { isDark, surface, accentColor, accentFaint } = useTheme();
 
   return (
-    <section
-      className="relative min-h-screen transition-colors duration-500"
+    <section className="relative min-h-screen overflow-hidden transition-colors duration-500"
       style={{ background: surface.bg }}
     >
       <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 items-center gap-12 px-6 py-28 lg:grid-cols-2 lg:gap-16 lg:px-16 lg:py-0">
@@ -235,7 +234,7 @@ export default function Hero() {
           </div>
         </div>
       </div>
-      <ThemeToggle />
+  
 
       <style jsx>{`
         @keyframes breathe {

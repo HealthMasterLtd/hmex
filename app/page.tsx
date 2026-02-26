@@ -11,7 +11,10 @@ import Footer from "@/components/ui/Footer"
 
 export default function Home() {
   return (
-    <main className="w-full">
+    <main className="w-full overflow-x-hidden">
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-[9995]">
+        <ThemeToggle />
+      </div>
       <Navbar/>
       <Hero/>
       <QuoteSection/>
