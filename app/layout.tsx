@@ -14,8 +14,32 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "HMEX",
-  description: "HMEX — AI-powered NCD health risk detection",
+  title: "HMEX — Know Your Risk Before It Knows You",
+  description:
+    "HMEX uses AI-powered screening to detect your risk for diabetes and hypertension in under 5 minutes. Free, private, and built for you.",
+  keywords: [
+    "NCD risk assessment",
+    "diabetes risk screening",
+    "hypertension detection",
+    "AI health screening",
+    "chronic disease prevention",
+  ],
+  openGraph: {
+    title: "HMEX — Know Your Risk Before It Knows You",
+    description:
+      "Get your personalized diabetes and hypertension risk score in under 5 minutes. Free, private, and powered by AI.",
+    url: "https://hmex.health",
+    siteName: "HMEX",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "HMEX Health Risk Screening" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "HMEX — Know Your Risk Before It Knows You",
+    description:
+      "AI-powered NCD screening for diabetes and hypertension. Free, private, results in minutes.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/logoHmex.png",
     shortcut: "/logoHmex.png",
