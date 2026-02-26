@@ -6,33 +6,27 @@ import { useTheme } from "@/contexts/ThemeContext";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
 
-// ─── LAYOUT CONTEXT ────────────────────────────────────────────────────────────
+// ─── LAYOUT CONTEXT ──────────────────────────────────────────────────────────
 interface LayoutContextType {
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (v: boolean) => void;
   mobileOpen: boolean;
   setMobileOpen: (v: boolean) => void;
 }
-
 const LayoutContext = createContext<LayoutContextType | null>(null);
-
 export function useLayoutContext() {
   const ctx = useContext(LayoutContext);
   if (!ctx) throw new Error("useLayoutContext must be inside DashboardLayout");
   return ctx;
 }
 
-// ─── LAYOUT ───────────────────────────────────────────────────────────────────
-interface DashboardLayoutProps {
-  children: React.ReactNode;
-}
-
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { isDark } = useTheme();
+// ─── LAYOUT ──────────────────────────────────────────────────────────────────
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { isDark, surface: S } = useTheme();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [mobileOpen,       setMobileOpen]       = useState(false);
+  const [mounted,          setMounted]          = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("hmex-sidebar-collapsed");
@@ -47,39 +41,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   useEffect(() => {
-    const onResize = () => {
-      if (window.innerWidth >= 1024) setMobileOpen(false);
-    };
+    const onResize = () => { if (window.innerWidth >= 1024) setMobileOpen(false); };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Page bg — slightly different from sidebar so curves are visible
-  const pageBg = isDark ? "#080c16" : "#eef2f7";
+  // Page bg: uses surface.bg (outermost layer — slightly darker/lighter than surface)
+  const pageBg = S.bg;
+  // Main column bg: surface (one level up from page)
+  const mainBg = S.surface;
 
   if (!mounted) {
-    return (
-      <div
-        className="flex h-screen items-center justify-center"
-        style={{ background: pageBg }}
-      />
-    );
+    return <div style={{ display: "flex", height: "100vh", background: pageBg }} />;
   }
 
   return (
-    <LayoutContext.Provider
-      value={{ sidebarCollapsed, setSidebarCollapsed, mobileOpen, setMobileOpen }}
-    >
-      {/*
-        Outer wrapper: the "page bg" colour shows around the sidebar's
-        rounded corners (top-right and bottom-left), giving that inset
-        curved look without breaking the layout.
-      */}
-      <div
-        className="flex h-screen overflow-hidden p-2 gap-2"
-        style={{ background: pageBg }}
-      >
-        {/* ── SIDEBAR — gets border-radius top-right + bottom-left ── */}
+    <LayoutContext.Provider value={{ sidebarCollapsed, setSidebarCollapsed, mobileOpen, setMobileOpen }}>
+      <div style={{
+        display: "flex", height: "100vh", overflow: "hidden",
+        padding: 8, gap: 8, background: pageBg,
+      }}>
+        {/* Sidebar */}
         <DashboardSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={handleToggleCollapse}
@@ -87,29 +69,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           onMobileClose={() => setMobileOpen(false)}
         />
 
-        {/* ── MAIN COLUMN — also rounded to match aesthetic ── */}
-        <div
-          className="flex flex-col flex-1 min-w-0 overflow-hidden"
-          style={{
-            borderRadius: 16,
-            background: isDark ? "#0b1120" : "#ffffff",
-            boxShadow: isDark
-              ? "0 0 0 1px rgba(255,255,255,0.05), 0 8px 40px rgba(0,0,0,0.4)"
-              : "0 0 0 1px rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)",
-          }}
-        >
-          {/* Header */}
+        {/* Main column */}
+        <div style={{
+          display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden",
+          borderRadius: 16, background: mainBg,
+          boxShadow: isDark
+            ? `0 0 0 1px ${S.border}, 0 8px 40px rgba(0,0,0,0.45)`
+            : `0 0 0 1px ${S.border}, 0 4px 24px rgba(0,0,0,0.07)`,
+        }}>
           <DashboardHeader onMobileMenuOpen={() => setMobileOpen(true)} />
-
-          {/* Page content */}
-          <main
-            className="flex-1 overflow-y-auto overflow-x-hidden"
-            style={{ background: "transparent" }}
-          >
-            <div
-              className="mx-auto px-5 py-6 lg:px-7 lg:py-7"
-              style={{ maxWidth: 1280 }}
-            >
+          <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", background: "transparent" }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 20px" }}>
               {children}
             </div>
           </main>

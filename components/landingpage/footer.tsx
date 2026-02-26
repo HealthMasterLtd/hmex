@@ -13,9 +13,9 @@ const navLinks = [
 ];
 
 const legalLinks = [
-  { label: "Privacy Policy",  href: "#" },
-  { label: "Terms of Service",href: "#" },
-  { label: "Cookie Policy",   href: "#" },
+  { label: "Privacy Policy",   href: "#" },
+  { label: "Terms of Service", href: "#" },
+  { label: "Cookie Policy",    href: "#" },
 ];
 
 const socials = [
@@ -25,9 +25,11 @@ const socials = [
 ];
 
 export default function Footer() {
+  // Footer is intentionally always dark — it pairs with the dark CTA above
+  // We still read isDark to allow subtle variant differences
   const { isDark } = useTheme();
 
-  const bg    = isDark ? "#0e1117" : "#0f172a";   // footer is always dark — complements CTA
+  const bg    = isDark ? "#0a0d14" : "#0f172a";
   const line  = isDark ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.09)";
   const muted = isDark ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.4)";
   const dim   = isDark ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.22)";
@@ -37,7 +39,7 @@ export default function Footer() {
       className="relative w-full overflow-hidden"
       style={{ background: bg }}
     >
-      {/* Ghost brand watermark — anchored to bottom */}
+      {/* Ghost brand watermark */}
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 flex select-none justify-center overflow-hidden"
         aria-hidden="true"
@@ -57,20 +59,15 @@ export default function Footer() {
         </span>
       </div>
 
-      {/* ── Main grid with full-height vertical lines ── */}
       <div className="relative z-10 mx-auto max-w-7xl">
-
-        {/* Vertical rule — full height of the main content, absolutely positioned */}
-        {/* We use a CSS grid with border trick instead for precision */}
 
         <div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.8fr_1px_1fr_1px_1fr_1px_1fr]"
           style={{ borderBottom: `1px solid ${line}` }}
         >
 
-          {/* ── COL 1: Brand ── */}
+          {/* COL 1: Brand */}
           <div className="flex flex-col justify-between gap-10 px-8 py-12 lg:px-10 lg:py-14">
-            {/* Logo + name */}
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 overflow-hidden rounded-full">
@@ -93,7 +90,6 @@ export default function Footer() {
               </p>
             </div>
 
-            {/* Socials */}
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-2.5">
                 {socials.map(({ icon: Icon, href, label }) => (
@@ -125,7 +121,7 @@ export default function Footer() {
           {/* Divider 1 */}
           <div className="hidden lg:block" style={{ background: line }} />
 
-          {/* ── COL 2: Navigate ── */}
+          {/* COL 2: Navigate */}
           <div className="flex flex-col gap-6 px-8 py-12 lg:px-10 lg:py-14">
             <p style={{ color: dim, fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase" }}>
               Navigate
@@ -149,7 +145,7 @@ export default function Footer() {
           {/* Divider 2 */}
           <div className="hidden lg:block" style={{ background: line }} />
 
-          {/* ── COL 3: Legal ── */}
+          {/* COL 3: Legal */}
           <div className="flex flex-col gap-6 px-8 py-12 lg:px-10 lg:py-14">
             <p style={{ color: dim, fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase" }}>
               Legal
@@ -173,7 +169,7 @@ export default function Footer() {
           {/* Divider 3 */}
           <div className="hidden lg:block" style={{ background: line }} />
 
-          {/* ── COL 4: Contact ── */}
+          {/* COL 4: Contact */}
           <div className="flex flex-col gap-6 px-8 py-12 lg:px-10 lg:py-14">
             <p style={{ color: dim, fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase" }}>
               Contact
@@ -193,15 +189,12 @@ export default function Footer() {
                 <br />Designed for the world.
               </p>
             </div>
-
           </div>
 
         </div>
 
-        {/* ── Bottom bar ── */}
-        <div
-          className="flex flex-col items-center justify-between gap-3 px-8 py-5 sm:flex-row lg:px-10"
-        >
+        {/* Bottom bar */}
+        <div className="flex flex-col items-center justify-between gap-3 px-8 py-5 sm:flex-row lg:px-10">
           <p style={{ color: dim, fontSize: "11.5px" }}>
             © {new Date().getFullYear()} HMEX. All rights reserved.
           </p>

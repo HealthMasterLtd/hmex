@@ -28,6 +28,7 @@ import {
   type UserXpRecord,
 } from "@/services/AppwriteService";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement,
@@ -141,7 +142,7 @@ function RiskBadge({ level }: { level: string }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide"
-      style={{ background: `${c}18`, color: c, borderRadius: 3 }}
+      style={{ background: `${c}18`, color: c, borderRadius: 2 }}
     >
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
       {RISK_LABEL[level] ?? "Low"}
@@ -151,18 +152,19 @@ function RiskBadge({ level }: { level: string }) {
 
 // ─── STAT CARD ────────────────────────────────────────────────────────────────
 function StatCard({
-  label, value, sub, icon, accentColor = "#0d9488",
+  label, value, sub, icon, accentColor: customAccentColor,
   trend, trendLabel, delay = 0,
 }: {
   label: string; value: string | React.ReactNode; sub?: string;
   icon: React.ReactNode; accentColor?: string;
   trend?: "up" | "down" | "flat"; trendLabel?: string; delay?: number;
 }) {
-  const { isDark } = useTheme();
-  const bg     = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const textH  = isDark ? "#f0f4f8" : "#0f172a";
-  const textM  = isDark ? "#6b7a8d" : "#64748b";
+  const { isDark, surface, accentColor, accentFaint } = useTheme();
+  const effectiveAccent = customAccentColor || accentColor;
+  const bg     = surface.surface;
+  const border = surface.border;
+  const textH  = surface.text;
+  const textM  = surface.muted;
   const { ref, vis } = useInView();
 
   const trendClr = trend === "up" ? "#ef4444" : trend === "down" ? "#22c55e" : textM;
@@ -175,16 +177,15 @@ function StatCard({
       style={{
         background: bg,
         border: `1px solid ${border}`,
-        borderRadius: 4,
+        borderRadius: 2,
         opacity: vis ? 1 : 0,
         transform: vis ? "translateY(0)" : "translateY(16px)",
         transitionDelay: `${delay}ms`,
-        boxShadow: isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.05)",
       }}
     >
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: textM }}>{label}</p>
-        <div className="w-8 h-8 flex items-center justify-center" style={{ borderRadius: 4, background: `${accentColor}15`, color: accentColor }}>
+        <div className="w-8 h-8 flex items-center justify-center" style={{ borderRadius: 2, background: accentFaint, color: effectiveAccent }}>
           {icon}
         </div>
       </div>
@@ -195,7 +196,7 @@ function StatCard({
         {sub && <p className="mt-1.5 text-[11.5px]" style={{ color: textM }}>{sub}</p>}
       </div>
       {trend && trendLabel && (
-        <div className="flex items-center gap-1.5 pt-2" style={{ borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}>
+        <div className="flex items-center gap-1.5 pt-2" style={{ borderTop: `1px solid ${border}` }}>
           {TrendIcon && <TrendIcon size={11} strokeWidth={2.5} style={{ color: trendClr }} />}
           <p className="text-[11px] font-medium" style={{ color: trendClr }}>{trendLabel}</p>
         </div>
@@ -205,7 +206,7 @@ function StatCard({
 }
 
 // ─── SKELETON ─────────────────────────────────────────────────────────────────
-function Skeleton({ h = 16, w = "100%", r = 3 }: { h?: number; w?: string | number; r?: number }) {
+function Skeleton({ h = 16, w = "100%", r = 2 }: { h?: number; w?: string | number; r?: number }) {
   const { isDark } = useTheme();
   return (
     <div
@@ -216,17 +217,16 @@ function Skeleton({ h = 16, w = "100%", r = 3 }: { h?: number; w?: string | numb
 }
 
 function CardShell({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const { isDark } = useTheme();
+  const { surface } = useTheme();
   const { ref, vis } = useInView();
-  const bg     = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
+  const bg     = surface.surface;
+  const border = surface.border;
   return (
     <div
       ref={ref}
       className={`p-5 transition-all duration-700 ${className}`}
       style={{
-        background: bg, border: `1px solid ${border}`, borderRadius: 4,
-        boxShadow: isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.05)",
+        background: bg, border: `1px solid ${border}`, borderRadius: 2,
         opacity: vis ? 1 : 0,
         transform: vis ? "translateY(0)" : "translateY(16px)",
         transitionDelay: `${delay}ms`,
@@ -239,10 +239,10 @@ function CardShell({ children, delay = 0, className = "" }: { children: React.Re
 
 // ─── SECTION LABEL ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  const { isDark } = useTheme();
+  const { surface } = useTheme();
   return (
     <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4"
-       style={{ color: isDark ? "#3d4f63" : "#94a3b8" }}>
+       style={{ color: surface.subtle }}>
       {children}
     </p>
   );
@@ -280,10 +280,11 @@ function RiskGaugeRing({ level, label, isDark }: { level: string; label: string;
 }
 
 // ─── LINE CHART ───────────────────────────────────────────────────────────────
-function RiskTrendChart({ assessments, isDark }: { assessments: StoredAssessment[]; isDark: boolean }) {
+function RiskTrendChart({ assessments }: { assessments: StoredAssessment[]; isDark: boolean }) {
+  const { surface } = useTheme();
   const sorted = [...assessments].reverse().slice(-10);
   if (sorted.length < 2) return (
-    <div className="flex items-center justify-center h-32" style={{ color: isDark ? "#3d4f63" : "#cbd5e1" }}>
+    <div className="flex items-center justify-center h-32" style={{ color: surface.subtle }}>
       <p className="text-[12px]">Need at least 2 assessments to show trend</p>
     </div>
   );
@@ -291,8 +292,8 @@ function RiskTrendChart({ assessments, isDark }: { assessments: StoredAssessment
   const labels = sorted.map(a => fmtDate(a.$createdAt));
   const dData  = sorted.map(a => RISK_ORDER[a.diabetesLevel] ?? 1);
   const hData  = sorted.map(a => RISK_ORDER[a.hypertensionLevel] ?? 1);
-  const gridClr = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
-  const tickClr = isDark ? "#3d4f63" : "#94a3b8";
+  const gridClr = surface.border;
+  const tickClr = surface.muted;
 
   const data = {
     labels,
@@ -306,7 +307,7 @@ function RiskTrendChart({ assessments, isDark }: { assessments: StoredAssessment
         tension: 0.4,
         pointRadius: 4,
         pointBackgroundColor: "#0d9488",
-        pointBorderColor: isDark ? "#0d1323" : "#ffffff",
+        pointBorderColor: surface.surface,
         pointBorderWidth: 2,
         borderWidth: 2,
       },
@@ -319,7 +320,7 @@ function RiskTrendChart({ assessments, isDark }: { assessments: StoredAssessment
         tension: 0.4,
         pointRadius: 4,
         pointBackgroundColor: "#6366f1",
-        pointBorderColor: isDark ? "#0d1323" : "#ffffff",
+        pointBorderColor: surface.surface,
         pointBorderWidth: 2,
         borderWidth: 2,
       },
@@ -342,13 +343,13 @@ function RiskTrendChart({ assessments, isDark }: { assessments: StoredAssessment
         },
       },
       tooltip: {
-        backgroundColor: isDark ? "#1a2236" : "#0f172a",
-        titleColor: "#f0f4f8",
-        bodyColor: "#8b9cb5",
-        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)",
+        backgroundColor: surface.surfaceAlt,
+        titleColor: surface.text,
+        bodyColor: surface.muted,
+        borderColor: surface.border,
         borderWidth: 1,
         padding: 10,
-        cornerRadius: 4,
+        cornerRadius: 2,
         callbacks: {
           label: (ctx: any) => {
             const lvls = ["", "Low", "Slightly Elevated", "Moderate", "High", "Very High"];
@@ -422,7 +423,8 @@ function RiskDonut({ level, label, isDark }: { level: string; label: string; isD
 }
 
 // ─── HERO GREETING CARD ───────────────────────────────────────────────────────
-function HeroCard({ user, latest, isDark }: { user: any; latest: StoredAssessment | null; isDark: boolean }) {
+function HeroCard({ user, latest }: { user: any; latest: StoredAssessment | null; isDark: boolean }) {
+  const { accentColor } = useTheme();
   const tod = getTimeOfDay();
   const imgUrl = HERO_IMAGES[tod];
   const { greeting, sub, Icon } = getGreeting(user?.name || "");
@@ -433,7 +435,7 @@ function HeroCard({ user, latest, isDark }: { user: any; latest: StoredAssessmen
       ref={ref}
       className="relative overflow-hidden col-span-full"
       style={{
-        borderRadius: 4,
+        borderRadius: 2,
         minHeight: 200,
         opacity: vis ? 1 : 0,
         transform: vis ? "translateY(0)" : "translateY(-12px)",
@@ -444,16 +446,14 @@ function HeroCard({ user, latest, isDark }: { user: any; latest: StoredAssessmen
       <div
         className="absolute inset-0"
         style={{
-          background: isDark
-            ? "linear-gradient(120deg, rgba(8,12,22,0.92) 0%, rgba(8,12,22,0.75) 50%, rgba(8,12,22,0.4) 100%)"
-            : "linear-gradient(120deg, rgba(5,30,25,0.88) 0%, rgba(5,30,25,0.65) 50%, rgba(5,30,25,0.3) 100%)",
+          background: "linear-gradient(120deg, rgba(8,12,22,0.92) 0%, rgba(8,12,22,0.75) 50%, rgba(8,12,22,0.4) 100%)",
         }}
       />
       <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Icon size={14} className="text-teal-400" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-teal-400">
+            <Icon size={14} style={{ color: accentColor }} />
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
               {tod.charAt(0).toUpperCase() + tod.slice(1)}
             </p>
           </div>
@@ -469,7 +469,7 @@ function HeroCard({ user, latest, isDark }: { user: any; latest: StoredAssessmen
         {latest ? (
           <div
             className="flex items-center gap-5 px-5 py-4 shrink-0"
-            style={{ background: "rgba(255,255,255,0.08)", borderRadius: 4, backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)" }}
+            style={{ background: "rgba(255,255,255,0.08)", borderRadius: 2, backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)" }}
           >
             <div className="text-center">
               <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1">Diabetes</p>
@@ -493,7 +493,7 @@ function HeroCard({ user, latest, isDark }: { user: any; latest: StoredAssessmen
         ) : (
           <div
             className="px-5 py-4 shrink-0"
-            style={{ background: "rgba(13,148,136,0.2)", borderRadius: 4, border: "1px solid rgba(13,148,136,0.4)" }}
+            style={{ background: "rgba(13,148,136,0.2)", borderRadius: 2, border: "1px solid rgba(13,148,136,0.4)" }}
           >
             <p className="text-[12px] font-semibold text-teal-300 mb-2">No assessments yet</p>
             <p className="text-[11px] text-white/50">Take your first screening to see your risk profile.</p>
@@ -509,7 +509,6 @@ function AssessmentSelector({
   history,
   selected,
   onSelect,
-  isDark,
 }: {
   history: StoredAssessment[];
   selected: StoredAssessment | null;
@@ -518,6 +517,7 @@ function AssessmentSelector({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { surface, accentColor, accentFaint } = useTheme();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -529,12 +529,12 @@ function AssessmentSelector({
 
   if (history.length === 0) return null;
 
-  const bg     = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.09)";
-  const txt    = isDark ? "#e2e8f0" : "#0f172a";
-  const muted  = isDark ? "#4a5568" : "#94a3b8";
-  const hover  = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
-  const activeBg = isDark ? "rgba(13,148,136,0.12)" : "rgba(13,148,136,0.08)";
+  const bg     = surface.surface;
+  const border = surface.border;
+  const txt    = surface.text;
+  const muted  = surface.muted;
+  const hover  = surface.surfaceAlt;
+  const activeBg = accentFaint;
 
   return (
     <div ref={ref} className="relative">
@@ -542,16 +542,16 @@ function AssessmentSelector({
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 px-3 py-2 text-[12px] font-semibold transition-all duration-150 hover:opacity-80"
         style={{
-          background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-          border: `1px solid ${open ? "rgba(13,148,136,0.4)" : border}`,
-          borderRadius: 4,
+          background: surface.surfaceAlt,
+          border: `1px solid ${open ? accentColor : border}`,
+          borderRadius: 2,
           color: txt,
           minWidth: 220,
           justifyContent: "space-between",
         }}
       >
         <span className="flex items-center gap-2 min-w-0">
-          <History size={12} strokeWidth={2} style={{ color: "#0d9488" }} />
+          <History size={12} strokeWidth={2} style={{ color: accentColor }} />
           <span className="truncate">
             {selected
               ? `#${selected.assessmentNumber ?? "?"} — ${fmtDate(selected.$createdAt)}`
@@ -560,7 +560,7 @@ function AssessmentSelector({
           {selected?.assessmentNumber === history[0]?.assessmentNumber && (
             <span
               className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 shrink-0"
-              style={{ background: "rgba(13,148,136,0.15)", color: "#0d9488", borderRadius: 3 }}
+              style={{ background: accentFaint, color: accentColor, borderRadius: 2 }}
             >
               Latest
             </span>
@@ -584,8 +584,8 @@ function AssessmentSelector({
           style={{
             background: bg,
             border: `1px solid ${border}`,
-            borderRadius: 6,
-            boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 32px rgba(0,0,0,0.12)",
+            borderRadius: 2,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
             maxHeight: 280,
             overflowY: "auto",
             animation: "dropdownIn 0.12s ease",
@@ -614,9 +614,9 @@ function AssessmentSelector({
                   style={{
                     width: 22,
                     height: 22,
-                    borderRadius: 4,
-                    background: isSelected ? "rgba(13,148,136,0.2)" : isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                    color: isSelected ? "#0d9488" : muted,
+                    borderRadius: 2,
+                    background: isSelected ? accentFaint : surface.surfaceAlt,
+                    color: isSelected ? accentColor : muted,
                   }}
                 >
                   {a.assessmentNumber ?? i + 1}
@@ -628,7 +628,7 @@ function AssessmentSelector({
                     {i === 0 && (
                       <span
                         className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5"
-                        style={{ background: "rgba(13,148,136,0.12)", color: "#0d9488", borderRadius: 3 }}
+                        style={{ background: accentFaint, color: accentColor, borderRadius: 2 }}
                       >
                         Latest
                       </span>
@@ -655,9 +655,10 @@ function AssessmentSelector({
 }
 
 // ─── XP PROGRESS CARD ─────────────────────────────────────────────────────────
-function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecord | null; isDark: boolean; delay?: number }) {
+function XpProgressCard({ xpRecord, delay = 0 }: { xpRecord: UserXpRecord | null; isDark: boolean; delay?: number }) {
   const { ref, vis } = useInView();
   const router = useRouter();
+  const { isDark, surface, accentColor, accentFaint } = useTheme();
 
   const totalXp   = xpRecord?.totalXp ?? 0;
   const redeemed  = xpRecord?.redeemedXp ?? 0;
@@ -667,11 +668,11 @@ function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecor
   const remaining = Math.max(XP_CONSULTATION_THRESHOLD - available, 0);
   const taken     = xpRecord?.assessmentsTaken ?? 0;
 
-  const bg     = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const txt    = isDark ? "#f0f4f8" : "#0f172a";
-  const muted  = isDark ? "#6b7a8d" : "#64748b";
-  const sub    = isDark ? "#3d4f63" : "#94a3b8";
+  const bg     = surface.surface;
+  const border = surface.border;
+  const txt    = surface.text;
+  const muted  = surface.muted;
+  const sub    = surface.subtle;
   const trackBg = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
 
   const animatedXp = useCountUp(available, vis);
@@ -682,14 +683,11 @@ function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecor
       className="flex flex-col gap-3 p-5 transition-all duration-700"
       style={{
         background: bg,
-        border: `1px solid ${unlocked ? "rgba(13,148,136,0.3)" : border}`,
-        borderRadius: 4,
+        border: `1px solid ${unlocked ? accentColor : border}`,
+        borderRadius: 2,
         opacity: vis ? 1 : 0,
         transform: vis ? "translateY(0)" : "translateY(16px)",
         transitionDelay: `${delay}ms`,
-        boxShadow: unlocked
-          ? "0 4px 20px rgba(13,148,136,0.12)"
-          : isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.05)",
       }}
     >
       {/* Header */}
@@ -697,16 +695,16 @@ function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecor
         <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: muted }}>Health XP</p>
         <div
           className="w-8 h-8 flex items-center justify-center"
-          style={{ borderRadius: 4, background: unlocked ? "rgba(13,148,136,0.15)" : "rgba(139,92,246,0.1)", color: unlocked ? "#0d9488" : "#8b5cf6" }}
+          style={{ borderRadius: 2, background: unlocked ? accentFaint : "rgba(139,92,246,0.1)", color: unlocked ? accentColor : "#8b5cf6" }}
         >
-          <Zap size={15} strokeWidth={1.8} fill={unlocked ? "#0d9488" : "none"} />
+          <Zap size={15} strokeWidth={1.8} fill={unlocked ? accentColor : "none"} />
         </div>
       </div>
 
       {/* XP value */}
       <div>
         <div className="flex items-end gap-2">
-          <div className="text-[1.65rem] font-black leading-none" style={{ color: unlocked ? "#0d9488" : txt, letterSpacing: "-0.03em" }}>
+          <div className="text-[1.65rem] font-black leading-none" style={{ color: unlocked ? accentColor : txt, letterSpacing: "-0.03em" }}>
             {animatedXp.toLocaleString()}
           </div>
           <span className="text-[13px] font-bold pb-0.5" style={{ color: muted }}>XP</span>
@@ -720,19 +718,19 @@ function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecor
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <p className="text-[10px] font-semibold" style={{ color: sub }}>Free consultation</p>
-          <p className="text-[10px] font-bold" style={{ color: unlocked ? "#0d9488" : txt }}>
+          <p className="text-[10px] font-bold" style={{ color: unlocked ? accentColor : txt }}>
             {available} / {XP_CONSULTATION_THRESHOLD}
           </p>
         </div>
-        <div className="w-full h-1.5 overflow-hidden" style={{ background: trackBg, borderRadius: 99 }}>
+        <div className="w-full h-1.5 overflow-hidden" style={{ background: trackBg, borderRadius: 2 }}>
           <div
             className="h-full transition-all duration-1000"
             style={{
               width: `${pct}%`,
               background: unlocked
-                ? "linear-gradient(90deg,#0d9488,#059669)"
+                ? `linear-gradient(90deg,${accentColor},${accentColor}dd)`
                 : "linear-gradient(90deg,#6366f1,#8b5cf6)",
-              borderRadius: 99,
+              borderRadius: 2,
             }}
           />
         </div>
@@ -741,13 +739,13 @@ function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecor
       {/* CTA */}
       <div
         className="flex items-center gap-2 pt-2"
-        style={{ borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}
+        style={{ borderTop: `1px solid ${border}` }}
       >
         {unlocked ? (
           <button
             onClick={() => window.open("https://wa.me/250789399765", "_blank")}
             className="flex items-center gap-1.5 text-[11px] font-bold transition-opacity hover:opacity-70"
-            style={{ color: "#0d9488" }}
+            style={{ color: accentColor }}
           >
             <span>🎉 Redeem free consultation</span>
             <ArrowRight size={11} strokeWidth={2.5} />
@@ -766,7 +764,7 @@ function XpProgressCard({ xpRecord, isDark, delay = 0 }: { xpRecord: UserXpRecor
 export default function DashboardPage() {
   const auth = useRequireAuth();
   const router = useRouter();
-  const { isDark } = useTheme();
+  const { isDark, surface, accentColor, accentFaint } = useTheme();
 
   const [latest, setLatest]           = useState<StoredAssessment | null>(null);
   const [selected, setSelected]       = useState<StoredAssessment | null>(null);
@@ -777,12 +775,11 @@ export default function DashboardPage() {
   const [error, setError]             = useState<string | null>(null);
   const [refreshing, setRefreshing]   = useState(false);
 
-  const bg      = isDark ? "#060c18" : "#ffffff";
-  const cardBg  = isDark ? "#0d1323" : "#ffffff";
-  const border  = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const textH   = isDark ? "#f0f4f8" : "#0f172a";
-  const textM   = isDark ? "#6b7a8d" : "#64748b";
-  const textS   = isDark ? "#3d4f63" : "#94a3b8";
+  const cardBg  = surface.surface;
+  const border  = surface.border;
+  const textH   = surface.text;
+  const textM   = surface.muted;
+  const textS   = surface.subtle;
 
   const totalCount = useCountUp(history.length, !loadingHistory);
 
@@ -847,12 +844,12 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ background: bg, minHeight: "100%" }}>
+      <div style={{ minHeight: "100%" }}>
 
         {/* ── TOP ACTION BAR ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5" style={{ color: "#0d9488" }}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5" style={{ color: accentColor }}>
               Health Dashboard
             </p>
             <p className="text-[12px]" style={{ color: textS }}>
@@ -872,7 +869,7 @@ export default function DashboardPage() {
             <button
               onClick={handleRefresh}
               className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold transition-all duration-150 hover:opacity-80 active:scale-95"
-              style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", borderRadius: 4, color: textM, border: `1px solid ${border}` }}
+              style={{ background: surface.surfaceAlt, borderRadius: 2, color: textM, border: `1px solid ${border}` }}
             >
               <RefreshCw size={12} strokeWidth={2} className={refreshing ? "animate-spin" : ""} />
               <span className="hidden sm:inline">Refresh</span>
@@ -880,7 +877,7 @@ export default function DashboardPage() {
             <button
               onClick={() => router.push("/dashboard/assessment")}
               className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-95"
-              style={{ background: "linear-gradient(135deg,#0d9488,#059669)", borderRadius: 4, boxShadow: "0 4px 14px rgba(13,148,136,0.3)" }}
+              style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2, boxShadow: `0 4px 14px ${accentColor}40` }}
             >
               <Plus size={13} strokeWidth={2.5} />
               New Assessment
@@ -892,7 +889,7 @@ export default function DashboardPage() {
         {display && latest && display.$id !== latest.$id && (
           <div
             className="flex items-center justify-between px-4 py-2.5 mb-4"
-            style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 4 }}
+            style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 2 }}
           >
             <div className="flex items-center gap-2">
               <History size={13} strokeWidth={2} style={{ color: "#6366f1" }} />
@@ -912,7 +909,7 @@ export default function DashboardPage() {
 
         {/* ── ERROR BANNER ── */}
         {error && (
-          <div className="flex items-center gap-3 px-4 py-3 mb-5" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 4 }}>
+          <div className="flex items-center gap-3 px-4 py-3 mb-5" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 2 }}>
             <AlertTriangle size={14} className="text-red-400 shrink-0" />
             <p className="text-[12px] flex-1 text-red-400">{error}</p>
             <button onClick={handleRefresh} className="text-[11px] font-bold text-red-400 hover:opacity-70">Retry</button>
@@ -923,7 +920,7 @@ export default function DashboardPage() {
         {isHighRisk && urgentActions.length > 0 && (
           <div
             className="flex items-start gap-3 px-4 py-3.5 mb-5"
-            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 4 }}
+            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 2 }}
           >
             <AlertTriangle size={15} className="text-red-400 shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -939,7 +936,7 @@ export default function DashboardPage() {
         {(loadingLatest || !auth.loading) && (
           <div className="mb-5">
             {loadingLatest ? (
-              <div className="w-full h-48 animate-pulse" style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 4 }} />
+              <div className="w-full h-48 animate-pulse" style={{ background: surface.surfaceAlt, borderRadius: 2 }} />
             ) : (
               <HeroCard user={auth.user} latest={latest} isDark={isDark} />
             )}
@@ -950,7 +947,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
           {loadingLatest ? (
             [0,1,2,3,4].map(i => (
-              <div key={i} className="p-5" style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 4 }}>
+              <div key={i} className="p-5" style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 2 }}>
                 <div className="space-y-3">
                   <Skeleton h={11} w={80} />
                   <Skeleton h={36} w={100} />
@@ -1015,7 +1012,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => router.push("/dashboard/history")}
                   className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70"
-                  style={{ color: "#0d9488" }}
+                  style={{ color: accentColor }}
                 >
                   All history <ChevronRight size={12} />
                 </button>
@@ -1032,7 +1029,7 @@ export default function DashboardPage() {
                 <button
                   onClick={() => router.push("/dashboard/assessment")}
                   className="px-4 py-2 text-[11px] font-bold text-white"
-                  style={{ background: "linear-gradient(135deg,#0d9488,#059669)", borderRadius: 4 }}
+                  style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                 >
                   Take Assessment
                 </button>
@@ -1051,8 +1048,8 @@ export default function DashboardPage() {
             </SectionLabel>
             {loadingLatest ? (
               <div className="flex justify-around py-4">
-                <Skeleton h={100} w={100} r={50} />
-                <Skeleton h={100} w={100} r={50} />
+                <Skeleton h={100} w={100} r={2} />
+                <Skeleton h={100} w={100} r={2} />
               </div>
             ) : display ? (
               <>
@@ -1067,7 +1064,7 @@ export default function DashboardPage() {
                   <button
                     onClick={() => router.push("/dashboard/review")}
                     className="flex items-center gap-1.5 mt-3 text-[11px] font-bold"
-                    style={{ color: "#0d9488" }}
+                    style={{ color: accentColor }}
                   >
                     Full report <ArrowRight size={11} strokeWidth={2.5} />
                   </button>
@@ -1140,7 +1137,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => router.push("/dashboard/history")}
                 className="flex items-center gap-1 text-[11px] font-semibold"
-                style={{ color: "#0d9488" }}
+                style={{ color: accentColor }}
               >
                 View all <ChevronRight size={12} />
               </button>
@@ -1166,7 +1163,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => router.push("/dashboard/assessment")}
                 className="mt-2 flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-bold text-white"
-                style={{ background: "linear-gradient(135deg,#0d9488,#059669)", borderRadius: 4, boxShadow: "0 4px 14px rgba(13,148,136,0.28)" }}
+                style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2, boxShadow: `0 4px 14px ${accentColor}40` }}
               >
                 <Plus size={13} strokeWidth={2.5} /> Take First Assessment
               </button>
@@ -1193,15 +1190,15 @@ export default function DashboardPage() {
                         style={{
                           borderBottom: `1px solid ${border}`,
                           background: isActive
-                            ? isDark ? "rgba(13,148,136,0.06)" : "rgba(13,148,136,0.04)"
+                            ? accentFaint
                             : "transparent",
                         }}
                         onMouseEnter={e => {
-                          if (!isActive) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)";
+                          if (!isActive) e.currentTarget.style.background = surface.surfaceAlt;
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.background = isActive
-                            ? isDark ? "rgba(13,148,136,0.06)" : "rgba(13,148,136,0.04)"
+                            ? accentFaint
                             : "transparent";
                         }}
                         onClick={() => setSelected(a)}
@@ -1211,16 +1208,16 @@ export default function DashboardPage() {
                             <span
                               className="text-[10px] font-black"
                               style={{
-                                color: isActive ? "#0d9488" : textS,
-                                background: isActive ? "rgba(13,148,136,0.12)" : isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
+                                color: isActive ? accentColor : textS,
+                                background: isActive ? accentFaint : surface.surfaceAlt,
                                 padding: "2px 5px",
-                                borderRadius: 3,
+                                borderRadius: 2,
                               }}
                             >
                               #{a.assessmentNumber ?? i + 1}
                             </span>
                             {i === 0 && (
-                              <span className="text-[8px] font-bold uppercase tracking-wide px-1 py-0.5" style={{ background: "rgba(13,148,136,0.1)", color: "#0d9488", borderRadius: 2 }}>
+                              <span className="text-[8px] font-bold uppercase tracking-wide px-1 py-0.5" style={{ background: accentFaint, color: accentColor, borderRadius: 2 }}>
                                 latest
                               </span>
                             )}
@@ -1251,7 +1248,7 @@ export default function DashboardPage() {
         {display && display.detailedAnalysis && (
           <CardShell delay={300} className="mt-4">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-7 h-7 flex items-center justify-center" style={{ background: "rgba(139,92,246,0.12)", borderRadius: 4 }}>
+              <div className="w-7 h-7 flex items-center justify-center" style={{ background: "rgba(139,92,246,0.12)", borderRadius: 2 }}>
                 <Zap size={14} strokeWidth={1.8} style={{ color: "#8b5cf6" }} />
               </div>
               <SectionLabel>AI Detailed Analysis</SectionLabel>
@@ -1269,18 +1266,18 @@ export default function DashboardPage() {
         {/* ── QUICK ACTION STRIP ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
           {[
-            { icon: Activity,         label: "New Assessment",   sub: "Retake to track progress",     color: "#0d9488", action: () => router.push("/dashboard/assessment") },
-            { icon: Award,            label: "View Full Report", sub: "Your last detailed results",   color: "#6366f1", action: () => router.push("/dashboard/review") },
-            { icon: MessageCircleIcon, label: "Talk to a Doctor", sub: "WhatsApp consultation",        color: "#25d366", action: () => window.open("https://wa.me/250789399765","_blank") },
-          ].map(({ icon: Icon, label, sub, color, action }, i) => (
+            { icon: Activity,         label: "New Assessment",   sub: "Retake to track progress",     action: () => router.push("/dashboard/assessment") },
+            { icon: Award,            label: "View Full Report", sub: "Your last detailed results",   action: () => router.push("/dashboard/review") },
+            { icon: MessageCircleIcon, label: "Talk to a Doctor", sub: "WhatsApp consultation",        action: () => window.open("https://wa.me/250789399765","_blank") },
+          ].map(({ icon: Icon, label, sub, action }, i) => (
             <button
               key={i}
               onClick={action}
               className="flex items-center gap-4 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] group"
-              style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 4, boxShadow: isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.05)" }}
+              style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 2 }}
             >
-              <div className="w-10 h-10 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110" style={{ background: `${color}14`, borderRadius: 4 }}>
-                <Icon size={18} strokeWidth={1.8} style={{ color }} />
+              <div className="w-10 h-10 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110" style={{ background: accentFaint, borderRadius: 2, color: accentColor }}>
+                <Icon size={18} strokeWidth={1.8} />
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-bold" style={{ color: textH }}>{label}</p>
@@ -1290,6 +1287,7 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+        <ThemeToggle />
 
         {/* Disclaimer */}
         <p className="text-center text-[11px] mt-8 pb-4" style={{ color: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.2)" }}>
@@ -1297,6 +1295,7 @@ export default function DashboardPage() {
         </p>
       </div>
     </DashboardLayout>
+    
   );
 }
 

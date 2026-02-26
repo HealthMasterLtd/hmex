@@ -69,21 +69,23 @@ function getCategoryLabel(step: number): string {
 
 // ─── PROGRESS DOTS ────────────────────────────────────────────────────────────
 function ProgressDots({ total, current }: { total: number; current: number }) {
+  const { accentColor } = useTheme();
   return (
     <div className="flex items-center gap-1 flex-wrap">
       {Array.from({ length: Math.min(total, 15) }).map((_, i) => (
         <div
           key={i}
-          className="rounded-full transition-all duration-500"
           style={{
             width: i < current ? 20 : 6,
             height: 6,
             backgroundColor:
               i < current
-                ? "#0FBB7D"
+                ? accentColor
                 : i === current
-                ? "rgba(15,187,125,0.4)"
-                : "rgba(15,187,125,0.15)",
+                ? `${accentColor}66`
+                : `${accentColor}26`,
+            borderRadius: 2,
+            transition: "all 0.5s ease",
           }}
         />
       ))}
@@ -92,13 +94,8 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
 }
 
 // ─── GENERATING SCREEN (shown while AI builds recommendations) ────────────────
-function GeneratingScreen({ isDark }: { isDark: boolean }) {
-  const C = {
-    bg: isDark ? "#0A0F1C" : "#F4F7FB",
-    text: isDark ? "#F9FAFB" : "#0F172A",
-    muted: isDark ? "#8B95A8" : "#64748B",
-    primary: "#0FBB7D",
-  };
+function GeneratingScreen() {
+  const { isDark, surface, accentColor } = useTheme();
 
   const steps = [
     "Analysing your risk profile…",
@@ -115,44 +112,46 @@ function GeneratingScreen({ isDark }: { isDark: boolean }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center transition-colors duration-300"
-      style={{ backgroundColor: C.bg }}
+      style={{ backgroundColor: surface.bg }}
     >
       <div className="text-center space-y-6 max-w-xs">
         <div className="relative inline-flex">
           <div
-            className="w-16 h-16 rounded-full border-4 animate-spin"
+            className="w-16 h-16 border-4 animate-spin"
             style={{
               borderColor: "transparent",
-              borderTopColor: C.primary,
-              borderRightColor: `${C.primary}33`,
+              borderTopColor: accentColor,
+              borderRightColor: `${accentColor}33`,
+              borderRadius: 2,
             }}
           />
-          <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: C.primary }} />
+          <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: accentColor }} />
         </div>
         <div>
           <p
             className="text-xs font-bold uppercase tracking-widest mb-2"
-            style={{ color: C.primary }}
+            style={{ color: accentColor }}
           >
             Almost Done
           </p>
-          <h2 className="text-xl font-bold mb-1" style={{ color: C.text }}>
+          <h2 className="text-xl font-bold mb-1" style={{ color: surface.text }}>
             {steps[stepIdx]}
           </h2>
-          <p className="text-sm" style={{ color: C.muted }}>
+          <p className="text-sm" style={{ color: surface.muted }}>
             Your personalised health report is being generated.
           </p>
         </div>
         {/* Progress bar */}
         <div
-          className="h-1.5 rounded-full overflow-hidden mx-auto w-48"
-          style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
+          className="h-1.5 overflow-hidden mx-auto w-48"
+          style={{ backgroundColor: surface.border, borderRadius: 2 }}
         >
           <div
-            className="h-full rounded-full transition-all duration-[2000ms] ease-out"
+            className="h-full transition-all duration-[2000ms] ease-out"
             style={{
               width: stepIdx === 0 ? "30%" : stepIdx === 1 ? "65%" : "90%",
-              background: "linear-gradient(90deg, #0FBB7D, #059669)",
+              background: `linear-gradient(90deg, ${accentColor}, ${accentColor}dd)`,
+              borderRadius: 2,
             }}
           />
         </div>
@@ -163,7 +162,7 @@ function GeneratingScreen({ isDark }: { isDark: boolean }) {
 
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function PreLoginAssessmentPage() {
-  const { isDark } = useTheme();
+  const { isDark, surface, accentColor, accentFaint } = useTheme();
   const router = useRouter();
 
   const [step, setStep] = useState(1);
@@ -177,13 +176,13 @@ export default function PreLoginAssessmentPage() {
   const [visible, setVisible] = useState(false);
 
   const C = {
-    bg: isDark ? "#0A0F1C" : "#F4F7FB",
-    cardBg: isDark ? "#141928" : "#FFFFFF",
-    border: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
-    text: isDark ? "#F9FAFB" : "#0F172A",
-    muted: isDark ? "#8B95A8" : "#64748B",
-    primary: "#0FBB7D",
-    primaryFaint: isDark ? "rgba(15,187,125,0.10)" : "rgba(15,187,125,0.07)",
+    bg: surface.bg,
+    cardBg: surface.surface,
+    border: surface.border,
+    text: surface.text,
+    muted: surface.muted,
+    primary: accentColor,
+    primaryFaint: accentFaint,
   };
 
   useEffect(() => {
@@ -313,14 +312,15 @@ export default function PreLoginAssessmentPage() {
             <button
               key={opt.value}
               onClick={() => handleSelect(opt.value)}
-              className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+              className="flex flex-col items-center gap-2 p-3 border-2 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
               style={{
                 backgroundColor: sel ? C.primaryFaint : C.cardBg,
                 borderColor: sel ? C.primary : C.border,
                 boxShadow: sel ? `0 0 0 3px ${C.primary}22` : "none",
+                borderRadius: 2,
               }}
             >
-              <div className="relative w-full h-28 rounded-xl overflow-hidden">
+              <div className="relative w-full h-28 overflow-hidden">
                 <Image src={opt.img} alt={opt.label} fill className="object-contain" />
               </div>
               <div className="text-center">
@@ -363,11 +363,12 @@ export default function PreLoginAssessmentPage() {
                   setAnswers(prev => ({ ...prev, [key]: e.target.value }));
                   setError(null);
                 }}
-                className="w-full px-4 py-3.5 pr-12 rounded-xl border-2 text-base focus:outline-none transition-all"
+                className="w-full px-4 py-3.5 pr-12 text-base focus:outline-none transition-all"
                 style={{
-                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#F8FAFC",
-                  borderColor: C.border,
+                  backgroundColor: surface.surfaceAlt,
+                  border: `1px solid ${C.border}`,
                   color: C.text,
+                  borderRadius: 2,
                 }}
               />
               <span
@@ -403,8 +404,8 @@ export default function PreLoginAssessmentPage() {
         ].map(({ src, caption }) => (
           <div
             key={src}
-            className="overflow-hidden rounded-xl border"
-            style={{ borderColor: C.border }}
+            className="overflow-hidden border"
+            style={{ borderColor: C.border, borderRadius: 2 }}
           >
             <div className="relative w-full h-32">
               <Image src={src} alt={caption} fill className="object-cover" />
@@ -433,37 +434,36 @@ export default function PreLoginAssessmentPage() {
             <button
               key={i}
               onClick={() => handleSelect(opt)}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
+              className="flex items-center gap-3 px-4 py-3.5 border-2 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
               style={{
                 backgroundColor: sel
                   ? C.primaryFaint
-                  : isDark
-                  ? "rgba(255,255,255,0.02)"
-                  : "#FAFBFC",
+                  : surface.surfaceAlt,
                 borderColor: sel ? C.primary : C.border,
                 boxShadow: sel ? `0 0 0 3px ${C.primary}18` : "none",
+                borderRadius: 2,
               }}
             >
               {isYesNo ? (
                 <div
-                  className="flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold shrink-0"
+                  className="flex items-center justify-center w-7 h-7 text-sm font-bold shrink-0"
                   style={{
                     backgroundColor: sel
                       ? C.primary
-                      : isDark
-                      ? "rgba(255,255,255,0.08)"
-                      : "rgba(0,0,0,0.05)",
+                      : surface.surfaceAlt,
                     color: sel ? "#fff" : C.muted,
+                    borderRadius: 2,
                   }}
                 >
                   {isYes ? "✓" : "✕"}
                 </div>
               ) : (
                 <div
-                  className="w-4 h-4 rounded-full border-2 shrink-0 transition-all"
+                  className="w-4 h-4 border-2 shrink-0 transition-all"
                   style={{
                     borderColor: sel ? C.primary : C.border,
                     backgroundColor: sel ? C.primary : "transparent",
+                    borderRadius: 2,
                   }}
                 />
               )}
@@ -503,18 +503,18 @@ export default function PreLoginAssessmentPage() {
         </div>
         <div className="relative pt-2 pb-8 px-2">
           <div
-            className="h-3 rounded-full overflow-hidden"
+            className="h-3 overflow-hidden"
             style={{
-              backgroundColor: isDark
-                ? "rgba(255,255,255,0.06)"
-                : "rgba(0,0,0,0.06)",
+              backgroundColor: surface.surfaceAlt,
+              borderRadius: 2,
             }}
           >
             <div
-              className="h-full rounded-full transition-all duration-100"
+              className="h-full transition-all duration-100"
               style={{
                 width: `${pct}%`,
-                background: "linear-gradient(90deg, #0FBB7D, #059669)",
+                background: `linear-gradient(90deg, ${C.primary}, ${C.primary}dd)`,
+                borderRadius: 2,
               }}
             />
           </div>
@@ -527,8 +527,8 @@ export default function PreLoginAssessmentPage() {
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
           <div
-            className="absolute top-0.5 w-7 h-7 rounded-full shadow-lg border-4 border-white pointer-events-none transition-all duration-100"
-            style={{ left: `calc(${pct}% - 14px)`, backgroundColor: C.primary }}
+            className="absolute top-0.5 w-7 h-7 shadow-lg border-4 border-white pointer-events-none transition-all duration-100"
+            style={{ left: `calc(${pct}% - 14px)`, backgroundColor: C.primary, borderRadius: 2 }}
           />
         </div>
         <div
@@ -548,7 +548,7 @@ export default function PreLoginAssessmentPage() {
 
   // ── GENERATING SCREEN ─────────────────────────────────────────────────────
   if (generating) {
-    return <GeneratingScreen isDark={isDark} />;
+    return <GeneratingScreen />;
   }
 
   // ── INITIAL LOADING ───────────────────────────────────────────────────────
@@ -561,11 +561,12 @@ export default function PreLoginAssessmentPage() {
         <div className="text-center space-y-6">
           <div className="relative inline-flex">
             <div
-              className="w-16 h-16 rounded-full border-4 animate-spin"
+              className="w-16 h-16 border-4 animate-spin"
               style={{
                 borderColor: "transparent",
                 borderTopColor: C.primary,
                 borderRightColor: `${C.primary}33`,
+                borderRadius: 2,
               }}
             />
             <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: C.primary }} />
@@ -605,8 +606,8 @@ export default function PreLoginAssessmentPage() {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-xl font-semibold text-white"
-            style={{ background: `linear-gradient(135deg, ${C.primary}, #059669)` }}
+            className="px-6 py-3 font-semibold text-white"
+            style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primary}dd)`, borderRadius: 2 }}
           >
             Refresh
           </button>
@@ -650,7 +651,7 @@ export default function PreLoginAssessmentPage() {
 
         {/* Card */}
         <div
-          className="rounded-2xl border overflow-hidden transition-all duration-300"
+          className="border overflow-hidden transition-all duration-300"
           style={{
             backgroundColor: C.cardBg,
             borderColor: C.border,
@@ -659,6 +660,7 @@ export default function PreLoginAssessmentPage() {
             boxShadow: isDark
               ? "0 8px 32px rgba(0,0,0,0.4)"
               : "0 8px 32px rgba(0,0,0,0.06)",
+            borderRadius: 2,
           }}
         >
           {/* Card header */}
@@ -667,12 +669,13 @@ export default function PreLoginAssessmentPage() {
             style={{ borderColor: C.border }}
           >
             <div
-              className="flex items-center justify-center w-11 h-11 rounded-xl shrink-0"
+              className="flex items-center justify-center w-11 h-11 shrink-0"
               style={{
                 backgroundColor: question?.aiGenerated
                   ? "rgba(139,92,246,0.12)"
                   : C.primaryFaint,
                 color: question?.aiGenerated ? "#8B5CF6" : C.primary,
+                borderRadius: 2,
               }}
             >
               {ICON_MAP[question?.id ?? ""] ?? <Activity className="w-5 h-5" />}
@@ -690,8 +693,8 @@ export default function PreLoginAssessmentPage() {
             </div>
             {question?.aiGenerated && (
               <span
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0"
-                style={{ backgroundColor: "rgba(139,92,246,0.12)", color: "#8B5CF6" }}
+                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shrink-0"
+                style={{ backgroundColor: "rgba(139,92,246,0.12)", color: "#8B5CF6", borderRadius: 2 }}
               >
                 <Sparkles className="w-3 h-3" />
                 AI
@@ -703,11 +706,12 @@ export default function PreLoginAssessmentPage() {
           <div className="p-6 space-y-4">
             {error && (
               <div
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+                className="flex items-center gap-3 px-4 py-3 text-sm"
                 style={{
                   backgroundColor: "rgba(239,68,68,0.08)",
                   border: "1px solid rgba(239,68,68,0.2)",
                   color: "#EF4444",
+                  borderRadius: 2,
                 }}
               >
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -717,11 +721,12 @@ export default function PreLoginAssessmentPage() {
 
             {question?.aiGenerated && (
               <div
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+                className="flex items-center gap-3 px-4 py-3 text-sm"
                 style={{
                   backgroundColor: "rgba(139,92,246,0.07)",
                   border: "1px solid rgba(139,92,246,0.15)",
                   color: "#8B5CF6",
+                  borderRadius: 2,
                 }}
               >
                 <Sparkles className="w-4 h-4 shrink-0" />
@@ -745,23 +750,23 @@ export default function PreLoginAssessmentPage() {
                 placeholder="Type your answer…"
                 value={String(currentAnswer ?? "")}
                 onChange={e => handleSelect(e.target.value)}
-                className="w-full px-4 py-3.5 rounded-xl border-2 text-base focus:outline-none transition-all"
+                className="w-full px-4 py-3.5 text-base focus:outline-none transition-all"
                 style={{
-                  backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#F8FAFC",
-                  borderColor: C.border,
+                  backgroundColor: surface.surfaceAlt,
+                  border: `1px solid ${C.border}`,
                   color: C.text,
+                  borderRadius: 2,
                 }}
               />
             )}
 
             {question?.tooltip && (
               <div
-                className="flex items-start gap-3 px-4 py-3 rounded-xl text-[12px] leading-relaxed"
+                className="flex items-start gap-3 px-4 py-3 text-[12px] leading-relaxed"
                 style={{
-                  backgroundColor: isDark
-                    ? "rgba(255,255,255,0.03)"
-                    : "rgba(0,0,0,0.02)",
+                  backgroundColor: surface.surfaceAlt,
                   color: C.muted,
+                  borderRadius: 2,
                 }}
               >
                 <Info className="w-4 h-4 mt-0.5 shrink-0" />
@@ -776,10 +781,11 @@ export default function PreLoginAssessmentPage() {
           <button
             onClick={handleBack}
             disabled={step === 1}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none"
+            className="flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none"
             style={{
               color: C.muted,
-              backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
+              backgroundColor: surface.surfaceAlt,
+              borderRadius: 2,
             }}
           >
             <ChevronLeft className="w-4 h-4" />
@@ -789,10 +795,11 @@ export default function PreLoginAssessmentPage() {
           <button
             onClick={handleNext}
             disabled={submitting}
-            className="flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
             style={{
-              background: `linear-gradient(135deg, ${C.primary}, #059669)`,
-              boxShadow: "0 4px 16px rgba(15,187,125,0.28)",
+              background: `linear-gradient(135deg, ${C.primary}, ${C.primary}dd)`,
+              boxShadow: `0 4px 16px ${C.primary}40`,
+              borderRadius: 2,
             }}
           >
             {submitting ? (

@@ -19,7 +19,7 @@ function useInView(threshold = 0.2) {
 }
 
 export default function CallToAction() {
-  const { isDark } = useTheme();
+  const { isDark, surface } = useTheme();
   const { ref, visible } = useInView();
 
   return (
@@ -32,7 +32,7 @@ export default function CallToAction() {
           transition: "opacity .75s ease, transform .75s ease",
         }}
       >
-        {/* ── LEFT — theme-aware teal ── */}
+        {/* LEFT — teal gradient */}
         <div
           className="relative flex flex-col justify-between gap-8 overflow-hidden px-10 py-12 md:px-14 md:py-14 xl:px-20 xl:py-16"
           style={{
@@ -74,7 +74,6 @@ export default function CallToAction() {
                 </span>
               </button>
             </Link>
-
             <div className="mt-4 flex items-center gap-2">
               <HeartPulse className="h-3.5 w-3.5 text-white/50" />
               <p className="text-[12px] text-white/50">
@@ -84,22 +83,33 @@ export default function CallToAction() {
           </div>
         </div>
 
-        {/* ── RIGHT — dark, theme-aware ── */}
+        {/* RIGHT — theme-aware */}
         <div
-          className={`flex flex-col justify-between gap-8 px-10 py-12 md:px-14 md:py-14 xl:px-20 xl:py-16 transition-colors duration-500 ${
-            isDark ? "bg-[#161b25]" : "bg-white border border-slate-200"
-          }`}
+          className="flex flex-col justify-between gap-8 px-10 py-12 md:px-14 md:py-14 xl:px-20 xl:py-16 transition-colors duration-500"
+          style={{
+            background: surface.surface,
+            border: isDark ? "none" : `1px solid ${surface.border}`,
+          }}
         >
           <div className="flex flex-col gap-4">
-            <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-white/40" : "text-slate-400"}`}>
+            <p
+              className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+              style={{ color: surface.subtle }}
+            >
               Why It Matters
             </p>
-            <h3 className={`text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold leading-[1.15] tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+            <h3
+              className="text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold leading-[1.15] tracking-tight"
+              style={{ color: surface.text }}
+            >
               Prevention is always
               <br />
               <span className="text-teal-500">cheaper than treatment.</span>
             </h3>
-            <p className={`max-w-[38ch] text-[14px] leading-[1.8] ${isDark ? "text-white/50" : "text-slate-500"}`}>
+            <p
+              className="max-w-[38ch] text-[14px] leading-[1.8]"
+              style={{ color: surface.muted }}
+            >
               NCDs cause 74% of all deaths globally — yet up to 80% are
               preventable with early awareness and simple lifestyle changes.
               That&apos;s exactly what we&apos;re built for.
@@ -107,22 +117,32 @@ export default function CallToAction() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <div className={`h-px w-full ${isDark ? "bg-white/8" : "bg-slate-100"}`} />
+            <div className="h-px w-full" style={{ background: surface.border }} />
 
             <div className="grid grid-cols-3 gap-4">
               {[
-                { v: "2 min", l: "to complete"       },
-                { v: "12",    l: "conditions checked" },
-                { v: "Free",  l: "always"             },
+                { v: "2 min", l: "to complete"        },
+                { v: "12",    l: "conditions checked"  },
+                { v: "Free",  l: "always"              },
               ].map((s, i) => (
                 <div key={i} className="flex flex-col gap-1">
-                  <span className={`text-[1.05rem] font-bold tabular-nums ${isDark ? "text-white" : "text-slate-900"}`}>{s.v}</span>
-                  <span className={`text-[11px] ${isDark ? "text-white/35" : "text-slate-400"}`}>{s.l}</span>
+                  <span
+                    className="text-[1.05rem] font-bold tabular-nums"
+                    style={{ color: surface.text }}
+                  >
+                    {s.v}
+                  </span>
+                  <span
+                    className="text-[11px]"
+                    style={{ color: surface.subtle }}
+                  >
+                    {s.l}
+                  </span>
                 </div>
               ))}
             </div>
 
-            <div className={`h-px w-full ${isDark ? "bg-white/8" : "bg-slate-100"}`} />
+            <div className="h-px w-full" style={{ background: surface.border }} />
 
             <Link href="/how-it-works">
               <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-teal-500 transition-colors hover:text-teal-400">

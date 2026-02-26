@@ -22,7 +22,7 @@ export default function Navbar() {
   const [isOpen, setIsOpen]     = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname                = usePathname();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, surface, accentColor } = useTheme();
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 24);
@@ -31,12 +31,6 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => { setIsOpen(false); }, [pathname]);
-
-  // ── Token system ──────────────────────────────────────
-  const bg      = isDark ? "#0e1117"          : "#ffffff";
-  const border  = isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)";
-  const text    = isDark ? "#f8fafc"          : "#0f172a";
-  const muted   = isDark ? "rgba(248,250,252,.45)" : "rgba(15,23,42,.45)";
 
   return (
     <>
@@ -48,8 +42,8 @@ export default function Navbar() {
         style={{
           background: scrolled
             ? isDark ? "rgba(14,17,23,.92)" : "rgba(255,255,255,.92)"
-            : bg,
-          borderBottom: scrolled ? `1px solid ${border}` : "1px solid transparent",
+            : surface.bg,
+          borderBottom: scrolled ? `1px solid ${surface.border}` : "1px solid transparent",
           backdropFilter: scrolled ? "blur(16px)" : "none",
         }}
       >
@@ -68,9 +62,9 @@ export default function Navbar() {
             </div>
             <span
               className="text-[15px] font-bold tracking-tight"
-              style={{ color: text }}
+              style={{ color: surface.text }}
             >
-              H<span className="text-teal-500">mex</span>
+              H<span style={{ color: accentColor }}>mex</span>
             </span>
           </Link>
 
@@ -84,24 +78,21 @@ export default function Navbar() {
                   href={item.href}
                   className="relative px-3.5 py-2 group"
                 >
-                  {/* Active pill underline */}
                   {active && (
                     <motion.span
                       layoutId="nav-indicator"
-                      className="absolute bottom-1 left-3.5 right-3.5 h-[2px] rounded-full bg-teal-500"
+                      className="absolute bottom-1 left-3.5 right-3.5 h-[2px] rounded-full"
+                      style={{ background: accentColor }}
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
                     />
                   )}
-
-                  {/* Hover bg */}
                   <span
                     className="absolute inset-0 rounded-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                     style={{ background: isDark ? "rgba(255,255,255,.04)" : "rgba(0,0,0,.04)" }}
                   />
-
                   <span
                     className="relative text-[13.5px] font-medium transition-colors duration-150"
-                    style={{ color: active ? (isDark ? "#f8fafc" : "#0f172a") : muted }}
+                    style={{ color: active ? surface.text : surface.muted }}
                   >
                     {item.label}
                   </span>
@@ -112,7 +103,6 @@ export default function Navbar() {
 
           {/* ── Desktop actions ── */}
           <div className="hidden items-center gap-2 md:flex">
-            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150"
@@ -128,20 +118,19 @@ export default function Navbar() {
                   transition={{ duration: 0.15 }}
                 >
                   {isDark
-                    ? <Moon  size={15} style={{ color: muted }} />
-                    : <Sun   size={15} style={{ color: muted }} />
+                    ? <Moon  size={15} style={{ color: surface.muted }} />
+                    : <Sun   size={15} style={{ color: surface.muted }} />
                   }
                 </motion.span>
               </AnimatePresence>
             </button>
 
-            {/* Login */}
             <Link href="/login">
               <button
                 className="h-8 rounded-lg px-4 text-[13px] font-semibold transition-colors duration-150"
                 style={{
-                  color: text,
-                  border: `1px solid ${border}`,
+                  color: surface.text,
+                  border: `1px solid ${surface.border}`,
                   background: "transparent",
                 }}
               >
@@ -149,7 +138,6 @@ export default function Navbar() {
               </button>
             </Link>
 
-            {/* Sign up */}
             <Link href="/register">
               <button
                 className="group flex h-8 items-center gap-1.5 rounded-lg px-4 text-[13px] font-semibold text-white transition-opacity duration-150 hover:opacity-90"
@@ -181,8 +169,8 @@ export default function Navbar() {
                   transition={{ duration: 0.15 }}
                 >
                   {isDark
-                    ? <Moon size={15} style={{ color: muted }} />
-                    : <Sun  size={15} style={{ color: muted }} />
+                    ? <Moon size={15} style={{ color: surface.muted }} />
+                    : <Sun  size={15} style={{ color: surface.muted }} />
                   }
                 </motion.span>
               </AnimatePresence>
@@ -203,8 +191,8 @@ export default function Navbar() {
                   transition={{ duration: 0.15 }}
                 >
                   {isOpen
-                    ? <X    size={18} style={{ color: text }} />
-                    : <Menu size={18} style={{ color: text }} />
+                    ? <X    size={18} style={{ color: surface.text }} />
+                    : <Menu size={18} style={{ color: surface.text }} />
                   }
                 </motion.span>
               </AnimatePresence>
@@ -217,7 +205,6 @@ export default function Navbar() {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -228,7 +215,6 @@ export default function Navbar() {
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Panel */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -236,13 +222,11 @@ export default function Navbar() {
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed right-0 top-[60px] bottom-0 z-50 w-72 overflow-y-auto md:hidden"
               style={{
-                background: isDark ? "#0e1117" : "#ffffff",
-                borderLeft: `1px solid ${border}`,
+                background: surface.bg,
+                borderLeft: `1px solid ${surface.border}`,
               }}
             >
               <div className="flex flex-col gap-1 p-5">
-
-                {/* Nav links */}
                 {navItems.map((item, i) => {
                   const active = pathname === item.href;
                   return (
@@ -263,7 +247,7 @@ export default function Navbar() {
                       >
                         <span
                           className="text-[14px] font-semibold"
-                          style={{ color: active ? "#0d9488" : text }}
+                          style={{ color: active ? accentColor : surface.text }}
                         >
                           {item.label}
                         </span>
@@ -275,10 +259,8 @@ export default function Navbar() {
                   );
                 })}
 
-                {/* Divider */}
-                <div className="my-3 h-px" style={{ background: border }} />
+                <div className="my-3 h-px" style={{ background: surface.border }} />
 
-                {/* Auth buttons */}
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -289,8 +271,8 @@ export default function Navbar() {
                     <button
                       className="w-full rounded-lg py-3 text-[13.5px] font-semibold transition-colors duration-150"
                       style={{
-                        color: text,
-                        border: `1px solid ${border}`,
+                        color: surface.text,
+                        border: `1px solid ${surface.border}`,
                         background: "transparent",
                       }}
                     >
@@ -309,7 +291,6 @@ export default function Navbar() {
                     </button>
                   </Link>
                 </motion.div>
-
               </div>
             </motion.div>
           </>

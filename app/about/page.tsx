@@ -12,6 +12,7 @@ import {
 import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 /* ─────────────────── Shared hook ─────────────────── */
 function useInView(threshold = 0.15) {
@@ -48,7 +49,7 @@ function useCountUp(target: number, duration = 1200, start = false) {
 const team = [
   { name: "Irene Dushime",     role: "CEO",             image: "/assets/new/Irene.jpg"   },
   { name: "Bonheur",           role: "COO",             image: "/assets/new/bonheur.JPG" },
-  { name: "Brian Chege",       role: "CTO",             image: "/assets/new/brian.jpeg"   },
+  { name: "Brian Chege",       role: "CTO",             image: "/assets/new/brian.jpeg"  },
   { name: "Mucyo Papy Blaise", role: "Developer",       image: "/assets/14.png"          },
   { name: "Francis",           role: "Product Manager", image: "/assets/new/Francis.JPG" },
 ];
@@ -65,15 +66,10 @@ const services = [
    ABOUT PAGE
 ═══════════════════════════════════════════════════════ */
 export default function AboutPage() {
-  const { isDark } = useTheme();
-  const bg    = isDark ? "#0e1117" : "#ffffff";
-  const bgAlt = isDark ? "#161b25" : "#f0f4f8";
-  const h     = isDark ? "text-white"     : "text-slate-900";
-  const p     = isDark ? "text-slate-400" : "text-slate-500";
-  const ln    = isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.07)";
+  const { surface } = useTheme();
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: bg }}>
+    <div className="min-h-screen transition-colors duration-500" style={{ background: surface.bg }}>
       <Navbar />
 
       {/* ══ 1. HERO ══════════════════════════════════════ */}
@@ -88,12 +84,9 @@ export default function AboutPage() {
         <div
           className="absolute inset-0"
           style={{
-            background: isDark
-              ? "linear-gradient(160deg, rgba(10,15,26,.82) 0%, rgba(10,20,28,.75) 100%)"
-              : "linear-gradient(160deg, rgba(4,30,45,.78) 0%, rgba(8,40,35,.72) 100%)",
+            background: "linear-gradient(160deg, rgba(4,30,45,.82) 0%, rgba(8,40,35,.75) 100%)",
           }}
         />
-        {/* Teal accent */}
         <div
           className="pointer-events-none absolute -left-24 bottom-0 h-80 w-80 rounded-full opacity-20"
           style={{
@@ -115,26 +108,13 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ══ 2. WHO WE ARE ════════════════════════════════ */}
-      <WhoWeAre isDark={isDark} bg={bg} h={h} p={p} ln={ln} />
-
-      {/* ══ 3. WHY WE EXIST ══════════════════════════════ */}
-      <WhyWeExist isDark={isDark} bgAlt={bgAlt} h={h} p={p} />
-
-      {/* ══ 4. MISSION & VISION ══════════════════════════ */}
-      <MissionVision isDark={isDark} bg={bg} h={h} p={p} ln={ln} />
-
-      {/* ══ 5. WHAT WE DO ════════════════════════════════ */}
-      <WhatWeDo isDark={isDark} bgAlt={bgAlt} h={h} p={p} ln={ln} />
-
-      {/* ══ 6. IMPACT STATS ══════════════════════════════ */}
-      <ImpactStats isDark={isDark} />
-
-      {/* ══ 7. TEAM ══════════════════════════════════════ */}
-      <TeamSection isDark={isDark} bg={bg} bgAlt={bgAlt} h={h} p={p} ln={ln} />
-
-      {/* ══ 8. JOIN US ═══════════════════════════════════ */}
-      <JoinUs isDark={isDark} bgAlt={bgAlt} h={h} p={p} ln={ln} />
+      <WhoWeAre />
+      <WhyWeExist />
+      <MissionVision />
+      <WhatWeDo />
+      <ImpactStats />
+      <TeamSection />
+      <JoinUs />
 
       <Footer />
 
@@ -149,10 +129,12 @@ export default function AboutPage() {
 }
 
 /* ══ WHO WE ARE ════════════════════════════════════════ */
-function WhoWeAre({ isDark, bg, h, p, ln }: any) {
+function WhoWeAre() {
+  const { isDark, surface, accentColor } = useTheme();
   const { ref, visible } = useInView();
+
   return (
-    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: bg }}>
+    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: surface.bg }}>
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 px-6 lg:grid-cols-2 lg:gap-20 lg:px-16">
 
         <div
@@ -163,40 +145,45 @@ function WhoWeAre({ isDark, bg, h, p, ln }: any) {
             transition: "opacity .7s ease, transform .7s ease",
           }}
         >
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: accentColor }}>
             Who We Are
           </p>
-          <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+          <h2
+            className="text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight"
+            style={{ color: surface.text }}
+          >
             Built for everyday people,
             <br />
             <span className="bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">
               not just patients.
             </span>
           </h2>
-          <p className={`max-w-[40ch] text-[15px] leading-[1.8] ${p}`}>
+          <p className="max-w-[40ch] text-[15px] leading-[1.8]" style={{ color: surface.muted }}>
             We are a digital health team committed to helping people understand
             their health earlier — before serious complications arise. Our platform
             uses simple questions, smart technology, and clear guidance to help
             individuals assess their risk for non-communicable diseases.
           </p>
-          <p className={`max-w-[40ch] text-[15px] leading-[1.8] ${p}`}>
+          <p className="max-w-[40ch] text-[15px] leading-[1.8]" style={{ color: surface.muted }}>
             We believe that everyone deserves access to basic health insights, no
             matter where they live or what device they use.
           </p>
-          <div className="h-px w-12" style={{ background: isDark ? "rgba(255,255,255,.15)" : "rgba(0,0,0,.1)" }} />
+          <div className="h-px w-12" style={{ background: surface.subtle }} />
           <div className="flex flex-wrap gap-8">
             {[{ v: "100+", l: "Users" }, { v: "3+", l: "Countries" }, { v: "12", l: "Conditions" }].map((s, i) => (
               <div key={i}>
-                <p className={`text-[1.6rem] font-bold tabular-nums leading-none ${h}`}>{s.v}</p>
-                <p className={`mt-1 text-[12px] ${p}`}>{s.l}</p>
+                <p className="text-[1.6rem] font-bold tabular-nums leading-none" style={{ color: surface.text }}>{s.v}</p>
+                <p className="mt-1 text-[12px]" style={{ color: surface.muted }}>{s.l}</p>
               </div>
             ))}
           </div>
         </div>
 
+        {/* Image keeps rounded corners */}
         <div
-          className={`overflow-hidden rounded-2xl ${isDark ? "ring-1 ring-white/8" : "ring-1 ring-slate-200"}`}
+          className="overflow-hidden rounded-2xl"
           style={{
+            border: `1px solid ${surface.border}`,
             opacity: visible ? 1 : 0,
             transform: visible ? "translateX(0)" : "translateX(16px)",
             transition: "opacity .75s ease .1s, transform .75s ease .1s",
@@ -216,13 +203,15 @@ function WhoWeAre({ isDark, bg, h, p, ln }: any) {
 }
 
 /* ══ WHY WE EXIST ═══════════════════════════════════════ */
-function WhyWeExist({ isDark, bgAlt, h, p }: any) {
+function WhyWeExist() {
+  const { isDark, surface, accentColor } = useTheme();
   const { ref, visible } = useInView();
+
   return (
-    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: bgAlt }}>
+    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: surface.surfaceAlt }}>
       <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 px-6 lg:grid-cols-2 lg:gap-20 lg:px-16">
 
-        {/* Staggered image mosaic */}
+        {/* Staggered image mosaic — images keep rounded corners */}
         <div
           className="grid grid-cols-2 gap-3"
           style={{
@@ -244,7 +233,10 @@ function WhyWeExist({ isDark, bgAlt, h, p }: any) {
           <div className="relative mt-8 overflow-hidden rounded-xl">
             <Image src="/assets/new/cancerII.png" alt="" width={300} height={200} className="h-44 w-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isDark ? "bg-white/90" : "bg-white"} shadow-lg`}>
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-full shadow-lg"
+                style={{ background: isDark ? "rgba(255,255,255,0.9)" : "#fff" }}
+              >
                 <Play className="ml-0.5 h-4 w-4 text-teal-600" />
               </div>
             </div>
@@ -259,19 +251,22 @@ function WhyWeExist({ isDark, bgAlt, h, p }: any) {
             transition: "opacity .75s ease .15s, transform .75s ease .15s",
           }}
         >
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: accentColor }}>
             Why We Exist
           </p>
-          <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+          <h2
+            className="text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight"
+            style={{ color: surface.text }}
+          >
             The gap we&apos;re
             <br />closing.
           </h2>
-          <p className={`max-w-[40ch] text-[15px] leading-[1.8] ${p}`}>
+          <p className="max-w-[40ch] text-[15px] leading-[1.8]" style={{ color: surface.muted }}>
             Non-communicable diseases are silently affecting millions of people
             across Africa. Many live with conditions like hypertension or
             diabetes without knowing it — until it becomes serious.
           </p>
-          <p className={`max-w-[40ch] text-[15px] leading-[1.8] ${p}`}>
+          <p className="max-w-[40ch] text-[15px] leading-[1.8]" style={{ color: surface.muted }}>
             We exist to close this gap by making early risk screening simple,
             accessible, and understandable for everyday people.
           </p>
@@ -282,10 +277,12 @@ function WhyWeExist({ isDark, bgAlt, h, p }: any) {
 }
 
 /* ══ MISSION & VISION ═══════════════════════════════════ */
-function MissionVision({ isDark, bg, h, p, ln }: any) {
+function MissionVision() {
+  const { isDark, surface, accentColor } = useTheme();
   const { ref, visible } = useInView();
+
   return (
-    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: bg }}>
+    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: surface.bg }}>
       <div className="mx-auto max-w-7xl px-6 lg:px-16">
         <div
           className="mb-14 text-center"
@@ -295,10 +292,13 @@ function MissionVision({ isDark, bg, h, p, ln }: any) {
             transition: "opacity .7s ease, transform .7s ease",
           }}
         >
-          <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: accentColor }}>
             Our Foundation
           </p>
-          <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+          <h2
+            className="text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight"
+            style={{ color: surface.text }}
+          >
             Mission & Vision
           </h2>
         </div>
@@ -308,12 +308,10 @@ function MissionVision({ isDark, bg, h, p, ln }: any) {
             {
               icon: Target, label: "Our Mission",
               text: "To empower individuals with early health awareness and guide them toward the right care using technology that is simple, trusted, and built for real life.",
-              accent: true,
             },
             {
-              icon: Eye,    label: "Our Vision",
+              icon: Eye, label: "Our Vision",
               text: "A world where no one is caught off guard by a preventable disease — where every person has the tools to understand and act on their health early.",
-              accent: false,
             },
           ].map((item, i) => {
             const Icon = item.icon;
@@ -322,36 +320,46 @@ function MissionVision({ isDark, bg, h, p, ln }: any) {
                 key={i}
                 className="flex flex-col gap-6 p-10 md:p-14"
                 style={{
-                  borderRight: i === 0 ? `1px solid ${ln}` : "none",
+                  borderRight: i === 0 ? `1px solid ${surface.border}` : "none",
                   opacity: visible ? 1 : 0,
                   transform: visible ? "translateY(0)" : "translateY(14px)",
                   transition: `opacity .6s ease ${i * 120}ms, transform .6s ease ${i * 120}ms`,
                 }}
               >
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isDark ? "bg-teal-500/12 text-teal-400" : "bg-teal-500/10 text-teal-600"}`}>
+                {/* Icon tile — sharp */}
+                <div
+                  className="flex h-10 w-10 items-center justify-center"
+                  style={{
+                    borderRadius: 0,
+                    background: isDark ? "rgba(13,148,136,0.12)" : "rgba(13,148,136,0.10)",
+                    color: accentColor,
+                  }}
+                >
                   <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${isDark ? "text-white/30" : "text-slate-400"}`}>
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: surface.subtle }}>
                     {item.label}
                   </p>
-                  <p className={`text-[15px] leading-[1.8] ${p}`}>{item.text}</p>
+                  <p className="text-[15px] leading-[1.8]" style={{ color: surface.muted }}>{item.text}</p>
                 </div>
               </div>
             );
           })}
         </div>
-        <div className="h-px w-full" style={{ background: ln }} />
+        <div className="h-px w-full" style={{ background: surface.border }} />
       </div>
     </section>
   );
 }
 
 /* ══ WHAT WE DO ═════════════════════════════════════════ */
-function WhatWeDo({ isDark, bgAlt, h, p, ln }: any) {
+function WhatWeDo() {
+  const { isDark, surface, accentColor } = useTheme();
   const { ref, visible } = useInView();
+
   return (
-    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: bgAlt }}>
+    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: surface.surfaceAlt }}>
       <div className="mx-auto max-w-7xl px-6 lg:px-16">
         <div
           className="mb-14"
@@ -361,10 +369,13 @@ function WhatWeDo({ isDark, bgAlt, h, p, ln }: any) {
             transition: "opacity .7s ease, transform .7s ease",
           }}
         >
-          <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: accentColor }}>
             What We Do
           </p>
-          <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+          <h2
+            className="text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight"
+            style={{ color: surface.text }}
+          >
             Five ways we help.
           </h2>
         </div>
@@ -377,19 +388,27 @@ function WhatWeDo({ isDark, bgAlt, h, p, ln }: any) {
                 key={i}
                 className="flex items-start gap-6 py-6"
                 style={{
-                  borderBottom: i < services.length - 1 ? `1px solid ${ln}` : "none",
+                  borderBottom: i < services.length - 1 ? `1px solid ${surface.border}` : "none",
                   opacity: visible ? 1 : 0,
                   transform: visible ? "translateX(0)" : "translateX(-14px)",
                   transition: `opacity .55s ease ${i * 80}ms, transform .55s ease ${i * 80}ms`,
                 }}
               >
-                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isDark ? "bg-teal-500/12 text-teal-400" : "bg-teal-500/10 text-teal-600"}`}>
+                {/* Icon tile — sharp */}
+                <div
+                  className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center"
+                  style={{
+                    borderRadius: 0,
+                    background: isDark ? "rgba(13,148,136,0.12)" : "rgba(13,148,136,0.10)",
+                    color: accentColor,
+                  }}
+                >
                   <Icon className="h-[17px] w-[17px]" />
                 </div>
-                <p className={`pt-1.5 text-[14.5px] leading-[1.75] ${p}`}>{s.text}</p>
+                <p className="pt-1.5 text-[14.5px] leading-[1.75]" style={{ color: surface.muted }}>{s.text}</p>
                 <span
                   className="ml-auto shrink-0 self-center text-[11px] font-bold tabular-nums"
-                  style={{ color: isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)" }}
+                  style={{ color: surface.subtle }}
                 >
                   0{i + 1}
                 </span>
@@ -403,10 +422,11 @@ function WhatWeDo({ isDark, bgAlt, h, p, ln }: any) {
 }
 
 /* ══ IMPACT STATS ═══════════════════════════════════════ */
-function ImpactStats({ isDark }: { isDark: boolean }) {
+function ImpactStats() {
   const { ref, visible } = useInView();
-  const c1 = useCountUp(100,  1200, visible);
-  const c2 = useCountUp(500,  1400, visible);
+  const c1 = useCountUp(100, 1200, visible);
+  const c2 = useCountUp(500, 1400, visible);
+
   return (
     <section ref={ref} className="relative w-full overflow-hidden py-24 md:py-28">
       <div
@@ -416,9 +436,7 @@ function ImpactStats({ isDark }: { isDark: boolean }) {
       <div
         className="absolute inset-0"
         style={{
-          background: isDark
-            ? "linear-gradient(160deg, rgba(10,15,26,.87) 0%, rgba(8,18,26,.82) 100%)"
-            : "linear-gradient(160deg, rgba(4,30,45,.84) 0%, rgba(8,40,35,.78) 100%)",
+          background: "linear-gradient(160deg, rgba(4,30,45,.87) 0%, rgba(8,40,35,.82) 100%)",
         }}
       />
       <div
@@ -448,14 +466,14 @@ function ImpactStats({ isDark }: { isDark: boolean }) {
 
         <div className="grid grid-cols-1 gap-px sm:grid-cols-2" style={{ background: "rgba(255,255,255,.08)" }}>
           {[
-            { v: c1,  s: "+",  title: "Risk assessments completed",     sub: "Helping individuals understand their potential risk for diabetes and hypertension." },
-            { v: c2,  s: "+",  title: "Personalised health tips delivered", sub: "Actionable, easy-to-follow guidance tailored based on individual responses."    },
+            { v: c1, s: "+", title: "Risk assessments completed",        sub: "Helping individuals understand their potential risk for diabetes and hypertension." },
+            { v: c2, s: "+", title: "Personalised health tips delivered", sub: "Actionable, easy-to-follow guidance tailored based on individual responses."        },
           ].map((stat, i) => (
             <div
               key={i}
               className="flex flex-col gap-3 p-10 md:p-14"
               style={{
-                background: isDark ? "rgba(14,17,23,.6)" : "rgba(4,30,45,.55)",
+                background: "rgba(4,30,45,.60)",
                 opacity: visible ? 1 : 0,
                 transform: visible ? "translateY(0)" : "translateY(10px)",
                 transition: `opacity .6s ease ${i * 120}ms, transform .6s ease ${i * 120}ms`,
@@ -475,14 +493,15 @@ function ImpactStats({ isDark }: { isDark: boolean }) {
 }
 
 /* ══ TEAM ═══════════════════════════════════════════════ */
-function TeamSection({ isDark, bg, bgAlt, h, p, ln }: any) {
+function TeamSection() {
+  const { isDark, surface, accentColor } = useTheme();
   const { ref, visible } = useInView();
   const [current, setCurrent] = useState(0);
   const prev = () => setCurrent(i => (i === 0 ? team.length - 1 : i - 1));
   const next = () => setCurrent(i => (i === team.length - 1 ? 0 : i + 1));
 
   return (
-    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: bgAlt }}>
+    <section ref={ref} className="w-full py-24 md:py-28 transition-colors duration-500" style={{ background: surface.surfaceAlt }}>
       <div className="mx-auto max-w-7xl px-6 lg:px-16">
 
         <div
@@ -493,22 +512,28 @@ function TeamSection({ isDark, bg, bgAlt, h, p, ln }: any) {
             transition: "opacity .7s ease, transform .7s ease",
           }}
         >
-          <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: accentColor }}>
             The Team
           </p>
-          <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+          <h2
+            className="text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight"
+            style={{ color: surface.text }}
+          >
             The people behind HMEX.
           </h2>
         </div>
 
-        {/* Desktop grid */}
-        <div className="hidden md:grid md:grid-cols-5 gap-px overflow-hidden rounded-2xl" style={{ background: ln }}>
+        {/* Desktop grid — team cards sharp */}
+        <div
+          className="hidden md:grid md:grid-cols-5 gap-px overflow-hidden"
+          style={{ background: surface.border }}
+        >
           {team.map((member, i) => (
             <div
               key={i}
               className="group flex flex-col transition-colors duration-500"
               style={{
-                background: isDark ? "#161b25" : "#f0f4f8",
+                background: surface.surfaceAlt,
                 opacity: visible ? 1 : 0,
                 transform: visible ? "translateY(0)" : "translateY(12px)",
                 transition: `opacity .55s ease ${i * 80}ms, transform .55s ease ${i * 80}ms`,
@@ -524,16 +549,19 @@ function TeamSection({ isDark, bg, bgAlt, h, p, ln }: any) {
                 />
               </div>
               <div className="flex flex-col gap-0.5 px-5 py-4">
-                <p className={`text-[13.5px] font-bold leading-snug ${h}`}>{member.name}</p>
-                <p className={`text-[12px] ${p}`}>{member.role}</p>
+                <p className="text-[13.5px] font-bold leading-snug" style={{ color: surface.text }}>{member.name}</p>
+                <p className="text-[12px]" style={{ color: surface.muted }}>{member.role}</p>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Mobile carousel */}
+        {/* Mobile carousel — keeps rounded-xl on image wrapper only */}
         <div className="relative md:hidden">
-          <div className="overflow-hidden rounded-xl" style={{ background: isDark ? "#161b25" : "#f0f4f8" }}>
+          <div
+            className="overflow-hidden rounded-xl"
+            style={{ background: surface.surfaceAlt }}
+          >
             <Image
               src={team[current].image}
               alt={team[current].name}
@@ -542,8 +570,8 @@ function TeamSection({ isDark, bg, bgAlt, h, p, ln }: any) {
               className="h-64 w-full object-cover"
             />
             <div className="px-6 py-5">
-              <p className={`text-[15px] font-bold ${h}`}>{team[current].name}</p>
-              <p className={`text-[13px] ${p}`}>{team[current].role}</p>
+              <p className="text-[15px] font-bold" style={{ color: surface.text }}>{team[current].name}</p>
+              <p className="text-[13px]" style={{ color: surface.muted }}>{team[current].role}</p>
             </div>
           </div>
 
@@ -554,25 +582,29 @@ function TeamSection({ isDark, bg, bgAlt, h, p, ln }: any) {
                 <button
                   key={i}
                   onClick={() => setCurrent(i)}
-                  className="h-1.5 rounded-full transition-all duration-200"
+                  className="h-1.5 transition-all duration-200"
                   style={{
+                    borderRadius: 0,
                     width: i === current ? "24px" : "6px",
                     background: i === current
-                      ? "#0d9488"
+                      ? accentColor
                       : isDark ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)",
                   }}
                 />
               ))}
             </div>
             <div className="flex gap-2">
-              {[{ fn: prev, icon: ChevronLeft }, { fn: next, icon: ChevronRight }].map(({ fn, icon: Icon }, i) => (
+              {[{ fn: prev, Icon: ChevronLeft }, { fn: next, Icon: ChevronRight }].map(({ fn, Icon }, i) => (
                 <button
                   key={i}
                   onClick={fn}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-150"
-                  style={{ background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.06)" }}
+                  className="flex h-9 w-9 items-center justify-center transition-colors duration-150"
+                  style={{
+                    borderRadius: 0,
+                    background: isDark ? "rgba(255,255,255,.06)" : "rgba(0,0,0,.06)",
+                  }}
                 >
-                  <Icon className={`h-4 w-4 ${isDark ? "text-white/60" : "text-slate-600"}`} />
+                  <Icon className="h-4 w-4" style={{ color: surface.muted }} />
                 </button>
               ))}
             </div>
@@ -584,10 +616,12 @@ function TeamSection({ isDark, bg, bgAlt, h, p, ln }: any) {
 }
 
 /* ══ JOIN US ════════════════════════════════════════════ */
-function JoinUs({ isDark, bgAlt, h, p, ln }: any) {
+function JoinUs() {
+  const { surface, accentColor } = useTheme();
   const { ref, visible } = useInView();
+
   return (
-    <section ref={ref} className="w-full" style={{ background: isDark ? "#0e1117" : "#ffffff" }}>
+    <section ref={ref} className="w-full" style={{ background: surface.bg }}>
       <div className="grid grid-cols-1 lg:grid-cols-2">
 
         {/* Left — copy */}
@@ -599,26 +633,31 @@ function JoinUs({ isDark, bgAlt, h, p, ln }: any) {
             transition: "opacity .7s ease, transform .7s ease",
           }}
         >
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: accentColor }}>
             Work With Us
           </p>
-          <h2 className={`text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight ${h}`}>
+          <h2
+            className="text-[clamp(1.8rem,3.6vw,2.6rem)] font-bold leading-tight tracking-tight"
+            style={{ color: surface.text }}
+          >
             Join our mission.
           </h2>
-          <p className={`max-w-[38ch] text-[15px] leading-[1.8] ${p}`}>
+          <p className="max-w-[38ch] text-[15px] leading-[1.8]" style={{ color: surface.muted }}>
             We are building this platform with communities, healthcare workers,
             and partners who believe in preventive care. If you share our
             vision, we&apos;d love to work together.
           </p>
 
-          <div className="h-px w-full" style={{ background: ln }} />
+          <div className="h-px w-full" style={{ background: surface.border }} />
 
           <Link href="/contact">
             <button
-              className="group inline-flex w-fit items-center gap-2.5 rounded-lg px-7 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-[.98]"
+              className="group inline-flex w-fit items-center gap-2.5 px-7 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-[.98]"
               style={{
+                borderRadius: 0,
                 background: "linear-gradient(135deg, #0d9488, #059669)",
                 boxShadow: "0 4px 18px rgba(13,148,136,.28)",
+                border: "none",
               }}
             >
               Get in Touch
@@ -627,7 +666,7 @@ function JoinUs({ isDark, bgAlt, h, p, ln }: any) {
           </Link>
         </div>
 
-        {/* Right — image, always visible */}
+        {/* Right — full-bleed image, no radius */}
         <div
           className="hidden lg:block"
           style={{
@@ -645,6 +684,7 @@ function JoinUs({ isDark, bgAlt, h, p, ln }: any) {
           />
         </div>
       </div>
+      <ThemeToggle/>
     </section>
   );
 }

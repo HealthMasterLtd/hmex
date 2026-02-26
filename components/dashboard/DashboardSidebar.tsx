@@ -5,41 +5,31 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Activity,
-  History,
-  User,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Heart,
-  X,
-  HelpCircle,
-  Bell,
-  Lightbulb,
+  LayoutDashboard, Activity, History, User, Settings,
+  LogOut, ChevronLeft, ChevronRight, X, HelpCircle, Bell, Lightbulb,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
 
-// ─── NAV ITEMS ────────────────────────────────────────────────────────────────
 const PRIMARY_NAV = [
-  { id: "overview",        label: "Overview",         icon: LayoutDashboard, href: "/dashboard" },  
-  { id: "recommendations", label: "Recommendations",  icon: Lightbulb,       href: "/dashboard/recommendations" },
-  { id: "history",         label: "History",          icon: History,         href: "/dashboard/history" },
-  { id: "assessment",      label: "New Assessment",   icon: Activity,        href: "/dashboard/assessment" },
-  { id: "profile",         label: "My Profile",       icon: User,            href: "/dashboard/profile" },
+  { id: "overview",        label: "Overview",        icon: LayoutDashboard, href: "/dashboard" },
+  { id: "recommendations", label: "Recommendations", icon: Lightbulb,       href: "/dashboard/recommendations" },
+  { id: "history",         label: "History",         icon: History,         href: "/dashboard/history" },
+  { id: "assessment",      label: "New Assessment",  icon: Activity,        href: "/dashboard/assessment" },
+  { id: "profile",         label: "My Profile",      icon: User,            href: "/dashboard/profile" },
 ];
-
 const SECONDARY_NAV = [
-  { id: "notifications", label: "Notifications", icon: Bell,       href: "/dashboard/notifications" },
-  { id: "help",          label: "Help & Support", icon: HelpCircle, href: "/dashboard/help" },
-  { id: "settings",      label: "Settings",       icon: Settings,   href: "/dashboard/settings" },
+  { id: "notifications", label: "Notifications",  icon: Bell,       href: "/dashboard/notifications" },
+  { id: "help",          label: "Help & Support",  icon: HelpCircle, href: "/dashboard/help" },
+  { id: "settings",      label: "Settings",        icon: Settings,   href: "/dashboard/settings" },
 ];
 
-// ─── PORTAL TOOLTIP ─────────────────────────────────────────────────────────
-// Uses fixed positioning so it escapes sidebar overflow:hidden in collapsed mode
-function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+// ─── TOOLTIP ─────────────────────────────────────────────────────────────────
+function Tooltip({ label, children, S, accentColor }: {
+  label: string; children: React.ReactNode;
+  S: { surface: string; border: string; text: string };
+  accentColor: string;
+}) {
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -55,44 +45,28 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
       <div ref={ref} onMouseEnter={show} onMouseLeave={() => setCoords(null)}>
         {children}
       </div>
-
       {coords && (
         <div
-          className="pointer-events-none"
           style={{
-            position: "fixed",
-            top: coords.top,
-            left: coords.left,
-            transform: "translateY(-50%)",
-            zIndex: 99999,
+            position: "fixed", top: coords.top, left: coords.left,
+            transform: "translateY(-50%)", zIndex: 99999, pointerEvents: "none",
             animation: "ttFadeIn 0.12s ease forwards",
           }}
         >
-          <div
-            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-bold"
-            style={{
-              background: "linear-gradient(135deg,#0d9488,#059669)",
-              color: "#fff",
-              boxShadow: "0 4px 16px rgba(13,148,136,0.45)",
-              letterSpacing: "0.04em",
-            }}
-          >
+          <div style={{
+            whiteSpace: "nowrap", padding: "5px 12px",
+            background: accentColor,
+            color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
+            boxShadow: `0 4px 16px ${accentColor}55`,
+            position: "relative",
+          }}>
             {label}
-            {/* Arrow */}
-            <span
-              style={{
-                position: "absolute",
-                right: "100%",
-                top: "50%",
-                transform: "translateY(-50%)",
-                borderTop: "5px solid transparent",
-                borderBottom: "5px solid transparent",
-                borderRight: "5px solid #0d9488",
-                display: "block",
-                width: 0,
-                height: 0,
-              }}
-            />
+            <span style={{
+              position: "absolute", right: "100%", top: "50%", transform: "translateY(-50%)",
+              borderTop: "5px solid transparent", borderBottom: "5px solid transparent",
+              borderRight: `5px solid ${accentColor}`,
+              display: "block", width: 0, height: 0,
+            }} />
           </div>
         </div>
       )}
@@ -102,99 +76,72 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
 
 // ─── NAV ITEM ─────────────────────────────────────────────────────────────────
 function NavItem({
-  item,
-  collapsed,
-  isDark,
-  sidebarBg,
-  onClick,
+  item, collapsed, S, accentColor, accentFaint, onClick,
 }: {
-  item: { id: string; label: string; icon: React.ElementType; href: string };
+  item: (typeof PRIMARY_NAV)[0];
   collapsed: boolean;
-  isDark: boolean;
-  sidebarBg: string;
+  S: { text: string; muted: string; border: string; surface: string; surfaceAlt: string };
+  accentColor: string;
+  accentFaint: string;
   onClick?: () => void;
 }) {
   const pathname = usePathname();
-  const isActive =
-    pathname === item.href ||
-    (item.href !== "/dashboard" && pathname.startsWith(item.href));
+  const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
   const Icon = item.icon;
 
   const content = (
     <Link
       href={item.href}
       onClick={onClick}
-      className="group relative flex items-center gap-3 transition-all duration-200 overflow-hidden"
       style={{
-        padding: collapsed ? "9px 14px" : "9px 11px",
-        borderRadius: 10,
+        display: "flex", alignItems: "center", gap: 10, position: "relative",
+        padding: collapsed ? "9px 14px" : "9px 10px",
         margin: "1px 0",
-        background: isActive
-          ? isDark
-            ? "linear-gradient(135deg,rgba(13,148,136,0.22),rgba(5,150,105,0.14))"
-            : "linear-gradient(135deg,rgba(13,148,136,0.13),rgba(5,150,105,0.08))"
-          : "transparent",
-        color: isActive ? "#0d9488" : isDark ? "#8b9cb5" : "#4a5568",
-        boxShadow: isActive
-          ? isDark
-            ? "inset 0 1px 0 rgba(255,255,255,0.06)"
-            : "inset 0 1px 0 rgba(255,255,255,0.8)"
-          : "none",
+        background: isActive ? accentFaint : "transparent",
+        color: isActive ? accentColor : S.muted,
+        textDecoration: "none",
+        transition: "all 0.15s ease",
+        overflow: "hidden",
       }}
+      onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; }}
+      onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
     >
-      {/* Glowing left pill */}
+      {/* Active left bar */}
       {isActive && (
-        <span
-          style={{
-            position: "absolute",
-            left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 3,
-            height: 22,
-            borderRadius: 99,
-            background: "linear-gradient(180deg,#0d9488,#059669)",
-            boxShadow: "0 0 10px rgba(13,148,136,0.7)",
-          }}
-        />
+        <span style={{
+          position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)",
+          width: 3, height: 24,
+          background: `linear-gradient(180deg, ${accentColor}, ${accentColor}90)`,
+        }} />
       )}
 
-      {/* Icon wrapper */}
-      <span
-        className="flex items-center justify-center shrink-0 rounded-lg transition-all duration-200"
-        style={{
-          width: 28,
-          height: 28,
-          background: isActive
-            ? isDark ? "rgba(13,148,136,0.22)" : "rgba(13,148,136,0.14)"
-            : "transparent",
-          boxShadow: isActive ? "0 0 14px rgba(13,148,136,0.28)" : "none",
-        }}
-      >
+      {/* Icon */}
+      <span style={{
+        width: 28, height: 28, flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: isActive ? `${accentColor}18` : "transparent",
+        transition: "background 0.15s",
+      }}>
         <Icon size={15} strokeWidth={isActive ? 2.2 : 1.8} />
       </span>
 
       {!collapsed && (
-        <span
-          className="text-[13px] truncate"
-          style={{ fontWeight: isActive ? 700 : 400, letterSpacing: isActive ? "-0.01em" : "0.01em" }}
-        >
+        <span style={{
+          fontSize: 13, fontWeight: isActive ? 700 : 400,
+          color: isActive ? accentColor : S.muted,
+          letterSpacing: isActive ? "-0.01em" : "0.01em",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
           {item.label}
         </span>
       )}
-
-      {/* Hover bg overlay */}
-      <span
-        className="absolute inset-0 rounded-[10px] opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
-        style={{ background: isActive ? "transparent" : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}
-      />
     </Link>
   );
 
   if (collapsed) {
     return (
-      <div className="flex justify-center">
-        <Tooltip label={item.label}>{content}</Tooltip>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <Tooltip label={item.label} S={S} accentColor={accentColor}>{content}</Tooltip>
       </div>
     );
   }
@@ -209,96 +156,79 @@ interface SidebarProps {
   onMobileClose: () => void;
 }
 
-export default function DashboardSidebar({
-  collapsed,
-  onToggleCollapse,
-  mobileOpen,
-  onMobileClose,
-}: SidebarProps) {
-  const { isDark } = useTheme();
+export default function DashboardSidebar({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }: SidebarProps) {
+  const { isDark, accentColor, accentFaint, surface: S } = useTheme();
   const { user, logout } = useAuth();
 
-  // Sidebar has its own slightly different bg from the page
-  // Page bg: #0b0f1a (dark) / #f4f6fb (light)
-  // Sidebar: #0d1221 (dark) / #ffffff (light) — gives subtle contrast
-  const sidebarBg = isDark ? "#0d1221" : "#ffffff";
-  const border    = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)";
-  const divider   = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)";
-  const muted     = isDark ? "#4a5568" : "#94a3b8";
-
+  // Sidebar bg is slightly offset from page bg for contrast
+  const sidebarBg = isDark ? S.surfaceAlt : S.surface;
   const w = collapsed ? 64 : 228;
 
-  const innerContent = (
-    <div className="flex flex-col h-full" style={{ background: sidebarBg }}>
+  const inner = (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: sidebarBg }}>
 
-      {/* ── Brand ── */}
-      <div
-        className={`flex items-center gap-2.5 px-3 ${collapsed ? "justify-center" : ""}`}
-        style={{ height: 56, minHeight: 56, borderBottom: `1px solid ${border}` }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 overflow-hidden rounded-full">
-            <Image
-              src="/white logo.png"
-              alt="HMEX"
-              width={32}
-              height={32}
-              className="h-full w-full object-cover"
-            />
-          </div>
-          {!collapsed && (
-            <span className="text-[15px] font-bold tracking-tight"
-                style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}
-            >
-              H<span className="text-teal-400">MEX</span>
-            </span>
-          )}
+      {/* Brand */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: collapsed ? "0 14px" : "0 14px",
+        justifyContent: collapsed ? "center" : "flex-start",
+        height: 56, minHeight: 56, borderBottom: `1px solid ${S.border}`,
+        flexShrink: 0,
+      }}>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+          <Image src="/white logo.png" alt="HMEX" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
+        {!collapsed && (
+          <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.03em", color: S.text }}>
+            H<span style={{ color: accentColor }}>MEX</span>
+          </span>
+        )}
       </div>
 
-      {/* ── Nav ── */}
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3 space-y-0.5">
+      {/* Nav */}
+      <nav style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: "10px 8px" }}>
         {PRIMARY_NAV.map(item => (
-          <NavItem key={item.id} item={item} collapsed={collapsed} isDark={isDark} sidebarBg={sidebarBg} onClick={onMobileClose} />
+          <NavItem key={item.id} item={item} collapsed={collapsed} S={S} accentColor={accentColor} accentFaint={accentFaint} onClick={onMobileClose} />
         ))}
 
-        <div className="my-3 mx-1" style={{ borderTop: `1px solid ${divider}` }} />
+        <div style={{ margin: "10px 4px", borderTop: `1px solid ${S.border}` }} />
 
         {!collapsed && (
-          <p className="px-3 pb-1.5 text-[10px] font-black uppercase" style={{ color: muted, letterSpacing: "0.14em" }}>
+          <p style={{ padding: "0 10px 6px", fontSize: 10, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.14em", color: S.subtle }}>
             General
           </p>
         )}
 
         {SECONDARY_NAV.map(item => (
-          <NavItem key={item.id} item={item} collapsed={collapsed} isDark={isDark} sidebarBg={sidebarBg} onClick={onMobileClose} />
+          <NavItem key={item.id} item={item} collapsed={collapsed} S={S} accentColor={accentColor} accentFaint={accentFaint} onClick={onMobileClose} />
         ))}
       </nav>
 
-      {/* ── User footer ── */}
-      <div style={{ borderTop: `1px solid ${border}` }}>
+      {/* User footer */}
+      <div style={{ borderTop: `1px solid ${S.border}`, flexShrink: 0 }}>
         {user && (
-          <div
-            className={`flex items-center gap-2.5 px-3 py-3 ${collapsed ? "justify-center" : ""}`}
-            style={{ borderBottom: `1px solid ${divider}` }}
-          >
-            <div
-              className="flex items-center justify-center shrink-0 text-[11px] font-black"
-              style={{
-                width: 30, height: 30, borderRadius: 8,
-                background: "linear-gradient(135deg,#0d9488,#059669)",
-                color: "#fff",
-                boxShadow: "0 2px 8px rgba(13,148,136,0.25)",
-              }}
-            >
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 12px",
+            justifyContent: collapsed ? "center" : "flex-start",
+            borderBottom: `1px solid ${S.border}`,
+          }}>
+            <div style={{
+              width: 30, height: 30, flexShrink: 0,
+              background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 900, color: "#fff",
+            }}>
               {user.name?.charAt(0).toUpperCase() || "U"}
             </div>
             {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold truncate" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: S.text, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {user.name}
                 </p>
-                <p className="text-[10px] truncate" style={{ color: muted }}>{user.email}</p>
+                <p style={{ fontSize: 10, color: S.muted, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {user.email}
+                </p>
               </div>
             )}
           </div>
@@ -306,23 +236,35 @@ export default function DashboardSidebar({
 
         {/* Sign out */}
         {collapsed ? (
-          <Tooltip label="Sign out">
+          <Tooltip label="Sign out" S={S} accentColor={accentColor}>
             <button
               onClick={logout}
-              className="flex items-center justify-center w-full py-3 group transition-colors duration-150"
-              style={{ color: muted }}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: "100%", padding: "12px", background: "none", border: "none",
+                color: S.muted, cursor: "pointer",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = S.muted; }}
             >
-              <LogOut size={15} strokeWidth={1.8} className="group-hover:text-red-400 transition-colors duration-150" />
+              <LogOut size={15} strokeWidth={1.8} />
             </button>
           </Tooltip>
         ) : (
           <button
             onClick={logout}
-            className="flex items-center gap-2.5 w-full px-3 py-3 group transition-colors duration-150"
-            style={{ color: muted }}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              width: "100%", padding: "11px 12px",
+              background: "none", border: "none",
+              color: S.muted, cursor: "pointer", fontSize: 12,
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = S.muted; }}
           >
-            <LogOut size={14} strokeWidth={1.8} className="group-hover:text-red-400 transition-colors duration-150 shrink-0" />
-            <span className="text-[12px] group-hover:text-red-400 transition-colors duration-150">Sign out</span>
+            <LogOut size={14} strokeWidth={1.8} />
+            Sign out
           </button>
         )}
       </div>
@@ -331,88 +273,76 @@ export default function DashboardSidebar({
 
   return (
     <>
-      {/* ── DESKTOP SIDEBAR ── */}
-      {/* 
-        Collapse toggle is rendered OUTSIDE the sidebar so it's never clipped.
-        It's positioned relative to the parent flex container.
-      */}
-      <div className="hidden lg:flex relative shrink-0 transition-all duration-200 ease-in-out" style={{ width: w }}>
-        <aside
-          className="h-full w-full overflow-hidden"
-          style={{
-            background: sidebarBg,
-            borderRight: `1px solid ${border}`,
-            // Curved top-right and bottom-left
-            borderRadius: "0 18px 0 18px",
-            boxShadow: isDark
-              ? "4px 0 24px rgba(0,0,0,0.35)"
-              : "4px 0 24px rgba(0,0,0,0.06)",
-          }}
-        >
-          {innerContent}
+      {/* DESKTOP */}
+      <div className="hidden lg:flex" style={{ position: "relative", flexShrink: 0, width: w, transition: "width 0.2s ease" }}>
+        <aside style={{
+          height: "100%", width: "100%", overflow: "hidden",
+          background: sidebarBg,
+          borderRight: `1px solid ${S.border}`,
+          borderRadius: "0 18px 0 18px",
+          boxShadow: isDark ? "4px 0 28px rgba(0,0,0,0.4)" : "4px 0 24px rgba(0,0,0,0.07)",
+        }}>
+          {inner}
         </aside>
 
-        {/* Collapse toggle — outside aside so never clipped */}
+        {/* Collapse toggle */}
         <button
           onClick={onToggleCollapse}
-          className="absolute -right-3 top-[60px] z-30 flex items-center justify-center w-6 h-6 transition-all duration-150 hover:scale-110"
           style={{
-            background: isDark ? sidebarBg : "#ffffff",
-            border: `1px solid ${border}`,
-            borderRadius: 6,
-            color: isDark ? "#6b7a8d" : "#64748b",
-            boxShadow: isDark ? "0 2px 10px rgba(0,0,0,0.5)" : "0 2px 10px rgba(0,0,0,0.12)",
+            position: "absolute", right: -12, top: 60, zIndex: 30,
+            width: 24, height: 24,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: sidebarBg, border: `1px solid ${S.border}`,
+            color: S.muted, cursor: "pointer",
+            boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.5)" : "0 2px 10px rgba(0,0,0,0.1)",
+            transition: "all 0.15s",
           }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = accentColor; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = S.muted; }}
         >
-          {collapsed
-            ? <ChevronRight size={11} strokeWidth={2.5} />
-            : <ChevronLeft  size={11} strokeWidth={2.5} />
-          }
+          {collapsed ? <ChevronRight size={11} strokeWidth={2.5} /> : <ChevronLeft size={11} strokeWidth={2.5} />}
         </button>
       </div>
 
-      {/* ── MOBILE DRAWER ── */}
+      {/* MOBILE DRAWER */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div style={{ position: "fixed", inset: 0, zIndex: 50 }} className="lg:hidden">
           <div
-            className="absolute inset-0"
-            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" }}
+            style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" }}
             onClick={onMobileClose}
           />
-          <aside
-            className="absolute left-0 top-0 bottom-0 z-10 overflow-hidden"
-            style={{
-              width: 228,
-              background: sidebarBg,
-              borderRight: `1px solid ${border}`,
-              borderRadius: "0 18px 0 18px",
-              animation: "slideInLeft 0.18s ease",
-            }}
-          >
+          <aside style={{
+            position: "absolute", left: 0, top: 0, bottom: 0, width: 228, zIndex: 10,
+            background: sidebarBg,
+            borderRight: `1px solid ${S.border}`,
+            borderRadius: "0 18px 0 18px",
+            animation: "slideInLeft 0.18s ease",
+            overflow: "hidden",
+          }}>
             <button
               onClick={onMobileClose}
-              className="absolute top-4 right-4 z-20 flex items-center justify-center w-7 h-7 rounded-lg"
               style={{
-                background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)",
-                color: isDark ? "#8b9cb5" : "#64748b",
+                position: "absolute", top: 14, right: 14, zIndex: 20,
+                width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                background: S.surfaceAlt, border: `1px solid ${S.border}`,
+                color: S.muted, cursor: "pointer",
               }}
             >
-              <X size={14} strokeWidth={2} />
+              <X size={13} strokeWidth={2} />
             </button>
-            {innerContent}
+            {inner}
           </aside>
         </div>
       )}
 
-      {/* ── GLOBAL ANIMATIONS ── */}
-      <style jsx global>{`
+      <style>{`
         @keyframes slideInLeft {
           from { transform: translateX(-100%); opacity: 0; }
           to   { transform: translateX(0);     opacity: 1; }
         }
         @keyframes ttFadeIn {
           from { opacity: 0; transform: translateY(-50%) translateX(-6px); }
-          to   { opacity: 1; transform: translateY(-50%) translateX(0);    }
+          to   { opacity: 1; transform: translateY(-50%) translateX(0); }
         }
       `}</style>
     </>
