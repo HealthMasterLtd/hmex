@@ -502,7 +502,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-      
+      <ThemeToggle />
     </div>
   );
 }
