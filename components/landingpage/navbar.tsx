@@ -22,32 +22,99 @@ const navItems = [
 function HamburgerIcon({ open, color }: { open: boolean; color: string }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-      {/* Top bar */}
       <motion.rect
         x="3" y="5" width="14" height="1.5" rx="0.75" fill={color}
-        animate={open
-          ? { rotate: 45, y: 4, x: 0 }
-          : { rotate: 0,  y: 0, x: 0 }}
+        animate={open ? { rotate: 45, y: 4, x: 0 } : { rotate: 0, y: 0, x: 0 }}
         style={{ originX: "50%", originY: "50%", transformBox: "fill-box" }}
         transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
       />
-      {/* Middle bar */}
       <motion.rect
         x="3" y="9.25" width="14" height="1.5" rx="0.75" fill={color}
         animate={open ? { opacity: 0, scaleX: 0 } : { opacity: 1, scaleX: 1 }}
         style={{ originX: "50%", transformBox: "fill-box" }}
         transition={{ duration: 0.18 }}
       />
-      {/* Bottom bar — shorter when closed for style */}
       <motion.rect
         x="3" y="13.5" width={open ? "14" : "10"} height="1.5" rx="0.75" fill={color}
-        animate={open
-          ? { rotate: -45, y: -4, x: 0 }
-          : { rotate: 0,   y: 0,  x: 0 }}
+        animate={open ? { rotate: -45, y: -4, x: 0 } : { rotate: 0, y: 0, x: 0 }}
         style={{ originX: "50%", originY: "50%", transformBox: "fill-box" }}
         transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
       />
     </svg>
+  );
+}
+
+// ── Animated sun/moon theme toggle ─────────────────────────────────────────
+function ThemeToggle() {
+  const { isDark, toggleTheme, accentColor, surface: S } = useTheme();
+
+  return (
+    <motion.button
+      onClick={toggleTheme}
+      whileTap={{ scale: 0.88 }}
+      whileHover={{ scale: 1.06 }}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      style={{
+        width: 32,
+        height: 32,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: S.surfaceAlt,
+        border: `1px solid ${S.border}`,
+        borderRadius: 8,
+        cursor: "pointer",
+        flexShrink: 0,
+        position: "relative",
+        overflow: "hidden",
+        transition: "background 0.2s, border-color 0.2s",
+      }}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {isDark ? (
+          // Moon icon
+          <motion.svg
+            key="moon"
+            width="15" height="15" viewBox="0 0 24 24" fill="none"
+            initial={{ opacity: 0, rotate: -30, scale: 0.7 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1 }}
+            exit={{ opacity: 0, rotate: 30, scale: 0.7 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <path
+              d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"
+              fill={accentColor}
+              stroke={accentColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </motion.svg>
+        ) : (
+          // Sun icon
+          <motion.svg
+            key="sun"
+            width="15" height="15" viewBox="0 0 24 24" fill="none"
+            initial={{ opacity: 0, rotate: 30, scale: 0.7 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1 }}
+            exit={{ opacity: 0, rotate: -30, scale: 0.7 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <circle cx="12" cy="12" r="4" fill={accentColor} />
+            <g stroke={accentColor} strokeWidth="1.5" strokeLinecap="round">
+              <line x1="12" y1="2"  x2="12" y2="5"  />
+              <line x1="12" y1="19" x2="12" y2="22" />
+              <line x1="2"  y1="12" x2="5"  y2="12" />
+              <line x1="19" y1="12" x2="22" y2="12" />
+              <line x1="4.22"  y1="4.22"  x2="6.34"  y2="6.34"  />
+              <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" />
+              <line x1="4.22"  y1="19.78" x2="6.34"  y2="17.66" />
+              <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"  />
+            </g>
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 }
 
@@ -101,6 +168,7 @@ export default function Navbar() {
               H<span style={{ color: accentColor }}>mex</span>
             </span>
           </Link>
+
           <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {navItems.map((item) => {
               const active = pathname === item.href;
@@ -120,7 +188,11 @@ export default function Navbar() {
               );
             })}
           </div>
+
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Theme toggle — desktop */}
+            <ThemeToggle />
+
             <Link href="/login">
               <button style={{ height: 32, padding: "0 16px", fontSize: 13, fontWeight: 600, color: S.text, border: `1px solid ${S.border}`, background: S.surfaceAlt, borderRadius: 8, cursor: "pointer" }}>Log in</button>
             </Link>
@@ -132,7 +204,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* ── MOBILE layout: hamburger LEFT, logo RIGHT ── */}
+        {/* ── MOBILE layout ── */}
         <div className="mobile-nav-row" style={{
           display: "none",
           margin: "0 auto", maxWidth: 1280,
@@ -154,6 +226,7 @@ export default function Navbar() {
           >
             <HamburgerIcon open={isOpen} color={isOpen ? accentColor : S.text} />
           </button>
+
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", flexShrink: 0 }}>
             <div style={{ width: 30, height: 30, overflow: "hidden", borderRadius: "50%" }}>
               <Image src="/white logo.png" alt="HMEX" width={30} height={30} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -162,14 +235,16 @@ export default function Navbar() {
               H<span style={{ color: accentColor }}>mex</span>
             </span>
           </Link>
+
+          {/* Theme toggle — mobile top bar */}
+          <ThemeToggle />
         </div>
       </motion.nav>
 
-      {/* ── Mobile drawer — FULL HEIGHT from top, slides from LEFT ── */}
+      {/* ── Mobile drawer ── */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -177,44 +252,34 @@ export default function Navbar() {
               transition={{ duration: 0.22 }}
               onClick={() => setIsOpen(false)}
               style={{
-                position: "fixed", inset: 0,
-                zIndex: 9998,
+                position: "fixed", inset: 0, zIndex: 9998,
                 background: "rgba(0,0,0,0.6)",
                 backdropFilter: "blur(6px)",
               }}
             />
 
-            {/* Panel — FULL HEIGHT (top: 0), slides from left */}
             <motion.div
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 26, stiffness: 260 }}
               style={{
-                position: "fixed",
-                top: 0,        // ← full height from very top
-                left: 0,
-                bottom: 0,
-                width: "78vw",
-                maxWidth: 300,
+                position: "fixed", top: 0, left: 0, bottom: 0,
+                width: "78vw", maxWidth: 300,
                 zIndex: 9999,
                 background: S.surface,
                 borderRight: `1px solid ${S.border}`,
-                boxShadow: isDark
-                  ? "28px 0 70px rgba(0,0,0,0.75)"
-                  : "28px 0 70px rgba(0,0,0,0.18)",
-                display: "flex",
-                flexDirection: "column",
+                boxShadow: isDark ? "28px 0 70px rgba(0,0,0,0.75)" : "28px 0 70px rgba(0,0,0,0.18)",
+                display: "flex", flexDirection: "column",
                 overflowY: "auto",
               }}
             >
-              {/* Drawer header with logo + close */}
+              {/* Drawer header */}
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "16px 20px",
                 borderBottom: `1px solid ${S.border}`,
-                flexShrink: 0,
-                height: 60,
+                flexShrink: 0, height: 60,
               }}>
                 <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }} onClick={() => setIsOpen(false)}>
                   <div style={{ width: 28, height: 28, overflow: "hidden", borderRadius: "50%" }}>
@@ -266,7 +331,7 @@ export default function Navbar() {
                 })}
               </div>
 
-              {/* Auth buttons pinned to bottom */}
+              {/* Auth + theme toggle pinned to bottom */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -278,6 +343,20 @@ export default function Navbar() {
                   flexShrink: 0,
                 }}
               >
+                {/* Theme toggle row in drawer */}
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 14px",
+                  background: S.surfaceAlt,
+                  borderRadius: 10,
+                  border: `1px solid ${S.border}`,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: S.muted }}>
+                    {isDark ? "Dark mode" : "Light mode"}
+                  </span>
+                  <ThemeToggle />
+                </div>
+
                 <Link href="/login">
                   <button style={{
                     width: "100%", padding: "12px 0", fontSize: 14, fontWeight: 600,
@@ -300,7 +379,6 @@ export default function Navbar() {
         )}
       </AnimatePresence>
 
-      {/* ── Responsive styles ── */}
       <style>{`
         @media (max-width: 767px) {
           .desktop-nav-row { display: none !important; }

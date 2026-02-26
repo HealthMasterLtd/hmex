@@ -234,7 +234,7 @@ export default function Hero() {
           </div>
         </div>
       </div>
-  
+      <ThemeToggle />
 
       <style jsx>{`
         @keyframes breathe {
