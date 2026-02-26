@@ -823,15 +823,7 @@ export default function SignUpPage() {
                   ))}
                 </div>
 
-                {/* Security Notice */}
-                <div className="flex gap-3 p-4" style={{
-                  background: `color-mix(in srgb, ${colors.primary} 10%, transparent)`,
-                  border: `1px solid color-mix(in srgb, ${colors.primary} 20%, transparent)`,
-                  borderRadius: 2,
-                }}>
-                  <Shield className="w-5 h-5 mt-0.5 shrink-0" style={{ color: colors.primary }} />
-                  <p className="text-sm" style={{ color: colors.text }}>Your data stays private and secure.</p>
-                </div>
+                
               </div>
 
               {/* RIGHT SIDE - Form or Success */}

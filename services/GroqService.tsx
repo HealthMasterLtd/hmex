@@ -90,13 +90,12 @@ const BASELINE: Question[] = [
 ];
 
 // ─── CRITICAL CLINICALS: Must be asked at specific slots ──────────────────────
-// priority = the question NUMBER (1-indexed) at which to inject them
 interface CriticalQ extends Question { injectAtSlot: number; }
 
 const CRITICAL_CLINICALS: CriticalQ[] = [
   {
     id: 'family_history_diabetes',
-    injectAtSlot: 6, // Q6 in the session
+    injectAtSlot: 6,
     question: 'Has anyone in your close family been diagnosed with diabetes?',
     type: 'multiple',
     options: ['No', 'Yes — grandparent, aunt, uncle, or cousin', 'Yes — parent, sibling, or child', 'Yes — multiple close relatives'],
@@ -131,22 +130,97 @@ const CRITICAL_CLINICALS: CriticalQ[] = [
   },
 ];
 
-// ─── STATIC FALLBACK BANK (used only when Groq API is unavailable) ────────────
+// ─── STATIC FALLBACK BANK (randomized each session) ──────────────────────────
+// NOTE: Food references use universal language — green bananas, starchy staples,
+// cooked leafy greens — rather than region-specific names.
 const FALLBACK_BANK: Question[] = [
-  { id: 'vegetables_fruits', question: 'Do you eat vegetables, fruits, or berries every day?', type: 'yesno', options: ['Yes', 'No'], required: true, aiGenerated: false },
-  { id: 'salt_intake', question: 'How would you describe your salt intake?', type: 'multiple', options: ['Low — I rarely add salt', 'Moderate — sometimes', 'High — I regularly add salt', 'Very high — salt on almost every meal'], required: false, aiGenerated: false },
-  { id: 'sugary_drinks', question: 'How often do you drink soda, sweetened juice, or energy drinks?', type: 'multiple', options: ['Rarely or never', '1-3 times per week', '4-6 times per week', 'Once daily', 'Multiple times per day'], required: false, aiGenerated: false },
-  { id: 'sleep_duration', question: 'How many hours of sleep do you typically get per night?', type: 'multiple', options: ['Less than 5 hours', '5-6 hours', '7-8 hours (optimal)', 'More than 9 hours'], required: false, aiGenerated: false },
-  { id: 'stress_level', question: 'How would you describe your stress level most days?', type: 'multiple', options: ['Low — calm most of the time', 'Moderate — manageable', 'High — frequently overwhelmed', 'Severe — constant unmanageable stress'], required: false, aiGenerated: false },
-  { id: 'smoking', question: 'Do you smoke cigarettes or use tobacco products?', type: 'multiple', options: ['No, never smoked', 'No, quit more than 5 years ago', 'No, quit 1-5 years ago', 'Yes, occasionally', 'Yes, daily'], required: false, aiGenerated: false },
-  { id: 'alcohol', question: 'How often do you drink alcohol?', type: 'multiple', options: ['Never / Rarely', '1-2 times per month', '1-2 times per week', '3-4 times per week', 'Daily'], required: false, aiGenerated: false },
-  { id: 'family_history_hypertension', question: 'Has anyone in your family been diagnosed with high blood pressure?', type: 'multiple', options: ['No', 'Yes — grandparent, aunt, uncle, or cousin', 'Yes — parent, sibling, or child', 'Yes — multiple close relatives', "Don't know"], required: true, aiGenerated: false },
-  { id: 'occupation', question: 'Which best describes your typical work day?', type: 'multiple', options: ['Mostly sitting (desk / driving)', 'Mix of sitting and moving', 'Mostly standing or walking', 'Heavy physical labour', 'Not currently working'], required: false, aiGenerated: false },
-  { id: 'processed_foods', question: 'How often do you eat fried or heavily processed foods?', type: 'multiple', options: ['Rarely (less than once a week)', '1-2 times per week', '3-4 times per week', 'Daily'], required: false, aiGenerated: false },
-  { id: 'water_intake', question: 'How much water do you typically drink per day?', type: 'multiple', options: ['Less than 1 litre', '1-2 litres', '2-3 litres', 'More than 3 litres'], required: false, aiGenerated: false },
-  { id: 'anxiety', question: 'Do you frequently feel anxious or on edge most days?', type: 'multiple', options: ['Rarely or never', 'Sometimes', 'Often (several days a week)', 'Very often (most days)'], required: false, aiGenerated: false },
   {
-    id: 'sleep_apnea', question: 'Has anyone told you that you snore loudly or stop breathing during sleep?', type: 'multiple',
+    id: 'vegetables_fruits',
+    question: 'Do you eat vegetables, fruits, or leafy greens every day?',
+    type: 'yesno', options: ['Yes', 'No'],
+    required: true, aiGenerated: false,
+  },
+  {
+    id: 'salt_intake',
+    question: 'How would you describe your salt intake?',
+    type: 'multiple',
+    options: ['Low — I rarely add salt', 'Moderate — sometimes', 'High — I regularly add salt', 'Very high — salt on almost every meal'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'sugary_drinks',
+    question: 'How often do you drink soda, sweetened juice, or energy drinks?',
+    type: 'multiple',
+    options: ['Rarely or never', '1-3 times per week', '4-6 times per week', 'Once daily', 'Multiple times per day'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'sleep_duration',
+    question: 'How many hours of sleep do you typically get per night?',
+    type: 'multiple',
+    options: ['Less than 5 hours', '5-6 hours', '7-8 hours (optimal)', 'More than 9 hours'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'stress_level',
+    question: 'How would you describe your stress level most days?',
+    type: 'multiple',
+    options: ['Low — calm most of the time', 'Moderate — manageable', 'High — frequently overwhelmed', 'Severe — constant unmanageable stress'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'smoking',
+    question: 'Do you smoke cigarettes or use tobacco products?',
+    type: 'multiple',
+    options: ['No, never smoked', 'No, quit more than 5 years ago', 'No, quit 1-5 years ago', 'Yes, occasionally', 'Yes, daily'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'alcohol',
+    question: 'How often do you drink alcohol?',
+    type: 'multiple',
+    options: ['Never / Rarely', '1-2 times per month', '1-2 times per week', '3-4 times per week', 'Daily'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'family_history_hypertension',
+    question: 'Has anyone in your family been diagnosed with high blood pressure?',
+    type: 'multiple',
+    options: ['No', 'Yes — grandparent, aunt, uncle, or cousin', 'Yes — parent, sibling, or child', 'Yes — multiple close relatives', "Don't know"],
+    required: true, aiGenerated: false,
+  },
+  {
+    id: 'occupation',
+    question: 'Which best describes your typical work day?',
+    type: 'multiple',
+    options: ['Mostly sitting (desk / driving)', 'Mix of sitting and moving', 'Mostly standing or walking', 'Heavy physical labour', 'Not currently working'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'processed_foods',
+    question: 'How often do you eat fried or heavily processed foods?',
+    type: 'multiple',
+    options: ['Rarely (less than once a week)', '1-2 times per week', '3-4 times per week', 'Daily'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'water_intake',
+    question: 'How much water do you typically drink per day?',
+    type: 'multiple',
+    options: ['Less than 1 litre', '1-2 litres', '2-3 litres', 'More than 3 litres'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'anxiety',
+    question: 'Do you frequently feel anxious or on edge most days?',
+    type: 'multiple',
+    options: ['Rarely or never', 'Sometimes', 'Often (several days a week)', 'Very often (most days)'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'sleep_apnea',
+    question: 'Has anyone told you that you snore loudly or stop breathing during sleep?',
+    type: 'multiple',
     options: ['No', 'Yes — I snore loudly', "Yes — I've been told I stop breathing or gasp", 'Not sure'],
     required: false, aiGenerated: false,
     condition: (answers) => {
@@ -155,35 +229,149 @@ const FALLBACK_BANK: Question[] = [
     },
   },
   {
-    id: 'pcos', question: 'Have you been diagnosed with Polycystic Ovary Syndrome (PCOS)?', type: 'multiple', options: ['Yes', 'No', 'Not sure'], required: false, aiGenerated: false,
+    id: 'pcos',
+    question: 'Have you been diagnosed with Polycystic Ovary Syndrome (PCOS)?',
+    type: 'multiple', options: ['Yes', 'No', 'Not sure'],
+    required: false, aiGenerated: false,
     condition: (a) => a.find(x => x.questionId === 'gender')?.value === 'Female' && Number(a.find(x => x.questionId === 'age')?.value) <= 50,
   },
   {
-    id: 'kidney_disease', question: 'Have you ever been diagnosed with kidney disease or kidney problems?', type: 'multiple', options: ['Yes', 'No', 'Not sure'], required: false, aiGenerated: false,
+    id: 'kidney_disease',
+    question: 'Have you ever been diagnosed with kidney disease or kidney problems?',
+    type: 'multiple', options: ['Yes', 'No', 'Not sure'],
+    required: false, aiGenerated: false,
     condition: (a) => Number(a.find(x => x.questionId === 'age')?.value) >= 50,
   },
   {
-    id: 'preeclampsia', question: 'Were you ever diagnosed with high blood pressure during pregnancy (preeclampsia)?', type: 'multiple', options: ['Yes', 'No', 'Not sure', 'Never pregnant'], required: false, aiGenerated: false,
+    id: 'preeclampsia',
+    question: 'Were you ever diagnosed with high blood pressure during pregnancy (preeclampsia)?',
+    type: 'multiple', options: ['Yes', 'No', 'Not sure', 'Never pregnant'],
+    required: false, aiGenerated: false,
     condition: (a) => a.find(x => x.questionId === 'gender')?.value === 'Female',
   },
   {
-    id: 'medications', question: 'Do you regularly take any of these medications?', type: 'multiple', options: ['Oral contraceptives (birth control pills)', 'NSAIDs / pain relievers regularly', 'Steroids (prednisone, etc.)', 'Antidepressants', 'None of these'], required: false, aiGenerated: false,
+    id: 'medications',
+    question: 'Do you regularly take any of these medications?',
+    type: 'multiple',
+    options: ['Oral contraceptives (birth control pills)', 'NSAIDs / pain relievers regularly', 'Steroids (prednisone, etc.)', 'Antidepressants', 'None of these'],
+    required: false, aiGenerated: false,
     condition: (a) => a.find(x => x.questionId === 'gender')?.value === 'Female',
   },
+  // ── Additional questions for greater randomization ──
+  {
+    id: 'starchy_staples',
+    question: 'How much of your main meals consist of starchy foods (cooked grains, starchy vegetables, bread)?',
+    type: 'multiple',
+    options: ['A small portion — most of my plate is vegetables or protein', 'About half my plate', 'More than half my plate', 'Almost the entire meal'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'red_meat',
+    question: 'How often do you eat red or processed meats (beef, pork, sausages, salted dried meat)?',
+    type: 'multiple',
+    options: ['Rarely or never', '1-2 times per week', '3-4 times per week', 'Daily'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'legumes_frequency',
+    question: 'How often do you eat beans, lentils, or peas?',
+    type: 'multiple',
+    options: ['Rarely or never', 'A few times per month', '2-3 times per week', 'Most days'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'cooking_oil',
+    question: 'What type of fat or oil do you mainly use for cooking?',
+    type: 'multiple',
+    options: ['Vegetable or sunflower oil', 'Palm oil', 'Butter or ghee', 'Animal fat / lard', 'Mostly no added fat'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'meal_frequency',
+    question: 'How many meals do you typically eat per day?',
+    type: 'multiple',
+    options: ['1 meal', '2 meals', '3 meals', '4 or more meals including snacks'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'weight_change',
+    question: 'Has your weight changed noticeably in the past 2 years?',
+    type: 'multiple',
+    options: ['No, it has stayed about the same', 'Yes — I have gained weight', 'Yes — I have lost weight (intentionally)', 'Yes — I have lost weight (unintentionally)'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'thirst_urination',
+    question: 'Do you often feel very thirsty or need to urinate frequently, especially at night?',
+    type: 'multiple',
+    options: ['No, not at all', 'Occasionally', 'Yes, often', 'Yes, almost every night'],
+    required: false, aiGenerated: false,
+    condition: (a) => Number(a.find(x => x.questionId === 'age')?.value) >= 35,
+  },
+  {
+    id: 'fatigue_after_meals',
+    question: 'Do you feel unusually tired or sleepy after eating?',
+    type: 'multiple',
+    options: ['Rarely or never', 'Sometimes (once or twice a week)', 'Often (most days)', 'Almost always after every meal'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'morning_headaches',
+    question: 'Do you experience headaches or neck tightness in the morning?',
+    type: 'multiple',
+    options: ['Never', 'Occasionally (once a month)', 'Often (several times a week)', 'Almost every morning'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'last_health_check',
+    question: 'When did you last have your blood pressure or blood sugar checked by a health worker?',
+    type: 'multiple',
+    options: ['Within the last 6 months', '6-12 months ago', '1-3 years ago', 'More than 3 years ago', 'Never checked'],
+    required: false, aiGenerated: false,
+  },
+  {
+    id: 'cholesterol_history',
+    question: 'Have you ever been told you have high cholesterol?',
+    type: 'multiple',
+    options: ['No', 'Yes — and I am managing it', 'Yes — but I am not on treatment', 'Never been tested'],
+    required: false, aiGenerated: false,
+    condition: (a) => Number(a.find(x => x.questionId === 'age')?.value) >= 40,
+  },
+  {
+    id: 'screen_time',
+    question: 'How many hours per day do you typically spend sitting (work, TV, phone)?',
+    type: 'multiple',
+    options: ['Less than 4 hours', '4-6 hours', '6-9 hours', 'More than 9 hours'],
+    required: false, aiGenerated: false,
+  },
 ];
+
+// ─── SHUFFLE UTILITY ──────────────────────────────────────────────────────────
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 // ─── SERVICE ──────────────────────────────────────────────────────────────────
 class GroqService {
   private answers: Answer[] = [];
-  private questionCount = 0; // total questions served (1-indexed display)
+  private questionCount = 0;
   private usedIds = new Set<string>();
   private readonly MAX_Q = 14;
   private readonly API_KEY: string;
   private readonly MODEL = 'llama-3.3-70b-versatile';
   private profile: UserProfile | null = null;
 
+  // Shuffled fallback order — randomized fresh each session
+  private shuffledFallback: Question[] = [];
+
   constructor() {
     this.API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY || '';
+    this.shuffledFallback = shuffleArray(FALLBACK_BANK);
     console.log(this.API_KEY ? '✅ Groq AI ready' : '⚠️ No Groq API key — using static fallback');
   }
 
@@ -204,7 +392,6 @@ class GroqService {
     }
 
     // ── Phase 2: From slot 5 onwards ──
-    // The CURRENT slot number is questionCount + 1
     const currentSlot = this.questionCount + 1;
 
     // Check if a critical question is due at this exact slot
@@ -228,7 +415,7 @@ class GroqService {
       }
     }
 
-    // ── Phase 4: Static fallback (no API key) ──
+    // ── Phase 4: Static fallback (shuffled) ──
     return this.serveFallback();
   }
 
@@ -251,7 +438,6 @@ class GroqService {
     const prelim = this.calcPrelimRisk();
     const slotsLeft = this.MAX_Q - this.questionCount;
 
-    // IDs of critical questions still pending (AI should NOT ask about these)
     const pendingCriticalIds = CRITICAL_CLINICALS
       .filter(q => !this.usedIds.has(q.id))
       .map(q => q.id)
@@ -263,7 +449,7 @@ class GroqService {
 
     const alreadyAsked = Array.from(this.usedIds).join(', ');
 
-    const prompt = `You are a clinical AI conducting a personalised diabetes and hypertension risk screening interview for a patient in East Africa (Rwanda).
+    const prompt = `You are a clinical AI conducting a personalised diabetes and hypertension risk screening interview.
 
 ═══ PATIENT SNAPSHOT ═══
 Age: ${age} yrs | Gender: ${gender} | BMI: ${bmi.toFixed(1)} | Waist: ${waist}
@@ -289,8 +475,10 @@ Rules:
 - MUST be genuinely personalised to their age, gender, BMI, waist, and prior answers
 - MUST NOT repeat or overlap any question already asked
 - MUST NOT ask about: ${alreadyAsked}
-- Should feel like a real doctor asking a follow-up, not a generic survey
+- Should feel like a real doctor asking a follow-up — not a generic survey
 - Conversational phrasing, max 18 words
+- Use UNIVERSAL food language: say "starchy staples" not matoke or ugali specifically; say "green bananas" not matoke; say "cooked leafy greens" not sukuma wiki specifically; say "fermented milk" not specific brand names
+- Food examples you MAY mention: beans, lentils, green bananas, sweet potatoes, cassava, cooked leafy greens, whole grains, sorghum, millet, groundnuts
 
 For a ${age}yr ${gender} with BMI ${bmi.toFixed(1)} and ${prelim.dLevel} diabetes / ${prelim.hLevel} hypertension risk, the most clinically valuable questions are about:
 ${this.getAIPriorityAreas(age, gender, bmi, waist, prelim)}
@@ -313,7 +501,7 @@ Note: for yesno, options must be exactly ["Yes","No"]. For slider, add "min", "m
           { role: 'system', content: 'You are a clinical AI for metabolic disease screening. Output ONLY valid JSON. No other text whatsoever.' },
           { role: 'user', content: prompt },
         ],
-        temperature: 0.88,
+        temperature: 0.92,
         max_tokens: 380,
       }),
     });
@@ -328,50 +516,53 @@ Note: for yesno, options must be exactly ["Yes","No"]. For slider, add "min", "m
   private getAIPriorityAreas(age: number, gender: string, bmi: number, waist: string, prelim: any): string {
     const lines: string[] = [];
 
-    // Always valuable
-    lines.push('- Detailed diet: How often do they eat ugali/rice/posho/bread (high-glycaemic staples)?');
-    lines.push('- Sugary drinks frequency: soda, juice, uji with sugar, energy drinks');
-    lines.push('- Salt habits: adding salt to food, eating crisps/salted snacks daily');
+    // Core universal areas — always valuable
+    lines.push('- Diet quality: proportion of starchy staples (cooked grains, cassava, green bananas, sweet potatoes) vs vegetables and protein');
+    lines.push('- Sugary drinks frequency: soda, sweetened juice or tea, energy drinks');
+    lines.push('- Salt habits: adding salt to food, eating salty snacks, processed or preserved foods daily');
 
     if (bmi >= 28 || waist === 'Large waist' || waist === 'Very large waist') {
-      lines.push('- Sleep quality: restless sleep, waking at night, snoring');
-      lines.push('- Weight history: gained weight recently? Over how many years?');
-      lines.push('- Emotional/stress eating: does stress lead to eating more?');
+      lines.push('- Sleep quality: restless sleep, waking at night, loud snoring');
+      lines.push('- Weight history: gained weight recently and over how many years');
+      lines.push('- Emotional eating: does stress trigger overeating or poor food choices');
     }
 
     if (age >= 40) {
-      lines.push('- Diabetes symptoms: urinating frequently at night, excessive thirst, fatigue after meals, blurred vision');
-      lines.push('- Hypertension symptoms: morning headaches, dizziness when standing, neck pain/tightness');
-      lines.push('- Screening history: when did they last check blood sugar and blood pressure?');
+      lines.push('- Diabetes warning signs: urinating frequently at night, excessive thirst, fatigue after meals, blurred vision, slow wound healing');
+      lines.push('- Hypertension warning signs: morning headaches, dizziness when standing, neck tightness, palpitations');
+      lines.push('- Screening history: when they last had blood sugar or blood pressure checked at a health facility');
     }
 
     if (age >= 50) {
-      lines.push('- Kidney health: any kidney problems, blood in urine, swollen ankles');
-      lines.push('- Cholesterol: ever been told they have high cholesterol?');
-      lines.push('- Family: any sibling or parent who died early from heart attack or stroke?');
+      lines.push('- Kidney health: any kidney problems, swollen ankles, unusual changes in urine');
+      lines.push('- Cholesterol: ever been told they have high cholesterol or abnormal blood fats');
+      lines.push('- Family cardiovascular history: any sibling or parent who died early from heart attack or stroke');
     }
 
     if (gender === 'Female') {
-      lines.push('- PCOS: irregular periods, excess hair growth, difficulty losing weight');
-      lines.push('- Pregnancy history: gestational diabetes, hypertension in pregnancy');
+      lines.push('- PCOS: irregular periods, difficulty losing weight, excess facial hair');
+      lines.push('- Pregnancy history: high blood pressure or high blood sugar during pregnancy');
       lines.push('- Hormonal contraception: current or past use of birth control pills');
     }
 
     if (prelim.dScore >= 12) {
-      lines.push('- Diabetes-specific deep dive: sweet food cravings, slow wound healing, tingling in feet/hands');
+      lines.push('- Diabetes-specific deep dive: sweet food cravings, tingling or numbness in feet or hands, slow wound healing');
     }
 
     if (prelim.hScore >= 12) {
-      lines.push('- Hypertension-specific deep dive: how often do they check their BP, any palpitations, shortness of breath on exertion');
+      lines.push('- Hypertension-specific deep dive: frequency of blood pressure self-monitoring, palpitations, shortness of breath on exertion');
     }
 
-    lines.push('- Physical activity details: what kind? How often? Any barriers?');
+    lines.push('- Physical activity details: type, frequency, and any barriers to exercising');
     lines.push('- Alcohol: frequency and quantity per sitting');
     lines.push('- Tobacco: current or past use');
-    lines.push('- Stress/mental health: work pressure, financial stress, sleep disrupted by worry');
+    lines.push('- Stress and mental health: work pressure, financial stress, sleep disrupted by worry');
+    lines.push('- Legume consumption: how often they eat beans, lentils, or peas');
+    lines.push('- Cooking practices: main fat used for cooking, how food is typically prepared');
 
-    // Return the most relevant 7
-    return lines.slice(0, 7).join('\n');
+    // Return most relevant 8 areas (randomize slightly to vary questions between sessions)
+    const shuffled = shuffleArray(lines);
+    return shuffled.slice(0, 8).join('\n');
   }
 
   private parseAI(raw: string): Question | null {
@@ -403,17 +594,23 @@ Note: for yesno, options must be exactly ["Yes","No"]. For slider, add "min", "m
     }
   }
 
-  // ─── STATIC FALLBACK ──────────────────────────────────────────────────────
+  // ─── STATIC FALLBACK (shuffled, condition-aware) ───────────────────────────
 
   private serveFallback(): Question | null {
-    for (const q of FALLBACK_BANK) {
-      if (this.usedIds.has(q.id)) continue;
-      if (q.condition && !q.condition(this.answers)) continue;
-      this.usedIds.add(q.id);
-      this.questionCount++;
-      return q;
-    }
-    return null;
+    // "Required" questions first, then others — all from the pre-shuffled order
+    const required = this.shuffledFallback.filter(
+      q => !this.usedIds.has(q.id) && q.required && (!q.condition || q.condition(this.answers))
+    );
+    const optional = this.shuffledFallback.filter(
+      q => !this.usedIds.has(q.id) && !q.required && (!q.condition || q.condition(this.answers))
+    );
+
+    const candidate = required[0] ?? optional[0] ?? null;
+    if (!candidate) return null;
+
+    this.usedIds.add(candidate.id);
+    this.questionCount++;
+    return candidate;
   }
 
   // ─── PROFILE ──────────────────────────────────────────────────────────────
@@ -541,16 +738,38 @@ Note: for yesno, options must be exactly ["Yes","No"]. For slider, add "min", "m
     else if (prevG === 'Yes — once, during illness or stress') { score += 3; bd.prev_glucose = 3; }
 
     const pcos = this.ans('pcos'); if (pcos === 'Yes') { score += 3; bd.pcos = 3; }
+
     const bpHx = this.ans('blood_pressure_history');
     if (bpHx && bpHx !== 'No, never' && bpHx !== "Don't know / Not sure") { score += 2; bd.bp_hx = 2; }
+
     const salt = String(this.ans('salt_intake') || '');
     if (salt.startsWith('Very high')) { score += 1; bd.salt = 1; }
+
     const sugary = this.ans('sugary_drinks');
     if (sugary === 'Multiple times per day') { score += 2; bd.sugary = 2; }
     else if (sugary === 'Once daily') { score += 1; bd.sugary = 1; }
+
     const stress = this.ans('stress_level');
     if (stress === 'Severe — constant unmanageable stress') { score += 2; bd.stress = 2; }
     else if (stress === 'High — frequently overwhelmed') { score += 1; bd.stress = 1; }
+
+    // Extra signals from expanded bank
+    const starchy = this.ans('starchy_staples');
+    if (starchy === 'Almost the entire meal') { score += 2; bd.starchy_staples = 2; }
+    else if (starchy === 'More than half my plate') { score += 1; bd.starchy_staples = 1; }
+
+    const legumes = this.ans('legumes_frequency');
+    if (legumes === 'Rarely or never') { score += 1; bd.legumes = 1; }
+
+    const fatigue = this.ans('fatigue_after_meals');
+    if (fatigue === 'Often (most days)' || fatigue === 'Almost always after every meal') { score += 1; bd.fatigue = 1; }
+
+    const thirst = this.ans('thirst_urination');
+    if (thirst === 'Yes, almost every night') { score += 2; bd.thirst = 2; }
+    else if (thirst === 'Yes, often') { score += 1; bd.thirst = 1; }
+
+    const weightChange = this.ans('weight_change');
+    if (weightChange === 'Yes — I have gained weight') { score += 1; bd.weight_change = 1; }
 
     const adj = score + (age >= 55 ? 2 : 0);
     let level: DualRiskAssessment['diabetesRisk']['level'];
@@ -611,12 +830,31 @@ Note: for yesno, options must be exactly ["Yes","No"]. For slider, add "min", "m
 
     const kidney = this.ans('kidney_disease'); if (kidney === 'Yes') { score += 4; bd.kidney = 4; }
     const preec = this.ans('preeclampsia'); if (preec === 'Yes') { score += 4; bd.preeclampsia = 4; }
+
     const sleep = String(this.ans('sleep_apnea') || '');
     if (sleep.includes('stop breathing') || sleep.includes('gasp')) { score += 3; bd.sleep_apnea = 3; }
     else if (sleep.includes('snore')) { score += 1; bd.sleep_apnea = 1; }
+
     const stress = this.ans('stress_level');
     if (stress === 'Severe — constant unmanageable stress') { score += 2; bd.stress = 2; }
     else if (stress === 'High — frequently overwhelmed') { score += 1; bd.stress = 1; }
+
+    // Extra signals
+    const headache = this.ans('morning_headaches');
+    if (headache === 'Almost every morning') { score += 2; bd.morning_headaches = 2; }
+    else if (headache === 'Often (several times a week)') { score += 1; bd.morning_headaches = 1; }
+
+    const cholesterol = this.ans('cholesterol_history');
+    if (cholesterol === 'Yes — but I am not on treatment') { score += 2; bd.cholesterol = 2; }
+    else if (cholesterol === 'Yes — and I am managing it') { score += 1; bd.cholesterol = 1; }
+
+    const alcohol = this.ans('alcohol');
+    if (alcohol === 'Daily') { score += 2; bd.alcohol = 2; }
+    else if (alcohol === '3-4 times per week') { score += 1; bd.alcohol = 1; }
+
+    const smoking = this.ans('smoking');
+    if (smoking === 'Yes, daily') { score += 2; bd.smoking = 2; }
+    else if (smoking === 'Yes, occasionally') { score += 1; bd.smoking = 1; }
 
     let level: DualRiskAssessment['hypertensionRisk']['level'];
     let percentage: string;
@@ -713,8 +951,13 @@ Note: for yesno, options must be exactly ["Yes","No"]. For slider, add "min", "m
       body: JSON.stringify({
         model: this.MODEL,
         messages: [
-          { role: 'system', content: 'You are a compassionate clinical AI for metabolic disease prevention in East Africa. Write in clear, warm, evidence-based English.' },
-          { role: 'user', content: `You are a clinical AI for diabetes and hypertension prevention for East African populations (Rwanda).
+          {
+            role: 'system',
+            content: 'You are a compassionate clinical AI for metabolic disease prevention. Write in clear, warm, evidence-based English. Use universal food language: say "starchy staples", "cooked leafy greens", "green bananas", "beans and lentils" — avoid region-specific food names that may not be understood globally.',
+          },
+          {
+            role: 'user',
+            content: `You are a clinical AI for diabetes and hypertension prevention.
 
 Patient: Age ${age} | Gender: ${gender} | BMI: ${bmi.toFixed(1)}
 Diabetes risk: ${assessment.diabetesRisk.level} (score ${assessment.diabetesRisk.score})
@@ -730,9 +973,10 @@ Write a detailed, empathetic 4-paragraph clinical analysis (max 480 words):
 1. Overall dual risk profile and how both conditions are connected for this person
 2. Their specific diabetes risk factors and what they mean clinically
 3. Their specific hypertension risk factors and cardiovascular implications
-4. Practical, culturally grounded prevention strategies — reference East African foods (beans, vegetables, ugali moderation, sweet potatoes, leafy greens), walking culture, and community health centres
+4. Practical, culturally grounded prevention strategies using universally understood foods: beans, lentils, green bananas, sweet potatoes, cassava, cooked leafy greens, whole grains, groundnuts. Also mention walking, community health centres, and accessible screening.
 
-Tone: warm, evidence-based, hopeful. Not alarmist. Written for a non-medical reader in Rwanda.` },
+Tone: warm, evidence-based, hopeful. Not alarmist. Written for a non-medical reader.`,
+          },
         ],
         temperature: 0.72,
         max_tokens: 1400,
@@ -744,12 +988,8 @@ Tone: warm, evidence-based, hopeful. Not alarmist. Written for a non-medical rea
     return { ...assessment, detailedAnalysis: data.choices[0].message.content.trim() };
   }
 
-  // ─── NEW METHOD: GENERATE RECOMMENDATIONS ─────────────────────────────────
+  // ─── GENERATE RECOMMENDATIONS ─────────────────────────────────────────────
 
-  /**
-   * Generate personalised recommendations based on the assessment
-   * This can be called after the assessment is complete to get detailed recommendations
-   */
   async generateRecommendations(assessment: DualRiskAssessment): Promise<any> {
     if (!this.API_KEY) {
       console.log('⚠️ No Groq API key — using fallback recommendations');
@@ -761,10 +1001,9 @@ Tone: warm, evidence-based, hopeful. Not alarmist. Written for a non-medical rea
       const gender = String(this.ans('gender') || '');
       const bmi = this.calcBMI();
       const waist = String(this.ans('waist_circumference') || '');
-      
       const allAnswers = this.answers.map(a => `• ${a.question}: "${a.value}"`).join('\n');
 
-      const prompt = `You are a clinical AI specialised in diabetes and hypertension prevention for East African populations (Rwanda/Kenya).
+      const prompt = `You are a clinical AI specialised in diabetes and hypertension prevention.
 
 PATIENT ASSESSMENT RESULTS:
 - Age: ${age} years
@@ -778,6 +1017,11 @@ PATIENT ASSESSMENT RESULTS:
 PATIENT ANSWERS:
 ${allAnswers || '(baseline data only)'}
 
+IMPORTANT LANGUAGE RULES:
+- Use UNIVERSAL food names only. Do NOT use region-specific terms.
+- ✅ Say: "green bananas", "starchy staples", "cooked leafy greens", "fermented milk", "whole grain porridge", "beans and lentils", "sweet potatoes", "cassava", "groundnuts", "sorghum", "millet"
+- ❌ Do NOT say: matoke, ugali, posho, sukuma wiki, uji (without explanation), githeri, nsima, fufu by name
+
 Generate exactly 12 highly personalised, evidence-based health recommendations for this specific patient.
 Distribute across these 6 categories (2 per category):
 1. nutrition
@@ -788,21 +1032,22 @@ Distribute across these 6 categories (2 per category):
 6. monitoring
 
 Rules:
-- Be HIGHLY SPECIFIC to their risk levels, BMI, waist, age, and answers
-- Reference East African food staples where relevant (ugali, beans, matoke, sweet potatoes, leafy greens, sorghum, sukuma wiki)
+- Be HIGHLY SPECIFIC to their risk levels, BMI, waist, age, and actual answers
+- Reference universal foods where relevant
 - Be warm, practical, and achievable — not clinical jargon
 - For urgent/high priority items, be direct about urgency
-- Each action must be a concrete, single sentence the patient can do this week
-- Set locallyRelevant: true when you mention local foods, health centres, or cultural context
+- Each action must be a concrete, single sentence the patient can act on this week
+- Set locallyRelevant: true when you mention accessible foods, community health facilities, or walking culture
 - Set evidenceBased: true for all clinically validated recommendations
-- Use appropriate emoji icons (🚶, 🥗, 💧, 🧂, 😴, 🧘, 🏥, etc.)
+- Use appropriate emoji icons (🚶, 🥗, 💧, 🧂, 😴, 🧘, 🏥, 🩸, ⚖️, etc.)
+- Vary priority accurately: urgent items are genuinely urgent, medium items are for ongoing maintenance
 
 Respond ONLY with a valid JSON array. No markdown. No explanation. Format:
 [
   {
     "title": "Short title (3-5 words)",
-    "description": "1-2 sentences explaining why this matters for them.",
-    "action": "Specific single sentence of what to do.",
+    "description": "1-2 sentences explaining why this matters for them specifically.",
+    "action": "Specific single sentence of what to do this week.",
     "frequency": "Daily",
     "category": "nutrition",
     "priority": "high",
@@ -822,33 +1067,33 @@ Respond ONLY with a valid JSON array. No markdown. No explanation. Format:
           model: this.MODEL,
           messages: [
             {
-              role: "system",
-              content: "You output ONLY valid JSON arrays. No other text, no markdown, no backticks.",
+              role: 'system',
+              content: 'You output ONLY valid JSON arrays. No other text, no markdown, no backticks. Use universal food language only — no region-specific food names.',
             },
-            { role: "user", content: prompt },
+            { role: 'user', content: prompt },
           ],
           temperature: 0.7,
-          max_tokens: 2800,
+          max_tokens: 3200,
         }),
       });
 
       if (!res.ok) throw new Error(`Groq ${res.status}`);
       const data = await res.json();
       const raw: string = data.choices[0].message.content.trim();
-      const clean = raw.replace(/```json|```/gi, "").trim();
+      const clean = raw.replace(/```json|```/gi, '').trim();
       const match = clean.match(/\[[\s\S]*\]/);
-      if (!match) throw new Error("No JSON array found in response");
-      
+      if (!match) throw new Error('No JSON array found in response');
+
       const parsed = JSON.parse(match[0]);
       console.log(`✅ Generated ${parsed.length} recommendations`);
       return parsed;
     } catch (e) {
-      console.error("[GroqService] generateRecommendations error:", e);
+      console.error('[GroqService] generateRecommendations error:', e);
       return this.getFallbackRecommendations(assessment);
     }
   }
 
-  // ─── HELPER METHODS FOR RECOMMENDATIONS ───────────────────────────────────
+  // ─── HELPER METHODS ───────────────────────────────────────────────────────
 
   private getBMICategory(bmi: number): string {
     if (bmi < 18.5) return 'underweight';
@@ -861,137 +1106,137 @@ Respond ONLY with a valid JSON array. No markdown. No explanation. Format:
   private getFallbackRecommendations(assessment: DualRiskAssessment): any[] {
     const dHigh = assessment.diabetesRisk.level === 'high' || assessment.diabetesRisk.level === 'very-high';
     const hHigh = assessment.hypertensionRisk.level === 'high' || assessment.hypertensionRisk.level === 'very-high';
-    
+
     return [
       {
-        title: "Daily 30-min Walk",
-        description: "Regular walking is one of the most powerful tools to lower both blood sugar and blood pressure. Even a brisk 30-minute walk each day produces measurable improvements within weeks.",
-        action: "Walk briskly for 30 minutes every morning before breakfast, 5 days this week.",
-        frequency: "Daily",
-        category: "physical_activity",
-        priority: dHigh || hHigh ? "urgent" : "high",
-        icon: "🚶",
+        title: 'Daily 30-Min Walk',
+        description: 'Regular walking is one of the most powerful tools to lower both blood sugar and blood pressure. Even a brisk 30-minute walk each day produces measurable improvements within weeks.',
+        action: 'Walk briskly for 30 minutes every morning before breakfast, 5 days this week.',
+        frequency: 'Daily',
+        category: 'physical_activity',
+        priority: dHigh || hHigh ? 'urgent' : 'high',
+        icon: '🚶',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Reduce Ugali Portions",
-        description: "High-glycaemic staples like ugali, white rice, and posho raise blood sugar rapidly. Replacing half your portion with beans or vegetables significantly reduces metabolic load.",
-        action: "Replace half your ugali or white rice serving with beans, lentils, or steamed vegetables at lunch and dinner.",
-        frequency: "Every meal",
-        category: "nutrition",
-        priority: dHigh ? "urgent" : "high",
-        icon: "🍛",
+        title: 'Reduce Starchy Portions',
+        description: 'High-glycaemic starchy staples (cooked grains, cassava, green bananas) raise blood sugar rapidly when eaten in large amounts. Replacing half your portion with beans or vegetables significantly reduces metabolic load.',
+        action: 'Replace half your starchy staple serving with beans, lentils, or steamed vegetables at lunch and dinner.',
+        frequency: 'Every meal',
+        category: 'nutrition',
+        priority: dHigh ? 'urgent' : 'high',
+        icon: '🍛',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Cut Sugary Drinks",
-        description: "Sodas, sweetened uji, and energy drinks contribute directly to insulin resistance and weight gain. Replacing them with water or unsweetened tea has immediate benefits.",
-        action: "Replace all sodas and sweetened drinks with water, black tea, or lemon water this week.",
-        frequency: "Daily",
-        category: "nutrition",
-        priority: "high",
-        icon: "💧",
+        title: 'Cut Sugary Drinks',
+        description: 'Sodas, sweetened teas, and energy drinks contribute directly to insulin resistance and weight gain. Replacing them with water or unsweetened tea has immediate metabolic benefits.',
+        action: 'Replace all sodas and sweetened drinks with water, plain tea, or lemon water this week.',
+        frequency: 'Daily',
+        category: 'nutrition',
+        priority: 'high',
+        icon: '💧',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Reduce Salt Intake",
-        description: "Excess salt is the leading dietary driver of hypertension. Most East African diets are high in salt through processed snacks and table salt.",
-        action: "Remove the salt shaker from the table and avoid adding extra salt to cooked food.",
-        frequency: "Daily",
-        category: "nutrition",
-        priority: hHigh ? "urgent" : "high",
-        icon: "🧂",
+        title: 'Reduce Salt Intake',
+        description: 'Excess salt is the leading dietary driver of hypertension. Most diets are high in salt through processed snacks and table salt added to food.',
+        action: 'Remove the salt shaker from the table and avoid adding extra salt to cooked food.',
+        frequency: 'Daily',
+        category: 'nutrition',
+        priority: hHigh ? 'urgent' : 'high',
+        icon: '🧂',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Book a Blood Pressure Check",
-        description: "Getting a professional blood pressure reading at your nearest health centre takes less than 5 minutes and gives you a critical baseline.",
-        action: "Visit your nearest health centre or pharmacy to get a blood pressure reading this week.",
-        frequency: "Once (then monthly)",
-        category: "medical",
-        priority: hHigh ? "urgent" : "high",
-        icon: "🏥",
+        title: 'Check Blood Pressure',
+        description: 'Getting a professional blood pressure reading at your nearest health centre takes less than 5 minutes and gives you a critical baseline number to track.',
+        action: 'Visit your nearest health centre or pharmacy to get a blood pressure reading this week.',
+        frequency: 'Once (then monthly)',
+        category: 'medical',
+        priority: hHigh ? 'urgent' : 'high',
+        icon: '🏥',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Fasting Blood Sugar Test",
-        description: "A simple fasting glucose test can confirm or rule out diabetes or prediabetes. Early detection is the most powerful tool you have.",
-        action: "Ask your doctor for a fasting blood glucose test at your next visit.",
-        frequency: "Once (then annually)",
-        category: "medical",
-        priority: dHigh ? "urgent" : "medium",
-        icon: "🩸",
+        title: 'Fasting Blood Sugar Test',
+        description: 'A simple fasting glucose test can confirm or rule out diabetes or prediabetes. Early detection is the most powerful tool available for preventing complications.',
+        action: 'Ask your doctor for a fasting blood glucose test at your next visit.',
+        frequency: 'Once (then annually)',
+        category: 'medical',
+        priority: dHigh ? 'urgent' : 'medium',
+        icon: '🩸',
         evidenceBased: true,
         locallyRelevant: false,
       },
       {
-        title: "7-8 Hours of Sleep",
-        description: "Poor sleep directly raises cortisol, blood sugar, and blood pressure. Improving sleep quality is one of the most underestimated metabolic interventions.",
-        action: "Set a consistent bedtime and wake time, aiming for 7-8 hours with no screens in the last 30 minutes.",
-        frequency: "Nightly",
-        category: "stress_sleep",
-        priority: "medium",
-        icon: "😴",
+        title: '7-8 Hours of Sleep',
+        description: 'Poor sleep directly raises cortisol, blood sugar, and blood pressure. Improving sleep quality is one of the most underestimated metabolic interventions.',
+        action: 'Set a consistent bedtime and wake time, aiming for 7-8 hours with no screens in the last 30 minutes.',
+        frequency: 'Nightly',
+        category: 'stress_sleep',
+        priority: 'medium',
+        icon: '😴',
         evidenceBased: true,
         locallyRelevant: false,
       },
       {
-        title: "Stress Reduction Routine",
-        description: "Chronic stress elevates cortisol, which raises blood sugar and constricts blood vessels. Even 10 minutes of calm daily reduces this burden measurably.",
-        action: "Spend 10 minutes each evening in quiet rest, prayer, or deep breathing before bed.",
-        frequency: "Daily",
-        category: "stress_sleep",
-        priority: "medium",
-        icon: "🧘",
+        title: 'Daily Stress Reduction',
+        description: 'Chronic stress elevates cortisol, which raises blood sugar and constricts blood vessels. Even 10 minutes of calm daily reduces this burden measurably.',
+        action: 'Spend 10 minutes each evening in quiet rest, prayer, or slow deep breathing before bed.',
+        frequency: 'Daily',
+        category: 'stress_sleep',
+        priority: 'medium',
+        icon: '🧘',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Eat More Leafy Greens",
-        description: "Vegetables like sukuma wiki, spinach, and amaranth are rich in magnesium, potassium, and fibre — all protective against both diabetes and hypertension.",
-        action: "Add a serving of dark leafy greens (sukuma wiki, spinach, or amaranth) to at least one meal daily.",
-        frequency: "Daily",
-        category: "nutrition",
-        priority: "medium",
-        icon: "🥬",
+        title: 'Eat More Leafy Greens',
+        description: 'Cooked leafy greens are rich in magnesium, potassium, and fibre — all protective against both diabetes and hypertension. They are among the most affordable and accessible protective foods available.',
+        action: 'Add a serving of cooked leafy greens (spinach, amaranth, or similar) to at least one meal daily.',
+        frequency: 'Daily',
+        category: 'nutrition',
+        priority: 'medium',
+        icon: '🥬',
         evidenceBased: true,
         locallyRelevant: true,
       },
       {
-        title: "Monthly Weight Check",
-        description: "Tracking your weight monthly helps you catch upward trends early. Even a 5-10% weight loss significantly reduces risk for both conditions.",
-        action: "Weigh yourself on the same scale every first Monday of the month and log the result.",
-        frequency: "Monthly",
-        category: "monitoring",
-        priority: "medium",
-        icon: "⚖️",
+        title: 'Monthly Weight Tracking',
+        description: 'Tracking your weight monthly helps you catch upward trends early. Even a 5-10% weight loss significantly reduces risk for both conditions.',
+        action: 'Weigh yourself on the same scale every first Monday of the month and record the result.',
+        frequency: 'Monthly',
+        category: 'monitoring',
+        priority: 'medium',
+        icon: '⚖️',
         evidenceBased: true,
         locallyRelevant: false,
       },
       {
-        title: "Limit Alcohol",
-        description: "Alcohol raises blood pressure and adds empty calories that worsen insulin resistance. Even moderate reduction has measurable cardiovascular benefits.",
-        action: "Limit alcohol to no more than 1-2 drinks per week, or eliminate entirely if your risk is high.",
-        frequency: "Weekly",
-        category: "lifestyle",
-        priority: "medium",
-        icon: "🚫",
+        title: 'Limit Alcohol',
+        description: 'Alcohol raises blood pressure and adds empty calories that worsen insulin resistance. Even moderate reduction has measurable cardiovascular benefits.',
+        action: 'Limit alcohol to no more than 1-2 drinks per week, or eliminate entirely if your risk is elevated.',
+        frequency: 'Weekly',
+        category: 'lifestyle',
+        priority: 'medium',
+        icon: '🚫',
         evidenceBased: true,
         locallyRelevant: false,
       },
       {
-        title: "Annual Comprehensive Check",
-        description: "A full metabolic panel including blood glucose, blood pressure, cholesterol, and kidney function gives your doctor the full picture to guide your care.",
-        action: "Schedule a comprehensive metabolic health check-up at your nearest hospital or health centre.",
-        frequency: "Annually",
-        category: "monitoring",
-        priority: "low",
-        icon: "📋",
+        title: 'Annual Health Check-Up',
+        description: 'A full metabolic panel including blood glucose, blood pressure, cholesterol, and kidney function gives your doctor the complete picture needed to guide your care effectively.',
+        action: 'Schedule a comprehensive metabolic health check-up at your nearest hospital or health centre.',
+        frequency: 'Annually',
+        category: 'monitoring',
+        priority: 'low',
+        icon: '📋',
         evidenceBased: true,
         locallyRelevant: true,
       },
@@ -1011,6 +1256,8 @@ Respond ONLY with a valid JSON array. No markdown. No explanation. Format:
     this.questionCount = 0;
     this.usedIds.clear();
     this.profile = null;
+    // Re-shuffle fallback for the next session
+    this.shuffledFallback = shuffleArray(FALLBACK_BANK);
   }
 }
 

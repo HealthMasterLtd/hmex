@@ -1,4 +1,3 @@
-
 import AwarenessSection from "@/components/landingpage/awareness-section"
 import CallToAction from "@/components/landingpage/call-to-action"
 import Hero from "@/components/landingpage/hero"
@@ -10,10 +9,12 @@ import WhyChooseUs from "@/components/landingpage/whyChoos-us"
 import ThemeToggle from "@/components/Themetoggle"
 import Footer from "@/components/ui/Footer"
 
-
 export default function Home() {
   return (
     <main className="w-full">
+      <div className="fixed bottom-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <Navbar/>
       <Hero/>
       <QuoteSection/>
@@ -23,7 +24,6 @@ export default function Home() {
       <Partners/>
       <CallToAction/>
       <Footer/>
-      <ThemeToggle />
     </main>
   )
 }
