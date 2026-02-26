@@ -8,7 +8,6 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { style } from "framer-motion/m";
 
 const navItems = [
   { label: "Home",            href: "/"               },
@@ -88,33 +87,12 @@ export default function Navbar() {
           transition: "background 0.3s, border-color 0.3s",
         }}
       >
-        <div style={{
+        {/* ── DESKTOP layout ── */}
+        <div className="desktop-nav-row" style={{
           margin: "0 auto", maxWidth: 1280,
           height: 60, display: "flex", alignItems: "center",
           justifyContent: "space-between", padding: "0 20px",
         }}>
-
-          {/* ── MOBILE: custom hamburger LEFT ── */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(prev => !prev)}
-            style={{
-              display: "none",
-              width: 38, height: 38,
-              alignItems: "center", justifyContent: "center",
-              background: isOpen ? `${accentColor}18` : S.surfaceAlt,
-              border: `1.5px solid ${isOpen ? accentColor : S.border}`,
-              borderRadius: 10,
-              cursor: "pointer", flexShrink: 0,
-              transition: "all 0.2s ease",
-            }}
-            className="mobile-hamburger"
-            aria-label="Toggle menu"
-          >
-            <HamburgerIcon open={isOpen} color={isOpen ? accentColor : S.text} />
-          </button>
-
-          {/* ── Logo — LEFT desktop, RIGHT mobile ── */}
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", flexShrink: 0 }}>
             <div style={{ width: 32, height: 32, overflow: "hidden", borderRadius: "50%" }}>
               <Image src="/white logo.png" alt="HMEX" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -123,9 +101,7 @@ export default function Navbar() {
               H<span style={{ color: accentColor }}>mex</span>
             </span>
           </Link>
-
-          {/* ── Desktop nav links ── */}
-          <div className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {navItems.map((item) => {
               const active = pathname === item.href;
               return (
@@ -133,10 +109,7 @@ export default function Navbar() {
                   {active && (
                     <motion.span
                       layoutId="nav-indicator"
-                      style={{
-                        position: "absolute", bottom: 4, left: 14, right: 14,
-                        height: 2, borderRadius: 9999, background: accentColor,
-                      }}
+                      style={{ position: "absolute", bottom: 4, left: 14, right: 14, height: 2, borderRadius: 9999, background: accentColor }}
                       transition={{ type: "spring", stiffness: 400, damping: 32 }}
                     />
                   )}
@@ -147,32 +120,48 @@ export default function Navbar() {
               );
             })}
           </div>
-
-          {/* ── Desktop actions ── */}
-          <div className="desktop-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link href="/login">
-              <button style={{
-                height: 32, padding: "0 16px", fontSize: 13, fontWeight: 600,
-                color: S.text, border: `1px solid ${S.border}`, background: S.surfaceAlt,
-                borderRadius: 8, cursor: "pointer",
-              }}>Log in</button>
+              <button style={{ height: 32, padding: "0 16px", fontSize: 13, fontWeight: 600, color: S.text, border: `1px solid ${S.border}`, background: S.surfaceAlt, borderRadius: 8, cursor: "pointer" }}>Log in</button>
             </Link>
             <Link href="/register">
-              <button style={{
-                height: 32, padding: "0 16px", display: "flex", alignItems: "center", gap: 6,
-                fontSize: 13, fontWeight: 600, color: "#fff", border: "none",
-                background: `linear-gradient(135deg, ${accentColor}, ${accentSecondary})`,
-                boxShadow: `0 2px 10px ${accentColor}40`,
-                borderRadius: 8, cursor: "pointer",
-              }}>
+              <button style={{ height: 32, padding: "0 16px", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#fff", border: "none", background: `linear-gradient(135deg, ${accentColor}, ${accentSecondary})`, boxShadow: `0 2px 10px ${accentColor}40`, borderRadius: 8, cursor: "pointer" }}>
                 Sign up <ArrowRight size={12} />
               </button>
             </Link>
           </div>
+        </div>
 
-          {/* ── Mobile: right spacer to visually center logo ── */}
-          <div className="mobile-spacer" style={{ width: 38, flexShrink: 0, display: "none" }} />
-
+        {/* ── MOBILE layout: hamburger LEFT, logo RIGHT ── */}
+        <div className="mobile-nav-row" style={{
+          display: "none",
+          margin: "0 auto", maxWidth: 1280,
+          height: 60, alignItems: "center",
+          justifyContent: "space-between", padding: "0 20px",
+        }}>
+          <button
+            type="button"
+            onClick={() => setIsOpen(prev => !prev)}
+            style={{
+              width: 38, height: 38,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: isOpen ? `${accentColor}18` : S.surfaceAlt,
+              border: `1.5px solid ${isOpen ? accentColor : S.border}`,
+              borderRadius: 10, cursor: "pointer", flexShrink: 0,
+              transition: "all 0.2s ease",
+            }}
+            aria-label="Toggle menu"
+          >
+            <HamburgerIcon open={isOpen} color={isOpen ? accentColor : S.text} />
+          </button>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", flexShrink: 0 }}>
+            <div style={{ width: 30, height: 30, overflow: "hidden", borderRadius: "50%" }}>
+              <Image src="/white logo.png" alt="HMEX" width={30} height={30} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: S.text }}>
+              H<span style={{ color: accentColor }}>mex</span>
+            </span>
+          </Link>
         </div>
       </motion.nav>
 
@@ -314,10 +303,8 @@ export default function Navbar() {
       {/* ── Responsive styles ── */}
       <style>{`
         @media (max-width: 767px) {
-          .mobile-hamburger { display: flex !important; }
-          .mobile-spacer    { display: block !important; }
-          .desktop-nav      { display: none !important; }
-          .desktop-actions  { display: none !important; }
+          .desktop-nav-row { display: none !important; }
+          .mobile-nav-row  { display: flex !important; }
         }
       `}</style>
     </>
