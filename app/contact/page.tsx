@@ -6,6 +6,7 @@ import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -271,6 +272,7 @@ export default function ContactPage() {
       </section>
 
       <Footer />
+      <ThemeToggle />
 
       <style jsx>{`
         @keyframes breathe {

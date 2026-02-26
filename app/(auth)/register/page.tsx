@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Sparkles,
 } from "lucide-react";
+import ThemeToggle from "@/components/Themetoggle";
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,7 @@ export const dynamic = 'force-dynamic';
 function HealthLottie() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     let anim: any;
@@ -82,7 +84,7 @@ function HealthLottie() {
 export default function SignUpPage() {
   const router = useRouter();
   const { signUp, loginWithGoogle, loading, error, clearError, user } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, surface, accentColor } = useTheme();
 
   // ── ALL HOOKS MUST BE HERE BEFORE ANY CONDITIONAL RETURN ──
   const [mounted, setMounted] = useState(false);
@@ -241,13 +243,13 @@ export default function SignUpPage() {
   if (!mounted) return null;
 
   const colors = {
-    bg: isDark ? "#0D0D0F" : "#F8F8F6",
-    surface: isDark ? "#1A1B1F" : "#FFFFFF",
-    border: isDark ? "#202126" : "#E2E2E0",
-    text: isDark ? "#FFFFFF" : "#0A0A0B",
-    muted: isDark ? "#A0A0A8" : "#52525B",
-    subtle: isDark ? "#5A5A64" : "#A1A1AA",
-    primary: "#0FBB7D",
+    bg: surface.bg,
+    surface: surface.surface,
+    border: surface.border,
+    text: surface.text,
+    muted: surface.muted,
+    subtle: surface.subtle,
+    primary: accentColor,
     secondary: "#0FB6C8",
   };
 
@@ -270,8 +272,8 @@ export default function SignUpPage() {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-        className="flex items-center justify-center mx-auto mb-5 w-16 h-16 rounded-full"
-        style={{ background: `color-mix(in srgb, ${colors.primary} 15%, transparent)` }}
+        className="flex items-center justify-center mx-auto mb-5 w-16 h-16"
+        style={{ background: `color-mix(in srgb, ${colors.primary} 15%, transparent)`, borderRadius: 2 }}
       >
         <CheckCircle className="w-8 h-8" style={{ color: colors.primary }} />
       </motion.div>
@@ -304,8 +306,9 @@ export default function SignUpPage() {
           transition={{ delay: 0.4 }}
           className="mb-4 p-4 text-left"
           style={{
-            background: isDark ? "rgba(15, 187, 125, 0.08)" : "rgba(15, 187, 125, 0.06)",
-            border: `1px solid ${isDark ? "rgba(15, 187, 125, 0.2)" : "rgba(15, 187, 125, 0.25)"}`,
+            background: isDark ? `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.08)` : `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.06)`,
+            border: `1px solid ${isDark ? `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.2)` : `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.25)`}`,
+            borderRadius: 2,
           }}
         >
           <div className="flex items-start gap-3">
@@ -346,8 +349,9 @@ export default function SignUpPage() {
           transition={{ delay: 0.44 }}
           className="mb-6 p-4 text-left"
           style={{
-            background: isDark ? "rgba(15, 187, 125, 0.08)" : "rgba(15, 187, 125, 0.06)",
-            border: `1px solid ${isDark ? "rgba(15, 187, 125, 0.2)" : "rgba(15, 187, 125, 0.25)"}`,
+            background: isDark ? `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.08)` : `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.06)`,
+            border: `1px solid ${isDark ? `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.2)` : `rgba(${parseInt(colors.primary.slice(1,3), 16)}, ${parseInt(colors.primary.slice(3,5), 16)}, ${parseInt(colors.primary.slice(5,7), 16)}, 0.25)`}`,
+            borderRadius: 2,
           }}
         >
           <div className="flex items-start gap-3">
@@ -391,6 +395,7 @@ export default function SignUpPage() {
           background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
           color: "white",
           opacity: isSaving ? 0.7 : 1,
+          borderRadius: 2,
         }}
       >
         <span className="flex items-center justify-center gap-2">
@@ -427,6 +432,7 @@ export default function SignUpPage() {
           border: `1px solid ${colors.primary}`,
           background: `color-mix(in srgb, ${colors.primary} 10%, transparent)`,
           color: colors.primary,
+          borderRadius: 2,
         }}
       >
         <motion.div
@@ -455,7 +461,7 @@ export default function SignUpPage() {
         {/* Mobile Header */}
         <div className="relative z-10 px-5 py-6">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 flex items-center justify-center shadow-sm" style={{ borderRadius: 2 }}>
               <Image
                 src='/white logo.png'
                 alt="Logo"
@@ -475,7 +481,7 @@ export default function SignUpPage() {
         {/* Form Container */}
         <div className="flex-1 relative z-10 flex flex-col justify-end pb-8">
           <div className="mx-5">
-            <div className="p-6 rounded-t-3xl" style={{ background: colors.surface }}>
+            <div className="p-6" style={{ background: colors.surface, borderRadius: 2 }}>
 
               <AnimatePresence mode="wait">
                 {signupSuccess ? (
@@ -492,8 +498,8 @@ export default function SignUpPage() {
                     </p>
 
                     {/* Tab Switcher */}
-                    <div className="flex gap-2 p-1 mb-6" style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6" }}>
-                      <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: colors.surface, color: colors.text }}>
+                    <div className="flex gap-2 p-1 mb-6" style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6", borderRadius: 2 }}>
+                      <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: colors.surface, color: colors.text, borderRadius: 2 }}>
                         Sign up
                       </div>
                       <Link href="/login" className="flex-1 py-2 text-center text-sm font-medium" style={{ color: colors.muted }}>
@@ -512,6 +518,7 @@ export default function SignUpPage() {
                           style={{
                             background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
                             border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
+                            borderRadius: 2,
                           }}
                         >
                           <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
@@ -543,6 +550,7 @@ export default function SignUpPage() {
                               color: colors.text,
                               border: "none",
                               outline: "none",
+                              borderRadius: 2,
                             }}
                           />
                         </div>
@@ -569,6 +577,7 @@ export default function SignUpPage() {
                               color: colors.text,
                               border: "none",
                               outline: "none",
+                              borderRadius: 2,
                             }}
                           />
                         </div>
@@ -595,6 +604,7 @@ export default function SignUpPage() {
                               color: colors.text,
                               border: "none",
                               outline: "none",
+                              borderRadius: 2,
                             }}
                           />
                           <button
@@ -619,6 +629,7 @@ export default function SignUpPage() {
                                   className="h-1 flex-1 transition-all"
                                   style={{
                                     background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
+                                    borderRadius: 2,
                                   }}
                                 />
                               ))}
@@ -651,6 +662,7 @@ export default function SignUpPage() {
                               color: colors.text,
                               border: "none",
                               outline: "none",
+                              borderRadius: 2,
                             }}
                           />
                           <button
@@ -689,6 +701,7 @@ export default function SignUpPage() {
                           background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
                           color: "white",
                           opacity: loading ? 0.7 : 1,
+                          borderRadius: 2,
                         }}
                       >
                         {loading ? (
@@ -725,6 +738,7 @@ export default function SignUpPage() {
                           background: colors.surface,
                           borderColor: colors.border,
                           color: colors.text,
+                          borderRadius: 2,
                         }}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24">
@@ -763,7 +777,7 @@ export default function SignUpPage() {
               <div className="space-y-8">
                 {/* Logo */}
                 <Link href="/" className="inline-flex items-center gap-3 group">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+                  <div className="w-10 h-10 flex items-center justify-center shadow-sm" style={{ borderRadius: 2 }}>
                     <Image
                       src='/white logo.png'
                       alt="Logo"
@@ -800,6 +814,7 @@ export default function SignUpPage() {
                         style={{
                           background: `color-mix(in srgb, ${colors.primary} 15%, transparent)`,
                           border: `1px solid color-mix(in srgb, ${colors.primary} 30%, transparent)`,
+                          borderRadius: 2,
                         }}>
                         <Check className="w-3 h-3" style={{ color: colors.primary }} />
                       </div>
@@ -812,6 +827,7 @@ export default function SignUpPage() {
                 <div className="flex gap-3 p-4" style={{
                   background: `color-mix(in srgb, ${colors.primary} 10%, transparent)`,
                   border: `1px solid color-mix(in srgb, ${colors.primary} 20%, transparent)`,
+                  borderRadius: 2,
                 }}>
                   <Shield className="w-5 h-5 mt-0.5 shrink-0" style={{ color: colors.primary }} />
                   <p className="text-sm" style={{ color: colors.text }}>Your data stays private and secure.</p>
@@ -829,7 +845,7 @@ export default function SignUpPage() {
                       exit={{ opacity: 0, y: -12 }}
                       transition={{ duration: 0.35 }}
                       className="p-8"
-                      style={{ background: colors.surface, border: `1px solid ${colors.border}` }}
+                      style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 2 }}
                     >
                       {SuccessContent}
                     </motion.div>
@@ -841,7 +857,7 @@ export default function SignUpPage() {
                       exit={{ opacity: 0, y: -12 }}
                       transition={{ duration: 0.35 }}
                     >
-                      <div className="p-8" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+                      <div className="p-8" style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 2 }}>
                         <div className="mb-6">
                           <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: colors.text }}>
                             Create account
@@ -862,6 +878,7 @@ export default function SignUpPage() {
                               style={{
                                 background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
                                 border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
+                                borderRadius: 2,
                               }}
                             >
                               <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
@@ -895,6 +912,7 @@ export default function SignUpPage() {
                                   borderColor: focusedField === "name" ? colors.primary : colors.border,
                                   color: colors.text,
                                   outline: "none",
+                                  borderRadius: 2,
                                 }}
                               />
                             </div>
@@ -923,6 +941,7 @@ export default function SignUpPage() {
                                   borderColor: focusedField === "email" ? colors.primary : colors.border,
                                   color: colors.text,
                                   outline: "none",
+                                  borderRadius: 2,
                                 }}
                               />
                             </div>
@@ -951,6 +970,7 @@ export default function SignUpPage() {
                                   borderColor: focusedField === "password" ? colors.primary : colors.border,
                                   color: colors.text,
                                   outline: "none",
+                                  borderRadius: 2,
                                 }}
                               />
                               <button
@@ -975,6 +995,7 @@ export default function SignUpPage() {
                                       className="h-1 flex-1 transition-all"
                                       style={{
                                         background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
+                                        borderRadius: 2,
                                       }}
                                     />
                                   ))}
@@ -1009,6 +1030,7 @@ export default function SignUpPage() {
                                   borderColor: focusedField === "confirm" ? colors.primary : colors.border,
                                   color: colors.text,
                                   outline: "none",
+                                  borderRadius: 2,
                                 }}
                               />
                               <button
@@ -1047,6 +1069,7 @@ export default function SignUpPage() {
                               background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
                               color: "white",
                               opacity: loading ? 0.7 : 1,
+                              borderRadius: 2,
                             }}
                           >
                             <span className="flex items-center justify-center gap-2">
@@ -1085,6 +1108,7 @@ export default function SignUpPage() {
                               background: colors.surface,
                               borderColor: colors.border,
                               color: colors.text,
+                              borderRadius: 2,
                             }}
                           >
                             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -1124,6 +1148,7 @@ export default function SignUpPage() {
           </div>
         </div>
       </div>
+      <ThemeToggle />
     </div>
   );
 }

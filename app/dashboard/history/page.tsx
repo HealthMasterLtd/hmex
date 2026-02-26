@@ -29,6 +29,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { fetchUserAssessments, type StoredAssessment } from "@/services/AppwriteService";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const RISK_ORDER: Record<string, number> = {
@@ -100,7 +101,7 @@ function RiskBadge({ level, size = "sm" }: { level: string; size?: "xs" | "sm" }
     <span
       className="inline-flex items-center gap-1"
       style={{
-        background: `${c}18`, color: c, borderRadius: 3,
+        background: `${c}18`, color: c, borderRadius: 2,
         padding: size === "xs" ? "1px 6px" : "2px 8px",
         fontSize: size === "xs" ? 9 : 11,
         fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase",
@@ -116,17 +117,16 @@ function RiskBadge({ level, size = "sm" }: { level: string; size?: "xs" | "sm" }
 function Card({ children, delay = 0, className = "", style = {} }: {
   children: React.ReactNode; delay?: number; className?: string; style?: React.CSSProperties;
 }) {
-  const { isDark } = useTheme();
+  const { surface } = useTheme();
   const { ref, vis } = useInView();
   return (
     <div
       ref={ref}
       className={`transition-all duration-700 ${className}`}
       style={{
-        background: isDark ? "#0d1323" : "#ffffff",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)"}`,
-        borderRadius: 6,
-        boxShadow: isDark ? "0 4px 24px rgba(0,0,0,0.35)" : "0 4px 24px rgba(0,0,0,0.06)",
+        background: surface.surface,
+        border: `1px solid ${surface.border}`,
+        borderRadius: 2,
         opacity: vis ? 1 : 0,
         transform: vis ? "translateY(0)" : "translateY(18px)",
         transitionDelay: `${delay}ms`,
@@ -139,9 +139,9 @@ function Card({ children, delay = 0, className = "", style = {} }: {
 }
 
 function SLabel({ children }: { children: React.ReactNode }) {
-  const { isDark } = useTheme();
+  const { surface } = useTheme();
   return (
-    <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", color: isDark ? "#3d4f63" : "#94a3b8", marginBottom: 16 }}>
+    <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", color: surface.subtle, marginBottom: 16 }}>
       {children}
     </p>
   );
@@ -149,7 +149,8 @@ function SLabel({ children }: { children: React.ReactNode }) {
 
 // ─── RISK RIVER CHART ─────────────────────────────────────────────────────────
 // A dual-line SVG chart that animates on mount — shows risk over time like a river
-function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; isDark: boolean }) {
+function RiskRiver({ assessments }: { assessments: StoredAssessment[]; isDark: boolean }) {
+  const { surface, isDark } = useTheme();
   const sorted = useMemo(() => [...assessments].reverse().slice(-12), [assessments]);
   const [drawn, setDrawn] = useState(false);
   const { ref, vis } = useInView();
@@ -157,7 +158,7 @@ function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; i
   useEffect(() => { if (vis) setTimeout(() => setDrawn(true), 100); }, [vis]);
 
   if (sorted.length < 2) return (
-    <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: isDark ? "#3d4f63" : "#cbd5e1", fontSize: 12 }}>
+    <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: surface.subtle, fontSize: 12 }}>
       Need at least 2 assessments to show the risk river.
     </div>
   );
@@ -214,7 +215,7 @@ function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; i
         {gridY.map((y, i) => (
           <g key={i}>
             <line x1={PAD_X} y1={y} x2={W - PAD_X} y2={y}
-              stroke={isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)"} strokeWidth={1} />
+              stroke={surface.border} strokeWidth={1} />
             <text x={PAD_X - 4} y={y + 4} textAnchor="end" fontSize={8} fill={gridColors[i]} fontWeight={700}>{gridLabels[i]}</text>
           </g>
         ))}
@@ -225,10 +226,10 @@ function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; i
           return (
             <g key={i}>
               <line x1={x} y1={PAD_Y} x2={x} y2={H - PAD_Y}
-                stroke={isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)"} strokeWidth={1} strokeDasharray="3 3" />
+                stroke={surface.border} strokeWidth={1} strokeDasharray="3 3" />
               {(i === 0 || i === sorted.length - 1 || (sorted.length <= 6)) && (
                 <text x={x} y={H - 2} textAnchor="middle" fontSize={8}
-                  fill={isDark ? "#3d4f63" : "#94a3b8"}>{fmtShort(a.$createdAt)}</text>
+                  fill={surface.subtle}>{fmtShort(a.$createdAt)}</text>
               )}
             </g>
           );
@@ -255,13 +256,13 @@ function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; i
         {/* Dots — diabetes */}
         {dPts.map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r={drawn ? 4 : 0} fill="#0d9488"
-            stroke={isDark ? "#0d1323" : "#fff"} strokeWidth={2}
+            stroke={surface.surface} strokeWidth={2}
             style={{ transition: `r 0.3s ease ${0.8 + i * 0.06}s` }} />
         ))}
         {/* Dots — hypertension */}
         {hPts.map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r={drawn ? 4 : 0} fill="#6366f1"
-            stroke={isDark ? "#0d1323" : "#fff"} strokeWidth={2}
+            stroke={surface.surface} strokeWidth={2}
             style={{ transition: `r 0.3s ease ${0.9 + i * 0.06}s` }} />
         ))}
       </svg>
@@ -269,8 +270,8 @@ function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; i
       {/* Legend */}
       <div style={{ display: "flex", gap: 16, marginTop: 8, justifyContent: "center" }}>
         {[["#0d9488", "Diabetes Risk"], ["#6366f1", "Hypertension Risk"]].map(([color, label]) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: isDark ? "#6b7a8d" : "#64748b" }}>
-            <span style={{ display: "block", width: 24, height: 3, background: color, borderRadius: 99 }} />
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: surface.muted }}>
+            <span style={{ display: "block", width: 24, height: 3, background: color, borderRadius: 2 }} />
             {label}
           </div>
         ))}
@@ -280,7 +281,8 @@ function RiskRiver({ assessments, isDark }: { assessments: StoredAssessment[]; i
 }
 
 // ─── RADAR / SPIDER CHART ─────────────────────────────────────────────────────
-function RadarChart({ assessment, isDark }: { assessment: StoredAssessment; isDark: boolean }) {
+function RadarChart({ assessment }: { assessment: StoredAssessment; isDark: boolean }) {
+  const { surface } = useTheme();
   const axes = [
     { label: "Diabetes",    value: (RISK_ORDER[assessment.diabetesLevel] ?? 1) / 5 },
     { label: "Hypertension",value: (RISK_ORDER[assessment.hypertensionLevel] ?? 1) / 5 },
@@ -307,8 +309,8 @@ function RadarChart({ assessment, isDark }: { assessment: StoredAssessment; isDa
 
   // Grid rings
   const rings = [0.25, 0.5, 0.75, 1];
-  const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-  const axisColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+  const gridColor = surface.border;
+  const axisColor = surface.border;
 
   const filledPts = pts(drawn ? 1 : 0.01);
 
@@ -340,7 +342,7 @@ function RadarChart({ assessment, isDark }: { assessment: StoredAssessment; isDa
         {/* Dots */}
         {filledPts.map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r={3} fill="#0d9488"
-            stroke={isDark ? "#0d1323" : "#fff"} strokeWidth={1.5}
+            stroke={surface.surface} strokeWidth={1.5}
             style={{ transition: `all 1s cubic-bezier(0.4,0,0.2,1) ${i * 0.1}s` }} />
         ))}
         {/* Labels */}
@@ -350,7 +352,7 @@ function RadarChart({ assessment, isDark }: { assessment: StoredAssessment; isDa
           const textAnchor = lx < CX - 5 ? "end" : lx > CX + 5 ? "start" : "middle";
           return (
             <text key={i} x={lx} y={ly + 3} textAnchor={textAnchor}
-              fontSize={9} fontWeight={700} fill={isDark ? "#4a5568" : "#94a3b8"}>
+              fontSize={9} fontWeight={700} fill={surface.subtle}>
               {a.label}
             </text>
           );
@@ -361,7 +363,8 @@ function RadarChart({ assessment, isDark }: { assessment: StoredAssessment; isDa
 }
 
 // ─── ACTIVITY HEATMAP CALENDAR ────────────────────────────────────────────────
-function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessment[]; isDark: boolean }) {
+function HeatmapCalendar({ assessments }: { assessments: StoredAssessment[]; isDark: boolean }) {
+  const { surface, isDark } = useTheme();
   const dateSet = useMemo(() => {
     const m: Record<string, number> = {};
     assessments.forEach(a => {
@@ -404,7 +407,7 @@ function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessmen
     if (date > today) return "transparent";
     const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
     const count = dateSet[key] ?? 0;
-    if (count === 0) return isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)";
+    if (count === 0) return surface.border;
     if (count === 1) return "rgba(13,148,136,0.4)";
     if (count === 2) return "rgba(13,148,136,0.7)";
     return "#0d9488";
@@ -418,7 +421,7 @@ function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessmen
         {/* Month labels */}
         <div style={{ display: "flex", marginLeft: 28, marginBottom: 4, position: "relative", height: 14 }}>
           {months.map(({ label, col }) => (
-            <div key={`${label}-${col}`} style={{ position: "absolute", left: col * 14, fontSize: 9, fontWeight: 700, color: isDark ? "#3d4f63" : "#94a3b8", letterSpacing: "0.06em" }}>
+            <div key={`${label}-${col}`} style={{ position: "absolute", left: col * 14, fontSize: 9, fontWeight: 700, color: surface.subtle, letterSpacing: "0.06em" }}>
               {label}
             </div>
           ))}
@@ -428,7 +431,7 @@ function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessmen
           {/* Day labels */}
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginRight: 4 }}>
             {dayLabels.map((d, i) => (
-              <div key={d} style={{ height: 11, fontSize: 8, fontWeight: 600, color: isDark ? "#3d4f63" : "#94a3b8", display: i % 2 === 1 ? "block" : "none" }}>
+              <div key={d} style={{ height: 11, fontSize: 8, fontWeight: 600, color: surface.subtle, display: i % 2 === 1 ? "block" : "none" }}>
                 {d}
               </div>
             ))}
@@ -445,7 +448,7 @@ function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessmen
                   <div key={di}
                     title={!isFuture ? `${fmtDate(date.toISOString())}${count > 0 ? ` — ${count} assessment${count > 1 ? "s" : ""}` : ""}` : ""}
                     style={{
-                      width: 11, height: 11, borderRadius: 2,
+                      width: 11, height: 11, borderRadius: 1,
                       background: isFuture ? "transparent" : cellColor(date),
                       opacity: vis ? 1 : 0,
                       transition: `opacity 0.4s ease ${(wi * 7 + di) * 3}ms`,
@@ -460,11 +463,11 @@ function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessmen
 
         {/* Legend */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8, justifyContent: "flex-end" }}>
-          <span style={{ fontSize: 9, color: isDark ? "#3d4f63" : "#94a3b8" }}>Less</span>
+          <span style={{ fontSize: 9, color: surface.subtle }}>Less</span>
           {[0, 1, 2, 3].map(v => (
-            <div key={v} style={{ width: 11, height: 11, borderRadius: 2, background: v === 0 ? (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.05)") : v === 1 ? "rgba(13,148,136,0.35)" : v === 2 ? "rgba(13,148,136,0.65)" : "#0d9488" }} />
+            <div key={v} style={{ width: 11, height: 11, borderRadius: 1, background: v === 0 ? surface.border : v === 1 ? "rgba(13,148,136,0.35)" : v === 2 ? "rgba(13,148,136,0.65)" : "#0d9488" }} />
           ))}
-          <span style={{ fontSize: 9, color: isDark ? "#3d4f63" : "#94a3b8" }}>More</span>
+          <span style={{ fontSize: 9, color: surface.subtle }}>More</span>
         </div>
       </div>
     </div>
@@ -472,7 +475,8 @@ function HeatmapCalendar({ assessments, isDark }: { assessments: StoredAssessmen
 }
 
 // ─── STREAK BADGE ─────────────────────────────────────────────────────────────
-function StreakCard({ assessments, isDark }: { assessments: StoredAssessment[]; isDark: boolean }) {
+function StreakCard({ assessments }: { assessments: StoredAssessment[]; isDark: boolean }) {
+  const { surface, isDark } = useTheme();
   const { ref, vis } = useInView();
 
   const stats = useMemo(() => {
@@ -507,24 +511,23 @@ function StreakCard({ assessments, isDark }: { assessments: StoredAssessment[]; 
     { icon: Calendar,  label: "This Month", value: countMonth, color: "#0d9488", sub: "this month" },
   ];
 
-  const bg = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const txt = isDark ? "#f0f4f8" : "#0f172a";
-  const muted = isDark ? "#6b7a8d" : "#64748b";
+  const bg = surface.surface;
+  const border = surface.border;
+  const txt = surface.text;
+  const muted = surface.muted;
 
   return (
     <div ref={ref} style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
       {items.map(({ icon: Icon, label, value, color, sub }, i) => (
         <div key={i}
           style={{
-            background: bg, border: `1px solid ${border}`, borderRadius: 6, padding: "16px 14px",
+            background: bg, border: `1px solid ${border}`, borderRadius: 2, padding: "16px 14px",
             opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(14px)",
             transition: `all 0.6s ease ${i * 80}ms`,
-            boxShadow: isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.05)",
           }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
             <p style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase", color: muted }}>{label}</p>
-            <div style={{ width: 28, height: 28, borderRadius: 4, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
+            <div style={{ width: 28, height: 28, borderRadius: 2, background: `${color}15`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
               <Icon size={13} strokeWidth={1.8} />
             </div>
           </div>
@@ -537,7 +540,8 @@ function StreakCard({ assessments, isDark }: { assessments: StoredAssessment[]; 
 }
 
 // ─── ACHIEVEMENT BADGES ───────────────────────────────────────────────────────
-function AchievementBadges({ assessments, isDark }: { assessments: StoredAssessment[]; isDark: boolean }) {
+function AchievementBadges({ assessments }: { assessments: StoredAssessment[]; isDark: boolean }) {
+  const { surface, accentColor, accentFaint, isDark } = useTheme();
   const badges = useMemo(() => {
     const n = assessments.length;
     const hasLow = assessments.some(a => a.diabetesLevel === "low" && a.hypertensionLevel === "low");
@@ -557,24 +561,24 @@ function AchievementBadges({ assessments, isDark }: { assessments: StoredAssessm
     ];
   }, [assessments]);
 
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const muted = isDark ? "#3d4f63" : "#94a3b8";
+  const border = surface.border;
+  const muted = surface.subtle;
   const { ref, vis } = useInView();
 
   return (
     <div ref={ref} style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
       {badges.map((b, i) => (
         <div key={i} style={{
-          padding: "12px 10px", borderRadius: 6, textAlign: "center",
-          border: `1px solid ${b.unlocked ? "rgba(13,148,136,0.25)" : border}`,
-          background: b.unlocked ? (isDark ? "rgba(13,148,136,0.06)" : "rgba(13,148,136,0.04)") : (isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"),
+          padding: "12px 10px", borderRadius: 2, textAlign: "center",
+          border: `1px solid ${b.unlocked ? `${accentColor}40` : border}`,
+          background: b.unlocked ? accentFaint : (isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"),
           opacity: vis ? (b.unlocked ? 1 : 0.45) : 0,
           transition: `opacity 0.5s ease ${i * 60}ms, transform 0.5s ease ${i * 60}ms`,
           transform: vis ? "scale(1)" : "scale(0.94)",
           filter: b.unlocked ? "none" : "grayscale(1)",
         }}>
           <div style={{ fontSize: 22, marginBottom: 4 }}>{b.icon}</div>
-          <p style={{ fontSize: 10, fontWeight: 800, color: b.unlocked ? (isDark ? "#e2e8f0" : "#0f172a") : muted, letterSpacing: "-0.01em" }}>{b.label}</p>
+          <p style={{ fontSize: 10, fontWeight: 800, color: b.unlocked ? surface.text : muted, letterSpacing: "-0.01em" }}>{b.label}</p>
           <p style={{ fontSize: 9, color: muted, marginTop: 2, lineHeight: 1.4 }}>{b.desc}</p>
         </div>
       ))}
@@ -586,14 +590,15 @@ function AchievementBadges({ assessments, isDark }: { assessments: StoredAssessm
 function ComparisonPanel({ assessments, isDark, onClose }: {
   assessments: StoredAssessment[]; isDark: boolean; onClose: () => void;
 }) {
+  const { surface, accentColor, accentFaint } = useTheme();
   const [aIdx, setAIdx] = useState(0);
   const [bIdx, setBIdx] = useState(Math.min(1, assessments.length - 1));
 
   const A = assessments[aIdx], B = assessments[bIdx];
-  const bg = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const txt = isDark ? "#f0f4f8" : "#0f172a";
-  const muted = isDark ? "#6b7a8d" : "#64748b";
+  const bg = surface.surface;
+  const border = surface.border;
+  const txt = surface.text;
+  const muted = surface.muted;
 
   function SelectDropdown({ idx, setIdx, label }: { idx: number; setIdx: (i: number) => void; label: string }) {
     return (
@@ -602,7 +607,7 @@ function ComparisonPanel({ assessments, isDark, onClose }: {
         <select
           value={idx}
           onChange={e => setIdx(Number(e.target.value))}
-          style={{ background: isDark ? "#111827" : "#f8fafc", border: `1px solid ${border}`, borderRadius: 4, color: txt, fontSize: 11, fontWeight: 600, padding: "6px 10px", width: "100%", cursor: "pointer" }}
+          style={{ background: surface.surfaceAlt, border: `1px solid ${border}`, borderRadius: 2, color: txt, fontSize: 11, fontWeight: 600, padding: "6px 10px", width: "100%", cursor: "pointer" }}
         >
           {assessments.map((a, i) => (
             <option key={a.$id} value={i}>#{a.assessmentNumber ?? i + 1} — {fmtDate(a.$createdAt)}</option>
@@ -635,7 +640,7 @@ function ComparisonPanel({ assessments, isDark, onClose }: {
     <Card style={{ padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#6366f1" }}>
+          <div style={{ width: 28, height: 28, borderRadius: 2, background: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#6366f1" }}>
             <GitCompare size={13} strokeWidth={1.8} />
           </div>
           <p style={{ fontSize: 13, fontWeight: 800, color: txt, letterSpacing: "-0.01em" }}>Assessment Comparison</p>
@@ -652,8 +657,8 @@ function ComparisonPanel({ assessments, isDark, onClose }: {
       </div>
 
       {/* Metric comparison table */}
-      <div style={{ marginTop: 16, border: `1px solid ${border}`, borderRadius: 6, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px 1fr", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", padding: "8px 12px" }}>
+      <div style={{ marginTop: 16, border: `1px solid ${border}`, borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px 1fr", background: surface.surfaceAlt, padding: "8px 12px" }}>
           {["Metric", "Assessment A", "Change", "Assessment B"].map(h => (
             <span key={h} style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: muted }}>{h}</span>
           ))}
@@ -682,16 +687,17 @@ function ComparisonPanel({ assessments, isDark, onClose }: {
 function TimelineCard({ assessment, index, total, isDark, isLast }: {
   assessment: StoredAssessment; index: number; total: number; isDark: boolean; isLast: boolean;
 }) {
+  const { surface, accentColor, accentFaint } = useTheme();
   const [open, setOpen] = useState(false);
   const { ref, vis } = useInView();
   const findings = parseList(assessment.keyFindings);
   const recs = parseList(assessment.recommendations);
 
-  const bg = isDark ? "#0d1323" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const txt = isDark ? "#f0f4f8" : "#0f172a";
-  const muted = isDark ? "#6b7a8d" : "#64748b";
-  const sub = isDark ? "#3d4f63" : "#94a3b8";
+  const bg = surface.surface;
+  const border = surface.border;
+  const txt = surface.text;
+  const muted = surface.muted;
+  const sub = surface.subtle;
   const dColor = RISK_COLOR[assessment.diabetesLevel] ?? "#22c55e";
   const hColor = RISK_COLOR[assessment.hypertensionLevel] ?? "#22c55e";
 
@@ -705,16 +711,16 @@ function TimelineCard({ assessment, index, total, isDark, isLast }: {
         {/* Node */}
         <div style={{
           width: 28, height: 28, borderRadius: "50%", flexShrink: 0, zIndex: 1,
-          background: isLatest ? "linear-gradient(135deg,#0d9488,#059669)" : (isDark ? "#111827" : "#f8fafc"),
-          border: `2px solid ${isLatest ? "#0d9488" : border}`,
+          background: isLatest ? `linear-gradient(135deg,${accentColor},${accentColor}dd)` : surface.surfaceAlt,
+          border: `2px solid ${isLatest ? accentColor : border}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: isLatest ? "0 0 0 4px rgba(13,148,136,0.15)" : "none",
+          boxShadow: isLatest ? `0 0 0 4px ${accentColor}20` : "none",
         }}>
           <span style={{ fontSize: 9, fontWeight: 900, color: isLatest ? "#fff" : muted }}>#{num}</span>
         </div>
         {/* Line */}
         {!isLast && (
-          <div style={{ flex: 1, width: 1, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", marginTop: 4, minHeight: 32 }} />
+          <div style={{ flex: 1, width: 1, background: border, marginTop: 4, minHeight: 32 }} />
         )}
       </div>
 
@@ -723,10 +729,9 @@ function TimelineCard({ assessment, index, total, isDark, isLast }: {
         <div
           style={{
             background: bg,
-            border: `1px solid ${isLatest ? "rgba(13,148,136,0.3)" : border}`,
-            borderRadius: 6,
+            border: `1px solid ${isLatest ? `${accentColor}40` : border}`,
+            borderRadius: 2,
             overflow: "hidden",
-            boxShadow: isDark ? "0 4px 20px rgba(0,0,0,0.3)" : "0 4px 20px rgba(0,0,0,0.05)",
             cursor: "pointer",
           }}
           onClick={() => setOpen(v => !v)}
@@ -738,10 +743,10 @@ function TimelineCard({ assessment, index, total, isDark, isLast }: {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13, fontWeight: 800, color: txt }}>{fmtDate(assessment.$createdAt)}</span>
                   {isLatest && (
-                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 7px", borderRadius: 3, background: "rgba(13,148,136,0.12)", color: "#0d9488" }}>Latest</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 7px", borderRadius: 2, background: accentFaint, color: accentColor }}>Latest</span>
                   )}
                   {assessment.isRetake && (
-                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 7px", borderRadius: 3, background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>Retake</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "2px 7px", borderRadius: 2, background: "rgba(139,92,246,0.1)", color: "#8b5cf6" }}>Retake</span>
                   )}
                 </div>
                 <p style={{ fontSize: 10, color: sub, marginTop: 3 }}>{timeAgo(assessment.$createdAt)}</p>
@@ -759,18 +764,18 @@ function TimelineCard({ assessment, index, total, isDark, isLast }: {
 
             {/* Risk pills row */}
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 4, background: `${dColor}10`, border: `1px solid ${dColor}25` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 2, background: `${dColor}10`, border: `1px solid ${dColor}25` }}>
                 <Droplet size={11} strokeWidth={1.8} style={{ color: dColor }} />
                 <span style={{ fontSize: 10, fontWeight: 700, color: dColor }}>Diabetes: {RISK_LABEL[assessment.diabetesLevel] ?? "Low"}</span>
                 <span style={{ fontSize: 9, color: muted }}>· {assessment.diabetesPct}</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 4, background: `${hColor}10`, border: `1px solid ${hColor}25` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 2, background: `${hColor}10`, border: `1px solid ${hColor}25` }}>
                 <Heart size={11} strokeWidth={1.8} style={{ color: hColor }} />
                 <span style={{ fontSize: 10, fontWeight: 700, color: hColor }}>BP: {RISK_LABEL[assessment.hypertensionLevel] ?? "Low"}</span>
                 <span style={{ fontSize: 9, color: muted }}>· {assessment.hypertensionPct}</span>
               </div>
               {assessment.profileBmi && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 4, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", border: `1px solid ${border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 2, background: surface.surfaceAlt, border: `1px solid ${border}` }}>
                   <Target size={11} strokeWidth={1.8} style={{ color: muted }} />
                   <span style={{ fontSize: 10, fontWeight: 700, color: muted }}>BMI: {capitalize(assessment.profileBmi)}</span>
                 </div>
@@ -829,7 +834,7 @@ function TimelineCard({ assessment, index, total, isDark, isLast }: {
 export default function HistoryPage() {
   const auth = useRequireAuth();
   const router = useRouter();
-  const { isDark } = useTheme();
+  const { isDark, surface, accentColor } = useTheme();
 
   const [assessments, setAssessments] = useState<StoredAssessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -838,11 +843,10 @@ export default function HistoryPage() {
   const [comparing, setComparing] = useState(false);
   const [tab, setTab] = useState<"timeline" | "analytics">("timeline");
 
-  const bg     = isDark ? "#060c18" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const txt    = isDark ? "#f0f4f8" : "#0f172a";
-  const muted  = isDark ? "#6b7a8d" : "#64748b";
-  const sub    = isDark ? "#3d4f63" : "#94a3b8";
+  const border = surface.border;
+  const txt    = surface.text;
+  const muted  = surface.muted;
+  const sub    = surface.subtle;
 
   const load = useCallback(async (uid: string) => {
     try {
@@ -890,12 +894,12 @@ export default function HistoryPage() {
         .tab-btn:hover { opacity: 0.8; }
       `}</style>
 
-      <div style={{ background: bg, minHeight: "100%" }}>
+      <div style={{ minHeight: "100%" }}>
 
         {/* ── PAGE HEADER ── */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
           <div>
-            <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", color: "#0d9488", marginBottom: 4 }}>
+            <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", color: accentColor, marginBottom: 4 }}>
               Assessment History
             </p>
             <h1 style={{ fontSize: "1.5rem", fontWeight: 900, color: txt, letterSpacing: "-0.03em", margin: 0 }}>
@@ -912,8 +916,8 @@ export default function HistoryPage() {
               <button
                 onClick={() => setComparing(v => !v)}
                 style={{
-                  display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 4,
-                  background: comparing ? "rgba(99,102,241,0.12)" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"),
+                  display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 2,
+                  background: comparing ? "rgba(99,102,241,0.12)" : surface.surfaceAlt,
                   border: `1px solid ${comparing ? "rgba(99,102,241,0.35)" : border}`,
                   color: comparing ? "#6366f1" : muted, fontSize: 12, fontWeight: 600, cursor: "pointer",
                 }}
@@ -924,8 +928,8 @@ export default function HistoryPage() {
             <button
               onClick={handleRefresh}
               style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 4,
-                background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+                display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 2,
+                background: surface.surfaceAlt,
                 border: `1px solid ${border}`, color: muted, fontSize: 12, fontWeight: 600, cursor: "pointer",
               }}
             >
@@ -935,9 +939,9 @@ export default function HistoryPage() {
             <button
               onClick={() => router.push("/dashboard/assessment")}
               style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 4,
-                background: "linear-gradient(135deg,#0d9488,#059669)",
-                boxShadow: "0 4px 14px rgba(13,148,136,0.3)",
+                display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 2,
+                background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`,
+                boxShadow: `0 4px 14px ${accentColor}40`,
                 color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", border: "none",
               }}
             >
@@ -948,7 +952,7 @@ export default function HistoryPage() {
 
         {/* ── ERROR ── */}
         {error && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", marginBottom: 16, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", marginBottom: 16, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 2 }}>
             <Info size={14} style={{ color: "#ef4444", flexShrink: 0 }} />
             <p style={{ fontSize: 12, color: "#ef4444", flex: 1 }}>{error}</p>
             <button onClick={handleRefresh} style={{ fontSize: 11, fontWeight: 700, color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}>Retry</button>
@@ -965,13 +969,13 @@ export default function HistoryPage() {
         {/* ── EMPTY STATE ── */}
         {!loading && assessments.length === 0 && (
           <Card style={{ padding: 48, textAlign: "center", margin: "40px auto", maxWidth: 420 }}>
-            <div style={{ width: 64, height: 64, borderRadius: 16, background: "rgba(13,148,136,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <Activity size={28} strokeWidth={1.3} style={{ color: "#0d9488" }} />
+            <div style={{ width: 64, height: 64, borderRadius: 2, background: `${accentColor}20`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <Activity size={28} strokeWidth={1.3} style={{ color: accentColor }} />
             </div>
             <p style={{ fontSize: 16, fontWeight: 900, color: txt, marginBottom: 8, letterSpacing: "-0.02em" }}>No history yet</p>
             <p style={{ fontSize: 13, color: muted, lineHeight: 1.6, marginBottom: 20 }}>Complete your first assessment and your health journey will appear here — with charts, trends, and insights.</p>
             <button onClick={() => router.push("/dashboard/assessment")}
-              style={{ padding: "10px 24px", borderRadius: 4, background: "linear-gradient(135deg,#0d9488,#059669)", color: "#fff", fontSize: 13, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 14px rgba(13,148,136,0.3)" }}>
+              style={{ padding: "10px 24px", borderRadius: 2, background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, color: "#fff", fontSize: 13, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: `0 4px 14px ${accentColor}40` }}>
               Take First Assessment
             </button>
           </Card>
@@ -984,15 +988,15 @@ export default function HistoryPage() {
             <StreakCard assessments={assessments} isDark={isDark} />
 
             {/* ── TAB STRIP ── */}
-            <div style={{ display: "flex", gap: 4, margin: "20px 0", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 6, padding: 4, width: "fit-content" }}>
+            <div style={{ display: "flex", gap: 4, margin: "20px 0", background: surface.surfaceAlt, borderRadius: 2, padding: 4, width: "fit-content" }}>
               {(["timeline", "analytics"] as const).map(t => (
                 <button
                   key={t}
                   className="tab-btn"
                   onClick={() => setTab(t)}
                   style={{
-                    padding: "7px 18px", borderRadius: 4, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none",
-                    background: tab === t ? (isDark ? "#0d9488" : "#0d9488") : "transparent",
+                    padding: "7px 18px", borderRadius: 2, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none",
+                    background: tab === t ? accentColor : "transparent",
                     color: tab === t ? "#fff" : muted,
                     textTransform: "capitalize",
                   }}
@@ -1019,7 +1023,7 @@ export default function HistoryPage() {
                     {assessments.length > 0 && (
                       <button
                         onClick={() => router.push("/dashboard/review")}
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#0d9488", background: "none", border: "none", cursor: "pointer" }}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: accentColor, background: "none", border: "none", cursor: "pointer" }}
                       >
                         Full report <ArrowRight size={11} strokeWidth={2.5} />
                       </button>
@@ -1053,7 +1057,7 @@ export default function HistoryPage() {
                     {latest ? (
                       <>
                         <RadarChart assessment={latest} isDark={isDark} />
-                        <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 4, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: `1px solid ${border}` }}>
+                        <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 2, background: surface.surfaceAlt, border: `1px solid ${border}` }}>
                           <p style={{ fontSize: 10, color: muted, lineHeight: 1.6, margin: 0 }}>
                             Radar shows relative risk across 5 health dimensions based on your latest assessment.
                           </p>
@@ -1068,7 +1072,7 @@ export default function HistoryPage() {
                   <Card style={{ padding: 20 }}>
                     <SLabel>Assessment Activity — Last 6 Months</SLabel>
                     <HeatmapCalendar assessments={assessments} isDark={isDark} />
-                    <div style={{ marginTop: 16, padding: "10px 12px", borderRadius: 4, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: `1px solid ${border}` }}>
+                    <div style={{ marginTop: 16, padding: "10px 12px", borderRadius: 2, background: surface.surfaceAlt, border: `1px solid ${border}` }}>
                       <p style={{ fontSize: 10, color: muted, lineHeight: 1.6, margin: 0 }}>
                         Each cell is a day. Darker green = more assessments that day. Hover a cell for the date.
                       </p>
@@ -1102,9 +1106,9 @@ export default function HistoryPage() {
                       const tColor = trend === "down" ? "#22c55e" : trend === "up" ? "#ef4444" : muted;
                       const tLabel = trend === "down" ? "Improving" : trend === "up" ? "Worsening" : assessments.length < 2 ? "Need more data" : "Stable";
                       return (
-                        <div key={label} style={{ padding: 16, borderRadius: 6, border: `1px solid ${border}`, background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)" }}>
+                        <div key={label} style={{ padding: 16, borderRadius: 2, border: `1px solid ${border}`, background: surface.surfaceAlt }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                            <div style={{ width: 28, height: 28, borderRadius: 4, background: `${color}12`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 2, background: `${color}12`, display: "flex", alignItems: "center", justifyContent: "center", color }}>
                               <Icon size={13} strokeWidth={1.8} />
                             </div>
                             <p style={{ fontSize: 11, fontWeight: 700, color: muted }}>{label}</p>
@@ -1156,7 +1160,7 @@ export default function HistoryPage() {
                         {assessments.map((a, i) => (
                           <tr key={a.$id}
                             style={{ borderBottom: `1px solid ${border}` }}
-                            onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)")}
+                            onMouseEnter={e => (e.currentTarget.style.background = surface.surfaceAlt)}
                             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                           >
                             <td style={{ padding: "10px", fontSize: 10, fontWeight: 900, color: sub }}>#{a.assessmentNumber ?? assessments.length - i}</td>
@@ -1190,7 +1194,7 @@ export default function HistoryPage() {
         {loading && (
           <div style={{ display: "grid", gap: 16 }}>
             {[280, 180, 120].map((h, i) => (
-              <div key={i} className="animate-pulse" style={{ height: h, borderRadius: 6, background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }} />
+              <div key={i} className="animate-pulse" style={{ height: h, borderRadius: 2, background: surface.surfaceAlt }} />
             ))}
           </div>
         )}
@@ -1200,6 +1204,7 @@ export default function HistoryPage() {
           History data is for personal tracking only — not a medical record or diagnosis.
         </p>
       </div>
+      <ThemeToggle />
     </DashboardLayout>
   );
 }

@@ -2,26 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Menu,
-  Sun,
-  Moon,
-  Bell,
-  ChevronRight,
-  LogOut,
-  User,
-  Settings,
-  Activity,
-  Zap,
-} from "lucide-react";
+import { Menu, Bell, ChevronRight, LogOut, User, Settings, Activity, Zap } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
 import { fetchUserXp, type UserXpRecord } from "@/services/AppwriteService";
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const XP_CONSULTATION_THRESHOLD = 300;
+const XP_THRESHOLD = 300;
 
-// ─── BREADCRUMB MAP ───────────────────────────────────────────────────────────
 const BREADCRUMB_MAP: Record<string, string> = {
   "/dashboard":               "Overview",
   "/dashboard/history":       "History",
@@ -31,46 +18,39 @@ const BREADCRUMB_MAP: Record<string, string> = {
   "/dashboard/notifications": "Notifications",
   "/dashboard/assessment":    "New Assessment",
   "/dashboard/review":        "Full Report",
+  "/dashboard/recommendations": "Recommendations",
 };
 
-function Breadcrumbs({ isDark }: { isDark: boolean }) {
+// ─── BREADCRUMBS ─────────────────────────────────────────────────────────────
+function Breadcrumbs() {
   const pathname = usePathname();
+  const { surface: S } = useTheme();
   const segments = pathname.split("/").filter(Boolean);
-  const mutedTxt = isDark ? "#4a5568" : "#94a3b8";
-  const activeTxt = isDark ? "#e2e8f0" : "#0f172a";
 
   if (segments.length <= 1) {
-    return (
-      <p className="text-[13px] font-semibold" style={{ color: activeTxt, letterSpacing: "-0.01em" }}>
-        {BREADCRUMB_MAP[pathname] || "Dashboard"}
-      </p>
-    );
+    return <p style={{ fontSize: 13, fontWeight: 600, color: S.text, letterSpacing: "-0.01em", margin: 0 }}>
+      {BREADCRUMB_MAP[pathname] || "Dashboard"}
+    </p>;
   }
 
   const crumbs: { label: string; href: string }[] = [];
   let path = "";
   for (const seg of segments) {
     path += `/${seg}`;
-    crumbs.push({
-      label: BREADCRUMB_MAP[path] || seg.charAt(0).toUpperCase() + seg.slice(1),
-      href: path,
-    });
+    crumbs.push({ label: BREADCRUMB_MAP[path] || seg.charAt(0).toUpperCase() + seg.slice(1), href: path });
   }
 
   return (
-    <div className="flex items-center gap-1">
-      {crumbs.map((crumb, i) => (
-        <React.Fragment key={crumb.href}>
-          {i > 0 && <ChevronRight size={12} style={{ color: mutedTxt }} strokeWidth={2} />}
-          <span
-            className="text-[12px]"
-            style={{
-              color: i === crumbs.length - 1 ? activeTxt : mutedTxt,
-              fontWeight: i === crumbs.length - 1 ? 600 : 400,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {crumb.label}
+    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {crumbs.map((c, i) => (
+        <React.Fragment key={c.href}>
+          {i > 0 && <ChevronRight size={11} strokeWidth={2} color={S.muted} />}
+          <span style={{
+            fontSize: 12, letterSpacing: "-0.01em",
+            color: i === crumbs.length - 1 ? S.text : S.muted,
+            fontWeight: i === crumbs.length - 1 ? 700 : 400,
+          }}>
+            {c.label}
           </span>
         </React.Fragment>
       ))}
@@ -78,168 +58,119 @@ function Breadcrumbs({ isDark }: { isDark: boolean }) {
   );
 }
 
-// ─── XP BADGE ─────────────────────────────────────────────────────────────────
-function XpBadge({ userId, isDark }: { userId: string; isDark: boolean }) {
-  const router = useRouter();
-  const [xpRecord, setXpRecord] = useState<UserXpRecord | null>(null);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement>(null);
+// ─── XP BADGE ────────────────────────────────────────────────────────────────
+function XpBadge({ userId }: { userId: string }) {
+  const { surface: S, accentColor, accentFaint, isDark } = useTheme();
+  const [xp, setXp] = useState<UserXpRecord | null>(null);
+  const [show, setShow] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => { fetchUserXp(userId).then(setXp).catch(() => {}); }, [userId]);
   useEffect(() => {
-    if (!userId) return;
-    fetchUserXp(userId).then(setXpRecord).catch(() => {});
-  }, [userId]);
+    if (!show) return;
+    const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setShow(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, [show]);
 
-  // Close tooltip on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node)) {
-        setShowTooltip(false);
-      }
-    };
-    if (showTooltip) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showTooltip]);
-
-  const totalXp   = xpRecord?.totalXp ?? 0;
-  const redeemed  = xpRecord?.redeemedXp ?? 0;
-  const available = totalXp - redeemed;
-  const pct       = Math.min((available / XP_CONSULTATION_THRESHOLD) * 100, 100);
-  const unlocked  = available >= XP_CONSULTATION_THRESHOLD;
-
-  const border  = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
-  const popBg   = isDark ? "#111827" : "#ffffff";
-  const txt     = isDark ? "#e2e8f0" : "#0f172a";
-  const muted   = isDark ? "#4a5568" : "#94a3b8";
-  const trackBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const total     = xp?.totalXp ?? 0;
+  const redeemed  = xp?.redeemedXp ?? 0;
+  const available = total - redeemed;
+  const pct       = Math.min((available / XP_THRESHOLD) * 100, 100);
+  const unlocked  = available >= XP_THRESHOLD;
 
   return (
-    <div ref={tooltipRef} className="relative">
+    <div ref={ref} style={{ position: "relative" }}>
       <button
-        onClick={() => setShowTooltip(v => !v)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-150 hover:opacity-90"
+        onClick={() => setShow(v => !v)}
         style={{
-          background: unlocked
-            ? "linear-gradient(135deg,rgba(13,148,136,0.18),rgba(5,150,105,0.18))"
-            : isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-          border: `1px solid ${unlocked ? "rgba(13,148,136,0.4)" : border}`,
-          borderRadius: 6,
+          display: "flex", alignItems: "center", gap: 6, padding: "6px 10px",
+          background: unlocked ? accentFaint : S.surfaceAlt,
+          border: `1px solid ${unlocked ? accentColor + "50" : S.border}`,
+          cursor: "pointer", transition: "all 0.15s",
         }}
         title="Your XP balance"
       >
-        <Zap
-          size={12}
-          strokeWidth={2.2}
-          style={{ color: unlocked ? "#0d9488" : isDark ? "#4a5568" : "#94a3b8" }}
-          fill={unlocked ? "#0d9488" : "none"}
+        <Zap size={12} strokeWidth={2.2}
+          color={unlocked ? accentColor : S.muted}
+          fill={unlocked ? accentColor : "none"}
         />
-        <span
-          className="text-[11px] font-bold tabular-nums"
-          style={{ color: unlocked ? "#0d9488" : isDark ? "#6b7a8d" : "#64748b" }}
-        >
+        <span style={{ fontSize: 11, fontWeight: 700, color: unlocked ? accentColor : S.muted }}>
           {available.toLocaleString()} XP
         </span>
       </button>
 
-      {showTooltip && (
-        <div
-          className="absolute right-0 top-full mt-1.5 z-50 p-3"
-          style={{
-            background: popBg,
-            border: `1px solid ${border}`,
-            borderRadius: 8,
-            boxShadow: isDark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 32px rgba(0,0,0,0.12)",
-            minWidth: 220,
-            animation: "dropdownIn 0.12s ease",
-          }}
-        >
+      {show && (
+        <div style={{
+          position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 50,
+          background: S.surface, border: `1px solid ${S.border}`,
+          boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.55)" : "0 12px 40px rgba(0,0,0,0.14)",
+          minWidth: 224, padding: 14,
+          animation: "dropIn 0.12s ease",
+        }}>
           {/* Header */}
-          <div className="flex items-center gap-2 mb-3">
-            <div
-              className="w-6 h-6 flex items-center justify-center"
-              style={{ background: "rgba(13,148,136,0.12)", borderRadius: 4 }}
-            >
-              <Zap size={12} strokeWidth={2} style={{ color: "#0d9488" }} fill="#0d9488" />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 26, height: 26, background: accentFaint, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Zap size={13} strokeWidth={2} color={accentColor} fill={accentColor} />
             </div>
             <div>
-              <p className="text-[12px] font-bold" style={{ color: txt }}>Health XP</p>
-              <p className="text-[10px]" style={{ color: muted }}>Earned from assessments</p>
+              <p style={{ fontSize: 12, fontWeight: 700, color: S.text, margin: 0 }}>Health XP</p>
+              <p style={{ fontSize: 10, color: S.muted, margin: 0 }}>Earned from assessments</p>
             </div>
           </div>
 
-          {/* XP numbers */}
-          <div
-            className="flex justify-between items-center px-3 py-2 mb-3"
-            style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 6 }}
-          >
-            <div className="text-center">
-              <p className="text-[18px] font-black leading-none" style={{ color: "#0d9488" }}>
-                {available.toLocaleString()}
-              </p>
-              <p className="text-[9px] font-bold uppercase tracking-wide mt-0.5" style={{ color: muted }}>
-                Available
-              </p>
-            </div>
-            <div className="w-px h-8" style={{ background: border }} />
-            <div className="text-center">
-              <p className="text-[18px] font-black leading-none" style={{ color: txt }}>
-                {totalXp.toLocaleString()}
-              </p>
-              <p className="text-[9px] font-bold uppercase tracking-wide mt-0.5" style={{ color: muted }}>
-                Total Earned
-              </p>
-            </div>
-            <div className="w-px h-8" style={{ background: border }} />
-            <div className="text-center">
-              <p className="text-[18px] font-black leading-none" style={{ color: muted }}>
-                {redeemed.toLocaleString()}
-              </p>
-              <p className="text-[9px] font-bold uppercase tracking-wide mt-0.5" style={{ color: muted }}>
-                Redeemed
-              </p>
-            </div>
+          {/* Numbers */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1px 1fr 1px 1fr", gap: 0,
+            background: S.surfaceAlt, padding: "10px 12px", marginBottom: 12,
+          }}>
+            {[
+              { val: available, lbl: "Available", color: accentColor },
+              { val: total,     lbl: "Total",     color: S.text },
+              { val: redeemed,  lbl: "Redeemed",  color: S.muted },
+            ].map((item, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <div style={{ width: 1, background: S.border, margin: "0 4px" }} />}
+                <div style={{ textAlign: "center", padding: "0 4px" }}>
+                  <p style={{ fontSize: 18, fontWeight: 900, color: item.color, margin: 0, letterSpacing: "-0.04em" }}>
+                    {item.val.toLocaleString()}
+                  </p>
+                  <p style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: S.muted, margin: 0, marginTop: 2 }}>
+                    {item.lbl}
+                  </p>
+                </div>
+              </React.Fragment>
+            ))}
           </div>
 
-          {/* Progress bar toward consultation */}
-          <div className="mb-2">
-            <div className="flex justify-between items-center mb-1.5">
-              <p className="text-[10px] font-semibold" style={{ color: muted }}>
-                Free Consultation
-              </p>
-              <p className="text-[10px] font-bold" style={{ color: unlocked ? "#0d9488" : txt }}>
-                {available} / {XP_CONSULTATION_THRESHOLD} XP
+          {/* Progress */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+              <p style={{ fontSize: 10, color: S.muted, margin: 0 }}>Free Consultation</p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: unlocked ? accentColor : S.text, margin: 0 }}>
+                {available} / {XP_THRESHOLD} XP
               </p>
             </div>
-            <div
-              className="w-full h-1.5 overflow-hidden"
-              style={{ background: trackBg, borderRadius: 99 }}
-            >
-              <div
-                className="h-full transition-all duration-700"
-                style={{
-                  width: `${pct}%`,
-                  background: unlocked
-                    ? "linear-gradient(90deg,#0d9488,#059669)"
-                    : "linear-gradient(90deg,#6366f1,#8b5cf6)",
-                  borderRadius: 99,
-                }}
-              />
+            <div style={{ height: 5, background: S.surfaceAlt, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", width: `${pct}%`,
+                background: unlocked
+                  ? `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`
+                  : "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                transition: "width 0.7s ease",
+              }} />
             </div>
           </div>
 
           {unlocked ? (
-            <div
-              className="flex items-center gap-2 px-3 py-2 mt-2"
-              style={{ background: "rgba(13,148,136,0.1)", border: "1px solid rgba(13,148,136,0.25)", borderRadius: 6 }}
-            >
-              <span className="text-[11px]">🎉</span>
-              <p className="text-[11px] font-semibold" style={{ color: "#0d9488" }}>
-                You&apos;ve unlocked a free consultation!
+            <div style={{ padding: "8px 10px", background: accentFaint, border: `1px solid ${accentColor}30` }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: accentColor, margin: 0 }}>
+                🎉 You&apos;ve unlocked a free consultation!
               </p>
             </div>
           ) : (
-            <p className="text-[10.5px] leading-relaxed" style={{ color: muted }}>
-              Earn <strong style={{ color: txt }}>{XP_CONSULTATION_THRESHOLD - available} more XP</strong> by completing assessments to unlock a free doctor consultation.
+            <p style={{ fontSize: 11, color: S.muted, lineHeight: 1.5, margin: 0 }}>
+              Earn <strong style={{ color: S.text }}>{XP_THRESHOLD - available} more XP</strong> to unlock a free doctor consultation.
             </p>
           )}
         </div>
@@ -248,116 +179,95 @@ function XpBadge({ userId, isDark }: { userId: string; isDark: boolean }) {
   );
 }
 
-// ─── USER DROPDOWN ────────────────────────────────────────────────────────────
-function UserDropdown({ isDark }: { isDark: boolean }) {
+// ─── USER DROPDOWN ───────────────────────────────────────────────────────────
+function UserDropdown() {
+  const { surface: S, accentColor, isDark } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    if (!open) return;
+    const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
   }, [open]);
 
-  const bg     = isDark ? "#111827" : "#ffffff";
-  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
-  const hover  = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
-  const txt    = isDark ? "#e2e8f0" : "#0f172a";
-  const muted  = isDark ? "#4a5568" : "#94a3b8";
-
-  const menuItems = [
-    { icon: User,     label: "My Profile",      action: () => router.push("/dashboard/profile") },
-    { icon: Activity, label: "New Assessment",  action: () => router.push("/dashboard/assessment") },
-    { icon: Settings, label: "Settings",        action: () => router.push("/dashboard/settings") },
+  const items = [
+    { icon: User,     label: "My Profile",     action: () => router.push("/dashboard/profile") },
+    { icon: Activity, label: "New Assessment", action: () => router.push("/dashboard/assessment") },
+    { icon: Settings, label: "Settings",       action: () => router.push("/dashboard/settings") },
   ];
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 px-2 py-1.5 rounded transition-colors duration-150 group"
         style={{
-          background: open ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)") : "transparent",
-          border: `1px solid ${open ? border : "transparent"}`,
+          display: "flex", alignItems: "center", gap: 8, padding: "5px 8px",
+          background: open ? S.surfaceAlt : "transparent",
+          border: `1px solid ${open ? S.border : "transparent"}`,
+          cursor: "pointer", transition: "all 0.14s",
         }}
       >
-        {/* Avatar */}
-        <div
-          className="flex items-center justify-center text-[11px] font-bold shrink-0"
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 5,
-            background: "linear-gradient(135deg,#0d9488,#059669)",
-            color: "#fff",
-          }}
-        >
+        <div style={{
+          width: 26, height: 26, flexShrink: 0,
+          background: `linear-gradient(135deg, ${accentColor}, ${accentColor}bb)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 900, color: "#fff",
+        }}>
           {user?.name?.charAt(0).toUpperCase() || "U"}
         </div>
-        <div className="hidden sm:block text-left">
-          <p className="text-[12px] font-semibold leading-tight" style={{ color: txt }}>
-            {user?.name?.split(" ")[0] || "User"}
-          </p>
-        </div>
+        <span className="hidden sm:block" style={{ fontSize: 12, fontWeight: 600, color: S.text }}>
+          {user?.name?.split(" ")[0] || "User"}
+        </span>
       </button>
 
       {open && (
-        <div
-          className="absolute right-0 top-full mt-1.5 z-50 py-1.5 min-w-[180px]"
-          style={{
-            background: bg,
-            border: `1px solid ${border}`,
-            borderRadius: 6,
-            boxShadow: isDark
-              ? "0 8px 32px rgba(0,0,0,0.5)"
-              : "0 8px 32px rgba(0,0,0,0.12)",
-            animation: "dropdownIn 0.12s ease",
-          }}
-        >
-          {/* User info header */}
-          <div
-            className="px-3 py-2 mb-1"
-            style={{ borderBottom: `1px solid ${border}` }}
-          >
-            <p className="text-[12px] font-semibold" style={{ color: txt }}>{user?.name}</p>
-            <p className="text-[11px]" style={{ color: muted }}>{user?.email}</p>
+        <div style={{
+          position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50,
+          background: S.surface, border: `1px solid ${S.border}`,
+          boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.55)" : "0 12px 40px rgba(0,0,0,0.14)",
+          minWidth: 180, paddingTop: 6, paddingBottom: 6,
+          animation: "dropIn 0.12s ease",
+        }}>
+          <div style={{ padding: "8px 12px 8px", borderBottom: `1px solid ${S.border}`, marginBottom: 4 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: S.text, margin: 0 }}>{user?.name}</p>
+            <p style={{ fontSize: 11, color: S.muted, margin: 0 }}>{user?.email}</p>
           </div>
 
-          {menuItems.map(item => (
-            <button
-              key={item.label}
-              onClick={() => { item.action(); setOpen(false); }}
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors duration-100"
-              style={{ background: "transparent", color: isDark ? "#8b9cb5" : "#374151" }}
-              onMouseEnter={e => (e.currentTarget.style.background = hover)}
-              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          {items.map(item => (
+            <button key={item.label} onClick={() => { item.action(); setOpen(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", padding: "8px 12px",
+                background: "none", border: "none",
+                color: S.muted, fontSize: 12, cursor: "pointer",
+                transition: "all 0.1s",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; (e.currentTarget as HTMLElement).style.color = S.text; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; (e.currentTarget as HTMLElement).style.color = S.muted; }}
             >
               <item.icon size={13} strokeWidth={1.8} />
-              <span className="text-[12px]">{item.label}</span>
+              {item.label}
             </button>
           ))}
 
-          <div className="my-1" style={{ borderTop: `1px solid ${border}` }} />
+          <div style={{ borderTop: `1px solid ${S.border}`, margin: "4px 0" }} />
 
-          <button
-            onClick={() => { logout(); setOpen(false); }}
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors duration-100 group"
-            style={{ background: "transparent", color: isDark ? "#4a5568" : "#94a3b8" }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = "rgba(239,68,68,0.07)";
-              e.currentTarget.style.color = "#ef4444";
+          <button onClick={() => { logout(); setOpen(false); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              width: "100%", padding: "8px 12px",
+              background: "none", border: "none",
+              color: S.muted, fontSize: 12, cursor: "pointer", transition: "all 0.1s",
             }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = isDark ? "#4a5568" : "#94a3b8";
-            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.07)"; (e.currentTarget as HTMLElement).style.color = "#ef4444"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; (e.currentTarget as HTMLElement).style.color = S.muted; }}
           >
             <LogOut size={13} strokeWidth={1.8} />
-            <span className="text-[12px]">Sign out</span>
+            Sign out
           </button>
         </div>
       )}
@@ -365,106 +275,68 @@ function UserDropdown({ isDark }: { isDark: boolean }) {
   );
 }
 
-// ─── HEADER COMPONENT ─────────────────────────────────────────────────────────
-interface HeaderProps {
-  onMobileMenuOpen: () => void;
-}
-
-export default function DashboardHeader({ onMobileMenuOpen }: HeaderProps) {
-  const { isDark, toggleTheme } = useTheme();
+// ─── HEADER ──────────────────────────────────────────────────────────────────
+export default function DashboardHeader({ onMobileMenuOpen }: { onMobileMenuOpen: () => void }) {
+  const { surface: S, isDark, accentColor, toggleTheme } = useTheme();
   const { user } = useAuth();
 
-  const bg      = isDark ? "#0b0f1a" : "#ffffff";
-  const border  = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)";
-  const iconClr = isDark ? "#6b7a8d" : "#64748b";
-
+  // Remove theme toggle button from header — ThemeToggle panel handles it
+  // But keep a small icon for mobile convenience
   return (
     <>
-      <header
-        className="flex items-center justify-between px-4 shrink-0 z-30"
-        style={{
-          height: 56,
-          background: bg,
-          borderBottom: `1px solid ${border}`,
-        }}
-      >
-        {/* Left: Hamburger (mobile) + Breadcrumb */}
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Mobile hamburger */}
+      <header style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 16px", height: 56, flexShrink: 0, zIndex: 30,
+        background: S.surface, borderBottom: `1px solid ${S.border}`,
+      }}>
+        {/* Left */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <button
             onClick={onMobileMenuOpen}
-            className="lg:hidden flex items-center justify-center w-7 h-7 rounded transition-colors duration-150"
+            className="lg:hidden"
             style={{
-              background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-              color: iconClr,
+              width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+              background: S.surfaceAlt, border: `1px solid ${S.border}`,
+              color: S.muted, cursor: "pointer",
             }}
           >
-            <Menu size={15} strokeWidth={2} />
+            <Menu size={14} strokeWidth={2} />
           </button>
-
-          {/* Breadcrumb */}
-          <Breadcrumbs isDark={isDark} />
+          <Breadcrumbs />
         </div>
 
-        {/* Right: actions */}
-        <div className="flex items-center gap-1.5">
-          {/* XP Badge */}
-          {user?.id && <XpBadge userId={user.id} isDark={isDark} />}
+        {/* Right */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {user?.id && <XpBadge userId={user.id} />}
 
-          {/* Divider */}
-          <div
-            className="w-px h-5 mx-0.5"
-            style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
-          />
-
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="flex items-center justify-center w-7 h-7 rounded transition-all duration-150 hover:scale-105"
-            style={{
-              background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-              color: iconClr,
-            }}
-            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {isDark
-              ? <Sun size={13} strokeWidth={2} />
-              : <Moon size={13} strokeWidth={2} />
-            }
-          </button>
+          <div style={{ width: 1, height: 20, background: S.border, margin: "0 2px" }} />
 
           {/* Notifications */}
-          <button
-            className="relative flex items-center justify-center w-7 h-7 rounded transition-all duration-150 hover:scale-105"
-            style={{
-              background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
-              color: iconClr,
-            }}
-            title="Notifications"
+          <button style={{
+            position: "relative", width: 30, height: 30,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: S.surfaceAlt, border: `1px solid ${S.border}`,
+            color: S.muted, cursor: "pointer", transition: "all 0.14s",
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = accentColor; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = S.muted; }}
           >
             <Bell size={13} strokeWidth={2} />
-            {/* Unread dot */}
-            <span
-              className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
-              style={{ background: "#0d9488" }}
-            />
+            <span style={{
+              position: "absolute", top: 5, right: 5, width: 6, height: 6,
+              background: accentColor, borderRadius: "50%",
+            }} />
           </button>
 
-          {/* Divider */}
-          <div
-            className="w-px h-5 mx-1"
-            style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }}
-          />
+          <div style={{ width: 1, height: 20, background: S.border, margin: "0 2px" }} />
 
-          {/* User dropdown */}
-          <UserDropdown isDark={isDark} />
+          <UserDropdown />
         </div>
       </header>
 
-      {/* CSS Animations */}
-      <style jsx global>{`
-        @keyframes dropdownIn {
-          from { transform: translateY(-4px); opacity: 0; }
+      <style>{`
+        @keyframes dropIn {
+          from { transform: translateY(-5px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
         }
       `}</style>

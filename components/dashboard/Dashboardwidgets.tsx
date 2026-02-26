@@ -4,24 +4,30 @@ import React from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
 
-// ─── SHARED TOKEN HELPER ──────────────────────────────────────────────────────
+// ─── TOKENS ──────────────────────────────────────────────────────────────────
+// Pull directly from the ThemeContext surface object so all widgets
+// respond instantly to any theme/accent/variant change.
+
 export function useTokens() {
-  const { isDark } = useTheme();
+  const { isDark, surface: S, accentColor, accentFaint } = useTheme();
   return {
     isDark,
-    bg:      isDark ? "#0b0f1a" : "#ffffff",
-    pageBg:  isDark ? "#080c16" : "#f1f5f9",
-    border:  isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
-    textH:   isDark ? "#f0f4f8"  : "#0f172a",
-    textM:   isDark ? "#6b7a8d"  : "#64748b",
-    textS:   isDark ? "#3d4f63"  : "#94a3b8",
-    accent:  "#0d9488",
-    accentFaint: isDark ? "rgba(13,148,136,0.12)" : "rgba(13,148,136,0.08)",
+    // Surface layers
+    bg:         S.surface,
+    pageBg:     S.bg,
+    surfaceAlt: S.surfaceAlt,
+    // Borders / text
+    border:     S.border,
+    textH:      S.text,
+    textM:      S.muted,
+    textS:      S.subtle,
+    // Accent (live — changes with user's accent pick)
+    accent:     accentColor,
+    accentFaint,
   };
 }
 
 // ─── STAT CARD ────────────────────────────────────────────────────────────────
-// Used for: "Last assessment", "Risk level", "Assessments taken", etc.
 interface StatCardProps {
   label: string;
   value: string | number;
@@ -30,143 +36,85 @@ interface StatCardProps {
   trend?: "up" | "down" | "flat";
   trendLabel?: string;
   accentColor?: string;
-  /** Make card span 2 columns on the grid */
   wide?: boolean;
 }
 
-export function StatCard({
-  label,
-  value,
-  sub,
-  icon,
-  trend,
-  trendLabel,
-  accentColor = "#0d9488",
-  wide,
-}: StatCardProps) {
-  const { isDark, bg, border, textH, textM, textS } = useTokens();
+export function StatCard({ label, value, sub, icon, trend, trendLabel, accentColor: propAccent, wide }: StatCardProps) {
+  const { isDark, bg, border, textH, textM, textS, accent } = useTokens();
+  const col = propAccent ?? accent;
 
-  const trendColor =
-    trend === "up" ? "#ef4444" :
-    trend === "down" ? "#22c55e" :
-    textS;
-
-  const TrendIcon =
-    trend === "up" ? TrendingUp :
-    trend === "down" ? TrendingDown :
-    Minus;
+  const trendColor = trend === "up" ? "#ef4444" : trend === "down" ? "#22c55e" : textS;
+  const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
 
   return (
     <div
-      className={`flex flex-col gap-3 p-5 transition-all duration-200 ${wide ? "col-span-2" : ""}`}
       style={{
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 4,
-        boxShadow: isDark
-          ? "0 2px 12px rgba(0,0,0,0.25)"
-          : "0 2px 12px rgba(0,0,0,0.04)",
+        display: "flex", flexDirection: "column", gap: 12,
+        padding: 20, gridColumn: wide ? "span 2" : undefined,
+        background: bg, border: `1px solid ${border}`,
+        boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.28)" : "0 2px 12px rgba(0,0,0,0.04)",
+        transition: "box-shadow 0.2s ease",
       }}
     >
-      {/* Top row: label + icon */}
-      <div className="flex items-center justify-between">
-        <p
-          className="text-[11px] font-bold uppercase tracking-[0.14em]"
-          style={{ color: textM }}
-        >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em", color: textM, margin: 0 }}>
           {label}
         </p>
         {icon && (
-          <div
-            className="flex items-center justify-center w-7 h-7"
-            style={{
-              borderRadius: 4,
-              background: `${accentColor}18`,
-              color: accentColor,
-            }}
-          >
+          <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: `${col}18`, color: col }}>
             {icon}
           </div>
         )}
       </div>
 
-      {/* Value */}
       <div>
-        <p
-          className="text-[1.7rem] font-black leading-none tracking-tight"
-          style={{ color: textH, letterSpacing: "-0.03em" }}
-        >
+        <p style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.04em", color: textH, margin: 0, lineHeight: 1 }}>
           {value}
         </p>
-        {sub && (
-          <p className="mt-1 text-[11px]" style={{ color: textM }}>
-            {sub}
-          </p>
-        )}
+        {sub && <p style={{ fontSize: 11, color: textM, margin: "4px 0 0" }}>{sub}</p>}
       </div>
 
-      {/* Trend */}
       {trend && trendLabel && (
-        <div className="flex items-center gap-1.5 pt-1" style={{ borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}` }}>
-          <TrendIcon size={12} strokeWidth={2} style={{ color: trendColor }} />
-          <p className="text-[11px]" style={{ color: trendColor }}>{trendLabel}</p>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6, paddingTop: 8,
+          borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}`,
+        }}>
+          <TrendIcon size={12} strokeWidth={2} color={trendColor} />
+          <p style={{ fontSize: 11, color: trendColor, margin: 0 }}>{trendLabel}</p>
         </div>
       )}
     </div>
   );
 }
 
-// ─── SECTION HEADER ───────────────────────────────────────────────────────────
-interface SectionHeaderProps {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-}
-
-export function SectionHeader({ title, subtitle, action }: SectionHeaderProps) {
-  const { textH, textM, isDark, border } = useTokens();
+// ─── SECTION HEADER ──────────────────────────────────────────────────────────
+export function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
+  const { textH, textM, border } = useTokens();
   return (
-    <div
-      className="flex items-start justify-between pb-4 mb-5"
-      style={{ borderBottom: `1px solid ${border}` }}
-    >
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingBottom: 16, marginBottom: 20, borderBottom: `1px solid ${border}` }}>
       <div>
-        <h2
-          className="text-[15px] font-bold tracking-tight"
-          style={{ color: textH, letterSpacing: "-0.02em" }}
-        >
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="mt-0.5 text-[12px]" style={{ color: textM }}>
-            {subtitle}
-          </p>
-        )}
+        <h2 style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em", color: textH, margin: 0 }}>{title}</h2>
+        {subtitle && <p style={{ fontSize: 12, color: textM, margin: "3px 0 0" }}>{subtitle}</p>}
       </div>
       {action && <div>{action}</div>}
     </div>
   );
 }
 
-// ─── CARD WRAPPER ─────────────────────────────────────────────────────────────
+// ─── CARD WRAPPER ────────────────────────────────────────────────────────────
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const { bg, border, isDark } = useTokens();
   return (
-    <div
-      className={`p-5 ${className}`}
-      style={{
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 4,
-        boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.2)" : "0 2px 12px rgba(0,0,0,0.04)",
-      }}
-    >
+    <div style={{
+      padding: 20, background: bg, border: `1px solid ${border}`,
+      boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.22)" : "0 2px 12px rgba(0,0,0,0.04)",
+    }} className={className}>
       {children}
     </div>
   );
 }
 
-// ─── RISK BADGE ───────────────────────────────────────────────────────────────
+// ─── RISK BADGE ──────────────────────────────────────────────────────────────
 const RISK_COLOURS: Record<string, { bg: string; text: string; dot: string }> = {
   "low":               { bg: "rgba(34,197,94,.1)",   text: "#16a34a", dot: "#22c55e" },
   "slightly-elevated": { bg: "rgba(234,179,8,.1)",   text: "#b45309", dot: "#eab308" },
@@ -176,63 +124,48 @@ const RISK_COLOURS: Record<string, { bg: string; text: string; dot: string }> = 
 };
 
 export function RiskBadge({ level }: { level: string }) {
-  const colours = RISK_COLOURS[level] ?? RISK_COLOURS["low"];
+  const c = RISK_COLOURS[level] ?? RISK_COLOURS["low"];
   const label = level.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold"
-      style={{ background: colours.bg, color: colours.text, borderRadius: 3 }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: colours.dot }} />
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 8px", background: c.bg, color: c.text, fontSize: 11, fontWeight: 700 }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.dot }} />
       {label}
     </span>
   );
 }
 
-// ─── LOADING SKELETON ─────────────────────────────────────────────────────────
-function SkeletonBlock({ w = "100%", h = 16, className = "" }: { w?: string | number; h?: number; className?: string }) {
+// ─── SKELETON ────────────────────────────────────────────────────────────────
+function Skel({ w = "100%", h = 16 }: { w?: string | number; h?: number }) {
   const { isDark } = useTheme();
   return (
-    <div
-      className={`animate-pulse ${className}`}
-      style={{
-        width: w,
-        height: h,
-        borderRadius: 3,
-        background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-      }}
-    />
+    <div className="animate-pulse" style={{
+      width: w, height: h,
+      background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
+    }} />
   );
 }
 
 export function StatCardSkeleton() {
-  const { bg, border, isDark } = useTokens();
+  const { bg, border } = useTokens();
   return (
-    <div
-      className="flex flex-col gap-4 p-5"
-      style={{
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 4,
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <SkeletonBlock w={80} h={11} />
-        <SkeletonBlock w={28} h={28} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 20, background: bg, border: `1px solid ${border}` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Skel w={80} h={11} />
+        <Skel w={28} h={28} />
       </div>
-      <SkeletonBlock w={100} h={36} />
-      <SkeletonBlock w={120} h={11} />
+      <Skel w={100} h={36} />
+      <Skel w={120} h={11} />
     </div>
   );
 }
 
 export function TableRowSkeleton({ cols = 4 }: { cols?: number }) {
-  const { isDark, border } = useTokens();
+  const { border } = useTokens();
   return (
     <tr style={{ borderBottom: `1px solid ${border}` }}>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <SkeletonBlock w={i === 0 ? 120 : 70} h={13} />
+        <td key={i} style={{ padding: "10px 14px" }}>
+          <Skel w={i === 0 ? 120 : 70} h={13} />
         </td>
       ))}
     </tr>
@@ -240,65 +173,41 @@ export function TableRowSkeleton({ cols = 4 }: { cols?: number }) {
 }
 
 // ─── EMPTY STATE ─────────────────────────────────────────────────────────────
-interface EmptyStateProps {
-  icon?: React.ReactNode;
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-}
-
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
-  const { textH, textM, isDark } = useTokens();
+export function EmptyState({ icon, title, description, action }: {
+  icon?: React.ReactNode; title: string; description?: string; action?: React.ReactNode;
+}) {
+  const { textH, textM, surfaceAlt, isDark } = useTokens();
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 24px", textAlign: "center" }}>
       {icon && (
-        <div
-          className="flex items-center justify-center w-12 h-12 mb-4"
-          style={{
-            background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-            borderRadius: 8,
-            color: isDark ? "#3d4f63" : "#94a3b8",
-          }}
-        >
+        <div style={{ width: 44, height: 44, background: surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, color: isDark ? "#3d4f63" : "#94a3b8" }}>
           {icon}
         </div>
       )}
-      <p className="text-[14px] font-semibold mb-1" style={{ color: textH }}>{title}</p>
-      {description && (
-        <p className="text-[12px] max-w-[28ch] leading-relaxed" style={{ color: textM }}>{description}</p>
-      )}
-      {action && <div className="mt-5">{action}</div>}
+      <p style={{ fontSize: 14, fontWeight: 700, color: textH, margin: "0 0 6px" }}>{title}</p>
+      {description && <p style={{ fontSize: 12, color: textM, margin: 0, maxWidth: "28ch", lineHeight: 1.5 }}>{description}</p>}
+      {action && <div style={{ marginTop: 20 }}>{action}</div>}
     </div>
   );
 }
 
 // ─── ALERT BANNER ────────────────────────────────────────────────────────────
-interface AlertBannerProps {
-  type?: "warning" | "info" | "danger";
-  message: string;
-  onDismiss?: () => void;
-}
-
-export function AlertBanner({ type = "info", message, onDismiss }: AlertBannerProps) {
+export function AlertBanner({ type = "info", message, onDismiss }: {
+  type?: "warning" | "info" | "danger"; message: string; onDismiss?: () => void;
+}) {
+  const { accent } = useTokens();
   const colours = {
     warning: { bg: "rgba(234,179,8,.08)",  border: "rgba(234,179,8,.25)",  text: "#b45309", icon: "#eab308" },
     danger:  { bg: "rgba(239,68,68,.08)",  border: "rgba(239,68,68,.25)",  text: "#b91c1c", icon: "#ef4444" },
-    info:    { bg: "rgba(13,148,136,.08)", border: "rgba(13,148,136,.25)", text: "#0d9488", icon: "#0d9488" },
+    info:    { bg: `${accent}0d`,          border: `${accent}28`,          text: accent,    icon: accent },
   };
   const c = colours[type];
   return (
-    <div
-      className="flex items-start gap-3 px-4 py-3 mb-5"
-      style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 4 }}
-    >
-      <AlertTriangle size={14} strokeWidth={2} style={{ color: c.icon, marginTop: 1 }} />
-      <p className="flex-1 text-[12.5px] leading-relaxed" style={{ color: c.text }}>{message}</p>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "11px 14px", marginBottom: 20, background: c.bg, border: `1px solid ${c.border}` }}>
+      <AlertTriangle size={14} strokeWidth={2} color={c.icon} style={{ marginTop: 1, flexShrink: 0 }} />
+      <p style={{ flex: 1, fontSize: 12.5, lineHeight: 1.5, color: c.text, margin: 0 }}>{message}</p>
       {onDismiss && (
-        <button
-          onClick={onDismiss}
-          className="text-[11px] font-semibold transition-opacity hover:opacity-70"
-          style={{ color: c.text }}
-        >
+        <button onClick={onDismiss} style={{ fontSize: 11, fontWeight: 700, color: c.text, background: "none", border: "none", cursor: "pointer" }}>
           Dismiss
         </button>
       )}
@@ -306,59 +215,42 @@ export function AlertBanner({ type = "info", message, onDismiss }: AlertBannerPr
   );
 }
 
-// ─── PRIMARY BUTTON ───────────────────────────────────────────────────────────
-interface PrimaryButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+// ─── DASH BUTTON ─────────────────────────────────────────────────────────────
+interface DashButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   size?: "sm" | "md";
   variant?: "primary" | "ghost" | "danger";
   icon?: React.ReactNode;
 }
 
-export function DashButton({
-  children,
-  size = "md",
-  variant = "primary",
-  icon,
-  ...props
-}: PrimaryButtonProps) {
-  const { isDark, border } = useTokens();
+export function DashButton({ children, size = "md", variant = "primary", icon, ...props }: DashButtonProps) {
+  const { isDark, border, accent, accentFaint } = useTokens();
 
   const styles = {
-    primary: {
-      background: "linear-gradient(135deg,#0d9488,#059669)",
-      color: "#fff",
-      boxShadow: "0 2px 10px rgba(13,148,136,.28)",
-      borderColor: "transparent",
-    },
-    ghost: {
-      background: "transparent",
-      color: isDark ? "#8b9cb5" : "#374151",
-      boxShadow: "none",
-      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
-    },
-    danger: {
-      background: "rgba(239,68,68,.1)",
-      color: "#ef4444",
-      boxShadow: "none",
-      borderColor: "rgba(239,68,68,.2)",
-    },
+    primary: { background: accent,                   color: "#fff",    boxShadow: `0 2px 10px ${accent}40`, borderColor: "transparent" },
+    ghost:   { background: "transparent",            color: isDark ? "#8b9cb5" : "#374151", boxShadow: "none", borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)" },
+    danger:  { background: "rgba(239,68,68,.1)",     color: "#ef4444", boxShadow: "none",   borderColor: "rgba(239,68,68,.2)" },
   };
 
   const s = styles[variant];
-  const pad = size === "sm" ? "px-3 py-1.5 text-[11px]" : "px-4 py-2 text-[12px]";
+  const pad = size === "sm" ? "6px 12px" : "8px 16px";
+  const fontSize = size === "sm" ? 11 : 12;
 
   return (
     <button
       {...props}
-      className={`inline-flex items-center gap-1.5 font-semibold transition-all duration-150 active:scale-95 disabled:opacity-40 ${pad}`}
       style={{
-        ...s,
-        border: `1px solid ${s.borderColor}`,
-        borderRadius: 4,
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: pad, fontSize, fontWeight: 700,
+        background: s.background, color: s.color,
+        border: `1px solid ${s.borderColor}`, boxShadow: s.boxShadow,
+        cursor: "pointer", transition: "all 0.15s ease",
+        letterSpacing: "0.02em",
+        opacity: props.disabled ? 0.4 : 1,
         ...props.style,
       }}
     >
-      {icon && <span className="shrink-0">{icon}</span>}
+      {icon && <span style={{ flexShrink: 0 }}>{icon}</span>}
       {children}
     </button>
   );

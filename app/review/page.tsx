@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, AlertCircle, ArrowRight, RefreshCw, CheckCircle,
+  AlertCircle, ArrowRight, RefreshCw, CheckCircle,
   AlertTriangle, Droplet, Heart, TrendingUp, Shield, Zap,
-  ChevronDown, ChevronUp, MessageCircle, Lock, Sparkles,
-  Star, Activity,
-  CirclePlus,
+  ChevronDown, ChevronUp, MessageCircle, Lock,
+  Star, Activity, CirclePlus,
 } from "lucide-react";
 import { groqService } from "@/services/GroqService";
 import type { DualRiskAssessment } from "@/services/GroqService";
@@ -15,15 +14,15 @@ import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useTheme } from "@/contexts/ThemeContext";
 
-// ─── RISK META ─────────────────────────────────────────────────────────────────
+// ─── RISK META ────────────────────────────────────────────────────────────────
 const LEVEL_META: Record<string, {
-  label: string; colour: string; bg: string; bar: string; pct: number; emoji: string;
+  label: string; colour: string; bg: string; bar: string; pct: number;
 }> = {
-  'low':               { label: 'Low',              colour: '#22c55e', bg: 'rgba(34,197,94,.08)',   bar: '#22c55e', pct: 15, emoji: '🟢' },
-  'slightly-elevated': { label: 'Slightly Elevated', colour: '#eab308', bg: 'rgba(234,179,8,.08)',  bar: '#eab308', pct: 38, emoji: '🟡' },
-  'moderate':          { label: 'Moderate',          colour: '#f97316', bg: 'rgba(249,115,22,.09)', bar: '#f97316', pct: 58, emoji: '🟠' },
-  'high':              { label: 'High',              colour: '#ef4444', bg: 'rgba(239,68,68,.09)',  bar: '#ef4444', pct: 78, emoji: '🔴' },
-  'very-high':         { label: 'Very High',         colour: '#dc2626', bg: 'rgba(220,38,38,.11)',  bar: '#dc2626', pct: 95, emoji: '🔴' },
+  "low":               { label: "Low",               colour: "#22c55e", bg: "rgba(34,197,94,.08)",   bar: "#22c55e", pct: 15 },
+  "slightly-elevated": { label: "Slightly Elevated",  colour: "#eab308", bg: "rgba(234,179,8,.08)",  bar: "#eab308", pct: 38 },
+  "moderate":          { label: "Moderate",           colour: "#f97316", bg: "rgba(249,115,22,.09)", bar: "#f97316", pct: 58 },
+  "high":              { label: "High",               colour: "#ef4444", bg: "rgba(239,68,68,.09)",  bar: "#ef4444", pct: 78 },
+  "very-high":         { label: "Very High",          colour: "#dc2626", bg: "rgba(220,38,38,.11)",  bar: "#dc2626", pct: 95 },
 };
 
 // ─── HOOKS ────────────────────────────────────────────────────────────────────
@@ -35,8 +34,7 @@ function useCountUp(target: number, duration = 1200, enabled = true) {
     const step = (ts: number) => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / duration, 1);
-      const ease = 1 - (1 - p) ** 3;
-      setVal(Math.round(ease * target));
+      setVal(Math.round((1 - (1 - p) ** 3) * target));
       if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -59,74 +57,62 @@ function useInView(threshold = 0.1) {
 }
 
 // ─── RISK GAUGE CARD ─────────────────────────────────────────────────────────
-function RiskGauge({
-  level, label, icon, isDark, delay = 0,
-}: {
-  level: string; label: string; icon: React.ReactNode; isDark: boolean; delay?: number;
+function RiskGauge({ level, label, icon, delay = 0 }: {
+  level: string; label: string; icon: React.ReactNode; delay?: number;
 }) {
+  const { surface: S } = useTheme();
   const meta = LEVEL_META[level] ?? LEVEL_META.low;
   const { ref, vis } = useInView();
   const pct = useCountUp(meta.pct, 1100, vis);
 
-  const cardBg = isDark ? '#0e1521' : '#ffffff';
-  const textH = isDark ? '#f1f5f9' : '#0f172a';
-  const textM = isDark ? '#6b7a96' : '#64748b';
-  const trackBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-
   return (
     <div
       ref={ref}
-      className="rounded-2xl p-6 transition-all duration-700"
       style={{
-        background: cardBg,
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
+        background: S.surface,
+        border: `1px solid ${S.border}`,
+        padding: 24, borderRadius: 16,
         opacity: vis ? 1 : 0,
-        transform: vis ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.97)',
+        transform: vis ? "translateY(0) scale(1)" : "translateY(20px) scale(0.97)",
+        transition: "opacity 0.7s ease, transform 0.7s ease, box-shadow 0.2s ease",
         transitionDelay: `${delay}ms`,
-        boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 4px 24px rgba(0,0,0,0.05)',
+        boxShadow: `0 4px 24px rgba(0,0,0,0.08)`,
       }}
     >
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ background: meta.bg, color: meta.colour }}
-          >
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", background: meta.bg, color: meta.colour, borderRadius: 12 }}>
             {icon}
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: textM }}>{label}</p>
-            <p className="text-[15px] font-bold" style={{ color: meta.colour }}>{meta.label}</p>
+            <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: S.muted, margin: 0 }}>{label}</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: meta.colour, margin: 0 }}>{meta.label}</p>
           </div>
         </div>
-        <span className="text-[2.2rem] font-black tabular-nums" style={{ color: meta.colour }}>{pct}%</span>
+        <span style={{ fontSize: 36, fontWeight: 900, color: meta.colour, fontVariantNumeric: "tabular-nums" }}>{pct}%</span>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-2 w-full rounded-full overflow-hidden mb-4" style={{ background: trackBg }}>
-        <div
-          className="h-full rounded-full transition-all duration-[1.1s] ease-out"
-          style={{ width: vis ? `${meta.pct}%` : '0%', background: `linear-gradient(90deg, ${meta.bar}, ${meta.bar}cc)` }}
-        />
+      {/* Bar */}
+      <div style={{ height: 8, background: S.surfaceAlt, borderRadius: 99, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{
+          height: "100%", borderRadius: 99,
+          width: vis ? `${meta.pct}%` : "0%",
+          background: `linear-gradient(90deg, ${meta.bar}, ${meta.bar}cc)`,
+          transition: "width 1.1s ease-out",
+        }} />
       </div>
 
       {/* 5-segment scale */}
-      <div className="grid grid-cols-5 gap-1">
-        {(['low', 'slightly-elevated', 'moderate', 'high', 'very-high'] as const).map(lvl => {
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
+        {(["low", "slightly-elevated", "moderate", "high", "very-high"] as const).map(lvl => {
           const m = LEVEL_META[lvl];
           const active = lvl === level;
           return (
-            <div key={lvl} className="flex flex-col items-center gap-1.5">
-              <div
-                className="h-1.5 w-full rounded-full transition-all duration-300"
-                style={{ background: active ? m.bar : trackBg, opacity: active ? 1 : 0.5 }}
-              />
-              <span
-                className="text-[8.5px] text-center leading-tight"
-                style={{ color: active ? m.colour : textM, fontWeight: active ? 700 : 400 }}
-              >
-                {m.label.split(' ')[0]}
+            <div key={lvl} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+              <div style={{ height: 5, width: "100%", borderRadius: 99, background: active ? m.bar : S.surfaceAlt, opacity: active ? 1 : 0.5, transition: "all 0.3s" }} />
+              <span style={{ fontSize: 8.5, textAlign: "center", lineHeight: 1.3, color: active ? m.colour : S.muted, fontWeight: active ? 700 : 400 }}>
+                {m.label.split(" ")[0]}
               </span>
             </div>
           );
@@ -136,111 +122,92 @@ function RiskGauge({
   );
 }
 
-// ─── ANIMATED SIGNUP CTA ─────────────────────────────────────────────────────
-function SignupCTA({ isDark, onSignup }: { isDark: boolean; onSignup: () => void }) {
+// ─── SIGNUP CTA ──────────────────────────────────────────────────────────────
+function SignupCTA({ onSignup }: { onSignup: () => void }) {
+  const { isDark, surface: S, accentColor, accentSecondary, accentFaint } = useTheme();
   const { ref, vis } = useInView(0.2);
   const [hovered, setHovered] = useState(false);
 
   const features = [
-    'Full risk score breakdown',
-    'Downloadable PDF report',
-    'Track progress over time',
-    'Nearest health centre referral',
-    'Personalised action plan',
+    "Full risk score breakdown",
+    "Downloadable PDF report",
+    "Track progress over time",
+    "Nearest health centre referral",
+    "Personalised action plan",
   ];
 
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden rounded-2xl"
       style={{
+        position: "relative", overflow: "hidden", borderRadius: 20,
         background: isDark
-          ? 'linear-gradient(135deg, #0d1a2e 0%, #0e1e2e 50%, #091520 100%)'
-          : 'linear-gradient(135deg, #f0fdf9 0%, #ecfdf5 50%, #f0f9ff 100%)',
-        border: `1px solid ${isDark ? 'rgba(13,148,136,0.25)' : 'rgba(13,148,136,0.2)'}`,
+          ? "linear-gradient(135deg, #0d1a2e 0%, #0e1e2e 50%, #091520 100%)"
+          : `linear-gradient(135deg, ${accentFaint} 0%, ${accentColor}0a 50%, rgba(240,249,255,0.6) 100%)`,
+        border: `1px solid ${accentColor}30`,
         opacity: vis ? 1 : 0,
-        transform: vis ? 'translateY(0)' : 'translateY(24px)',
-        transition: 'opacity 0.8s ease, transform 0.8s ease',
-        boxShadow: isDark
-          ? '0 0 60px rgba(13,148,136,0.08), 0 8px 32px rgba(0,0,0,0.4)'
-          : '0 0 60px rgba(13,148,136,0.06), 0 8px 32px rgba(0,0,0,0.06)',
+        transform: vis ? "translateY(0)" : "translateY(24px)",
+        transition: "opacity 0.8s ease, transform 0.8s ease",
+        boxShadow: isDark ? `0 0 60px ${accentColor}10, 0 8px 32px rgba(0,0,0,0.4)` : `0 0 60px ${accentColor}08, 0 8px 32px rgba(0,0,0,0.06)`,
       }}
     >
-      {/* Decorative glow orbs */}
-      <div
-        className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.18) 0%, transparent 70%)' }}
-      />
-      <div
-        className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(5,150,105,0.12) 0%, transparent 70%)' }}
-      />
+      {/* Decorative orbs */}
+      <div style={{ position: "absolute", top: -48, right: -48, width: 160, height: 160, borderRadius: "50%", background: `radial-gradient(circle, ${accentColor}22 0%, transparent 70%)`, pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -40, left: -40, width: 128, height: 128, borderRadius: "50%", background: `radial-gradient(circle, ${accentSecondary}18 0%, transparent 70%)`, pointerEvents: "none" }} />
 
-      <div className="relative p-7">
+      <div style={{ position: "relative", padding: 28 }}>
         {/* Lock badge */}
-        <div className="flex items-center gap-2 mb-5">
-          <div
-            className="flex items-center justify-center w-8 h-8 rounded-lg"
-            style={{ background: 'rgba(13,148,136,0.15)' }}
-          >
-            <Lock className="w-4 h-4 text-teal-500" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <div style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: accentFaint, borderRadius: 8 }}>
+            <Lock size={14} color={accentColor} />
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-teal-500">Unlock your full report</p>
-            <p className="text-[11px]" style={{ color: isDark ? '#4b6279' : '#94a3b8' }}>Free — no credit card needed</p>
+            <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.14em", color: accentColor, margin: 0 }}>Unlock your full report</p>
+            <p style={{ fontSize: 11, color: S.muted, margin: 0 }}>Free — no credit card needed</p>
           </div>
         </div>
 
-        {/* Blurred features */}
-        <div className="space-y-2.5 mb-6">
+        {/* Features */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
           {features.map((feat, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2.5 transition-all duration-300"
-              style={{
-                filter: `blur(${i >= 2 ? 3 : 0}px)`,
-                opacity: i >= 2 ? 0.4 : 0.85,
-              }}
-            >
-              <CheckCircle className="w-4 h-4 shrink-0" style={{ color: i < 2 ? '#0d9488' : isDark ? '#334155' : '#94a3b8' }} />
-              <p
-                className="text-[13px]"
-                style={{ color: i < 2 ? (isDark ? '#e2e8f0' : '#0f172a') : (isDark ? '#334155' : '#94a3b8') }}
-              >
-                {feat}
-              </p>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, filter: i >= 2 ? "blur(3px)" : "none", opacity: i >= 2 ? 0.35 : 0.9, transition: "all 0.3s" }}>
+              <CheckCircle size={15} style={{ flexShrink: 0, color: i < 2 ? accentColor : S.muted }} />
+              <p style={{ fontSize: 13, color: i < 2 ? S.text : S.muted, margin: 0 }}>{feat}</p>
             </div>
           ))}
         </div>
 
         {/* Stars */}
-        <div className="flex items-center gap-1 mb-5">
-          {[...Array(5)].map((_, i) => <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />)}
-          <span className="text-[11px] font-semibold ml-1.5" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 20 }}>
+          {[...Array(5)].map((_, i) => (
+            <Star key={i} size={13} style={{ fill: "#f59e0b", color: "#f59e0b" }} />
+          ))}
+          <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 6, color: S.muted }}>
             Trusted by thousands across East Africa
           </span>
         </div>
 
-        {/* CTA button */}
+        {/* CTA */}
         <button
           onClick={onSignup}
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
-          className="w-full flex items-center justify-center gap-2.5 py-4 rounded-xl text-base font-bold text-white transition-all duration-300"
           style={{
-            background: 'linear-gradient(135deg, #0d9488, #059669)',
-            boxShadow: hovered
-              ? '0 8px 30px rgba(13,148,136,0.5), 0 0 0 4px rgba(13,148,136,0.15)'
-              : '0 4px 16px rgba(13,148,136,0.3)',
-            transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            padding: "15px 20px", borderRadius: 12,
+            background: `linear-gradient(135deg, ${accentColor}, ${accentSecondary})`,
+            border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer",
+            boxShadow: hovered ? `0 8px 30px ${accentColor}55, 0 0 0 4px ${accentColor}20` : `0 4px 16px ${accentColor}40`,
+            transform: hovered ? "translateY(-2px)" : "translateY(0)",
+            transition: "all 0.2s ease",
           }}
         >
-          <CirclePlus className="w-4 h-4" />
+          <CirclePlus size={16} />
           Create free account
-          <ArrowRight className={`w-4 h-4 transition-transform duration-200 ${hovered ? 'translate-x-1' : ''}`} />
+          <ArrowRight size={15} style={{ transform: hovered ? "translateX(3px)" : "translateX(0)", transition: "transform 0.2s" }} />
         </button>
 
-        <p className="text-center text-[11px] mt-3" style={{ color: isDark ? '#334155' : '#94a3b8' }}>
+        <p style={{ textAlign: "center", fontSize: 11, marginTop: 12, color: S.muted }}>
           Save results · Track over time · Unlock full insights
         </p>
       </div>
@@ -249,44 +216,41 @@ function SignupCTA({ isDark, onSignup }: { isDark: boolean; onSignup: () => void
 }
 
 // ─── SECTION CARD ─────────────────────────────────────────────────────────────
-function SectionCard({
-  icon, accentColor, label, children, isDark, delay = 0,
-}: {
-  icon: React.ReactNode;
-  accentColor: string;
-  label: string;
-  children: React.ReactNode;
-  isDark: boolean;
-  delay?: number;
+function SectionCard({ icon, accentColor, label, children, delay = 0 }: {
+  icon: React.ReactNode; accentColor: string; label: string;
+  children: React.ReactNode; delay?: number;
 }) {
+  const { surface: S } = useTheme();
   const { ref, vis } = useInView(0.08);
   return (
     <div
       ref={ref}
-      className="rounded-2xl p-5 transition-all duration-700"
       style={{
-        background: isDark ? '#0e1521' : '#ffffff',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
-        boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.25)' : '0 4px 24px rgba(0,0,0,0.04)',
+        background: S.surface, border: `1px solid ${S.border}`,
+        borderRadius: 16, padding: 20,
+        boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
         opacity: vis ? 1 : 0,
-        transform: vis ? 'translateY(0)' : 'translateY(16px)',
+        transform: vis ? "translateY(0)" : "translateY(16px)",
+        transition: "opacity 0.7s ease, transform 0.7s ease",
         transitionDelay: `${delay}ms`,
       }}
     >
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: `${accentColor}18`, color: accentColor }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: `${accentColor}18`, color: accentColor, borderRadius: 8 }}>
           {icon}
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: isDark ? 'rgba(255,255,255,0.3)' : '#94a3b8' }}>{label}</p>
+        <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.18em", color: S.muted, margin: 0 }}>
+          {label}
+        </p>
       </div>
       {children}
     </div>
   );
 }
 
-// ─── MAIN REVIEW PAGE ─────────────────────────────────────────────────────────
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function ReviewPage() {
-  const { isDark } = useTheme();
+  const { isDark, surface: S, accentColor } = useTheme();
   const router = useRouter();
 
   const [assessment, setAssessment] = useState<DualRiskAssessment | null>(null);
@@ -294,65 +258,62 @@ export default function ReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
-  const textH = isDark ? '#f1f5f9' : '#0f172a';
-  const textM = isDark ? '#6b7a96' : '#64748b';
-  const bg = isDark ? '#080d18' : '#f1f5fb';
-
   useEffect(() => { generate(); }, []);
 
   const generate = async () => {
     setLoading(true); setError(null);
-    try {
-      const r = await groqService.generateRiskAssessment();
-      setAssessment(r);
-    } catch {
-      setError("Failed to generate your assessment. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    try { setAssessment(await groqService.generateRiskAssessment()); }
+    catch { setError("Failed to generate your assessment. Please try again."); }
+    finally { setLoading(false); }
   };
 
-  // Loading
+  // ── LOADING ──────────────────────────────────────────────────────────────
   if (loading) return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 transition-colors duration-500" style={{ background: bg }}>
-      <div className="flex flex-col items-center gap-6 text-center">
-        <div className="relative">
-          <div
-            className="h-20 w-20 animate-spin rounded-full border-4"
-            style={{ borderColor: 'transparent', borderTopColor: '#0d9488', borderRightColor: 'rgba(13,148,136,0.2)' }}
-          />
-          <Activity className="absolute inset-0 m-auto h-7 w-7 text-teal-500" />
+    <div style={{ display: "flex", minHeight: "100vh", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 32, background: S.bg, transition: "background 0.4s ease" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center" }}>
+        <div style={{ position: "relative", width: 80, height: 80 }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: "50%",
+            border: `4px solid ${accentColor}22`,
+            borderTopColor: accentColor,
+            animation: "spin 0.9s linear infinite",
+          }} />
+          <Activity size={28} color={accentColor} style={{ position: "absolute", inset: 0, margin: "auto" }} />
         </div>
         <div>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em] text-teal-500">Analysing your responses</p>
-          <h2 className="text-[1.15rem] font-bold" style={{ color: textH }}>Generating your personalised report…</h2>
-          <p className="text-[13px] mt-2" style={{ color: textM }}>Our AI is reviewing your risk factors</p>
+          <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.22em", color: accentColor, margin: "0 0 8px" }}>
+            Analysing your responses
+          </p>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: S.text, margin: "0 0 8px", letterSpacing: "-0.02em" }}>
+            Generating your personalised report…
+          </h2>
+          <p style={{ fontSize: 13, color: S.muted, margin: 0 }}>Our AI is reviewing your risk factors</p>
         </div>
-        {/* Loading progress bar */}
-        <div className="w-48 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(13,148,136,0.15)' }}>
-          <div
-            className="h-full rounded-full animate-pulse"
-            style={{ width: '70%', background: 'linear-gradient(90deg, #0d9488, #059669)' }}
-          />
+        <div style={{ width: 192, height: 4, background: `${accentColor}18`, borderRadius: 99, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", width: "70%", borderRadius: 99,
+            background: `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`,
+            animation: "pulse 1.5s ease-in-out infinite",
+          }} />
         </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }`}</style>
     </div>
   );
 
-  // Error
+  // ── ERROR ────────────────────────────────────────────────────────────────
   if (error || !assessment) return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center" style={{ background: bg }}>
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
-        <AlertCircle className="h-8 w-8 text-red-500" />
+    <div style={{ display: "flex", minHeight: "100vh", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, padding: "0 24px", textAlign: "center", background: S.bg }}>
+      <div style={{ width: 64, height: 64, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(239,68,68,0.1)", borderRadius: 16 }}>
+        <AlertCircle size={32} color="#ef4444" />
       </div>
       <div>
-        <h2 className="text-[1.15rem] font-bold mb-1" style={{ color: textH }}>Assessment failed</h2>
-        <p className="text-[13.5px]" style={{ color: textM }}>{error || "Unable to generate your report."}</p>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: S.text, margin: "0 0 6px" }}>Assessment failed</h2>
+        <p style={{ fontSize: 13.5, color: S.muted, margin: 0 }}>{error || "Unable to generate your report."}</p>
       </div>
       <button
-        onClick={() => router.push('/questions')}
-        className="rounded-xl px-7 py-3 text-sm font-bold text-white"
-        style={{ background: 'linear-gradient(135deg,#0d9488,#059669)', boxShadow: '0 4px 16px rgba(13,148,136,0.3)' }}
+        onClick={() => router.push("/questions")}
+        style={{ padding: "12px 28px", borderRadius: 12, background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`, border: "none", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: `0 4px 16px ${accentColor}40` }}
       >
         Start over
       </button>
@@ -364,121 +325,127 @@ export default function ReviewPage() {
   const anyUrgent = !!assessment.urgentActions?.length;
 
   return (
-    <div className="min-h-screen transition-colors duration-500" style={{ background: bg }}>
+    <div style={{ minHeight: "100vh", background: S.bg, transition: "background 0.4s ease" }}>
       <Navbar />
 
-      <div className="mx-auto max-w-2xl px-5 pb-28 pt-12 lg:px-8">
+      <div style={{ maxWidth: 672, margin: "0 auto", padding: "48px 20px 112px" }}>
 
         {/* ── HERO ── */}
-        <div className="mb-10 text-center space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-500">Your Risk Snapshot</p>
-          <h1 className="text-[clamp(1.7rem,4vw,2.5rem)] font-black leading-tight tracking-tight" style={{ color: textH }}>
+        <div style={{ marginBottom: 40, textAlign: "center" }}>
+          <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.22em", color: accentColor, margin: "0 0 12px" }}>
+            Your Risk Snapshot
+          </p>
+          <h1 style={{ fontSize: "clamp(1.7rem, 4vw, 2.5rem)", fontWeight: 900, letterSpacing: "-0.04em", color: S.text, lineHeight: 1.15, margin: "0 0 12px" }}>
             Your personalised<br />health risk report.
           </h1>
-          <p className="mx-auto max-w-[38ch] text-[13.5px] leading-relaxed" style={{ color: textM }}>
+          <p style={{ fontSize: 13.5, color: S.muted, maxWidth: "38ch", margin: "0 auto", lineHeight: 1.65 }}>
             Based on your answers and validated clinical frameworks (FINDRISC & Framingham).
             This is a screening tool — not a medical diagnosis.
           </p>
         </div>
 
-        {/* ── URGENT ACTIONS ── */}
+        {/* ── URGENT ── */}
         {anyUrgent && (
-          <div
-            className="mb-6 rounded-2xl px-5 py-4"
-            style={{
-              background: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)',
-              border: '1px solid rgba(239,68,68,0.2)',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-red-500">Action recommended</p>
+          <div style={{
+            marginBottom: 24, padding: "16px 20px", borderRadius: 16,
+            background: isDark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)",
+            border: "1px solid rgba(239,68,68,0.2)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0 }} />
+              <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.16em", color: "#ef4444", margin: 0 }}>Action recommended</p>
             </div>
-            <div className="flex flex-col gap-2">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {assessment.urgentActions!.map((a, i) => (
-                <div key={i} className="flex items-start gap-2.5">
-                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-                  <p className="text-[13px] leading-relaxed" style={{ color: isDark ? '#fca5a5' : '#b91c1c' }}>{a}</p>
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", flexShrink: 0, marginTop: 6 }} />
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: isDark ? "#fca5a5" : "#b91c1c", margin: 0 }}>{a}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* ── RISK GAUGES ── */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RiskGauge level={dLevel} label="Diabetes Risk" icon={<Droplet className="h-5 w-5" />} isDark={isDark} delay={0} />
-          <RiskGauge level={hLevel} label="Hypertension Risk" icon={<Heart className="h-5 w-5" />} isDark={isDark} delay={120} />
+        {/* ── GAUGES ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 24 }}>
+          <RiskGauge level={dLevel} label="Diabetes Risk"     icon={<Droplet size={18} />} delay={0} />
+          <RiskGauge level={hLevel} label="Hypertension Risk" icon={<Heart   size={18} />} delay={120} />
         </div>
 
         {/* ── SUMMARY ── */}
-        <SectionCard icon={<TrendingUp className="w-4 h-4" />} accentColor="#0d9488" label="Summary" isDark={isDark} delay={100}>
-          <p className="text-[13.5px] leading-relaxed" style={{ color: textH }}>{assessment.summary}</p>
+        <SectionCard icon={<TrendingUp size={14} />} accentColor={accentColor} label="Summary" delay={100}>
+          <p style={{ fontSize: 13.5, lineHeight: 1.7, color: S.text, margin: 0 }}>{assessment.summary}</p>
         </SectionCard>
 
-        <div className="my-4" />
+        <div style={{ height: 16 }} />
 
         {/* ── KEY FINDINGS ── */}
-        <SectionCard icon={<Shield className="w-4 h-4" />} accentColor="#6366f1" label="Key Findings" isDark={isDark} delay={150}>
-          <div className="flex flex-col gap-3">
+        <SectionCard icon={<Shield size={14} />} accentColor="#6366f1" label="Key Findings" delay={150}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {assessment.keyFindings.map((f, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: '#6366f1' }} />
-                <p className="text-[13px] leading-relaxed" style={{ color: textH }}>{f}</p>
+              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", flexShrink: 0, marginTop: 7 }} />
+                <p style={{ fontSize: 13, lineHeight: 1.6, color: S.text, margin: 0 }}>{f}</p>
               </div>
             ))}
           </div>
         </SectionCard>
 
-        <div className="my-4" />
+        <div style={{ height: 16 }} />
 
         {/* ── RECOMMENDATIONS ── */}
-        <SectionCard icon={<CheckCircle className="w-4 h-4" />} accentColor="#10b981" label="Recommendations" isDark={isDark} delay={200}>
-          <div className="flex flex-col gap-3">
+        <SectionCard icon={<CheckCircle size={14} />} accentColor="#10b981" label="Recommendations" delay={200}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {assessment.recommendations.map((r, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <p className="text-[13px] leading-relaxed" style={{ color: textH }}>{r}</p>
+              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <CheckCircle size={15} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
+                <p style={{ fontSize: 13, lineHeight: 1.6, color: S.text, margin: 0 }}>{r}</p>
               </div>
             ))}
           </div>
         </SectionCard>
 
-        <div className="my-4" />
+        <div style={{ height: 16 }} />
 
         {/* ── AI DETAILED ANALYSIS ── */}
         {assessment.detailedAnalysis && (
-          <div
-            className="mb-4 rounded-2xl overflow-hidden"
-            style={{
-              background: isDark ? '#0e1521' : '#ffffff',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
-              boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.25)' : '0 4px 24px rgba(0,0,0,0.04)',
-            }}
-          >
+          <div style={{
+            borderRadius: 16, overflow: "hidden",
+            background: S.surface, border: `1px solid ${S.border}`,
+            boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+            marginBottom: 16,
+          }}>
             <button
               onClick={() => setShowDetail(v => !v)}
-              className="flex w-full items-center justify-between px-5 py-4 transition-colors"
-              style={{ color: textH }}
+              style={{
+                display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between",
+                padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
+                color: S.text, transition: "background 0.15s",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
             >
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ background: 'rgba(139,92,246,0.12)' }}>
-                  <Zap className="h-4 w-4 text-violet-500" />
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(139,92,246,0.12)", borderRadius: 8 }}>
+                  <Zap size={14} color="#8b5cf6" />
                 </div>
-                <p className="text-[13px] font-semibold">AI Detailed Analysis</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: S.text, margin: 0 }}>AI Detailed Analysis</p>
               </div>
               {showDetail
-                ? <ChevronUp className="h-4 w-4" style={{ color: textM }} />
-                : <ChevronDown className="h-4 w-4" style={{ color: textM }} />
+                ? <ChevronUp size={15} color={S.muted} />
+                : <ChevronDown size={15} color={S.muted} />
               }
             </button>
             {showDetail && (
-              <div
-                className="border-t px-5 py-5 text-[13px] leading-[1.9] space-y-3"
-                style={{ borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)', color: textM }}
-              >
-                {assessment.detailedAnalysis.split('\n').map((para, i) =>
-                  para.trim() ? <p key={i}>{para}</p> : null
+              <div style={{
+                borderTop: `1px solid ${S.border}`,
+                padding: "20px",
+                display: "flex", flexDirection: "column", gap: 12,
+              }}>
+                {assessment.detailedAnalysis.split("\n").map((para, i) =>
+                  para.trim()
+                    ? <p key={i} style={{ fontSize: 13, lineHeight: 1.85, color: S.muted, margin: 0 }}>{para}</p>
+                    : null
                 )}
               </div>
             )}
@@ -486,37 +453,48 @@ export default function ReviewPage() {
         )}
 
         {/* ── SIGNUP CTA ── */}
-        <div className="my-6">
-          <SignupCTA isDark={isDark} onSignup={() => router.push('/login')} />
+        <div style={{ margin: "24px 0" }}>
+          <SignupCTA onSignup={() => router.push("/login")} />
         </div>
 
         {/* ── ACTION STRIP ── */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
           <button
-            onClick={() => router.push('/questions')}
-            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-semibold transition-all hover:opacity-80"
+            onClick={() => router.push("/questions")}
             style={{
-              background: isDark ? 'rgba(255,255,255,0.05)' : '#ffffff',
-              color: textH,
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`,
-              boxShadow: isDark ? 'none' : '0 2px 8px rgba(0,0,0,0.05)',
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "14px 20px", borderRadius: 12,
+              background: S.surface, border: `1px solid ${S.border}`,
+              color: S.text, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              transition: "all 0.15s",
             }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = S.surface; }}
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw size={14} />
             Retake assessment
           </button>
           <button
-            onClick={() => window.open('https://wa.me/250789399765', '_blank')}
-            className="flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[13px] font-bold text-white transition-all hover:opacity-90 active:scale-95"
-            style={{ background: '#25d366', boxShadow: '0 4px 16px rgba(37,211,102,0.28)' }}
+            onClick={() => window.open("https://wa.me/250789399765", "_blank")}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "14px 20px", borderRadius: 12,
+              background: "#25d366", border: "none",
+              color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              boxShadow: "0 4px 16px rgba(37,211,102,0.3)",
+              transition: "opacity 0.15s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
           >
-            <MessageCircle className="h-4 w-4" />
+            <MessageCircle size={14} />
             Chat with a doctor
           </button>
         </div>
 
         {/* ── DISCLAIMER ── */}
-        <p className="mt-8 text-center text-[11px] leading-relaxed" style={{ color: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.3)' }}>
+        <p style={{ marginTop: 32, textAlign: "center", fontSize: 11, lineHeight: 1.65, color: S.subtle }}>
           This tool is for educational screening purposes only and does not constitute medical advice.
           Always consult a qualified healthcare professional for diagnosis and treatment.
         </p>

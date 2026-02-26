@@ -18,8 +18,10 @@ import {
   RiskAssessment,
 } from "@/services/gemini_service";
 import Image from "next/image";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function AssessmentPage() {
+  const { isDark, surface, accentColor, accentFaint } = useTheme();
   const router = useRouter();
   const [started, setStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
@@ -244,26 +246,27 @@ export default function AssessmentPage() {
 
   if (!started) {
     return (
-      <div className="min-h-screen flex flex-col overflow-x-hidden">
-        <div className="flex-1 bg-gradient-to-br from-blue-50 via-white to-emerald-50">
+      <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ background: surface.bg }}>
+        <div className="flex-1">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
             <div className="text-center space-y-6 sm:space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium mb-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-4" 
+                style={{ background: `${accentColor}20`, color: accentColor }}>
                 <Sparkles className="w-4 h-4" />
                 AI-Powered Health Assessment
               </div>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[#0A1F44] leading-tight">
-                Check Your <span className="text-emerald-500">NCD Risk</span>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight" style={{ color: surface.text }}>
+                Check Your <span style={{ color: accentColor }}>NCD Risk</span>
                 <br />
                 in 60 Seconds
               </h1>
-              <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto">
+              <p className="text-lg sm:text-xl md:text-2xl max-w-2xl mx-auto" style={{ color: surface.muted }}>
                 Private. Fast. Reliable AI-powered health insights.
               </p>
 
               <div
-                className="relative py-16 sm:py-20 "
+                className="relative py-16 sm:py-20"
                 style={{
                   backgroundImage: "url(/Background.jpg)",
                   backgroundSize: "cover",
@@ -280,25 +283,27 @@ export default function AssessmentPage() {
 
                 <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-12">
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-emerald-100 hover:border-emerald-300 transition-all duration-300">
-                      <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 mx-auto">
-                        <Check className="w-6 h-6 text-emerald-600" />
+                    <div className="backdrop-blur-sm p-6 border" 
+                      style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                      <div className="w-12 h-12 flex items-center justify-center mb-4 mx-auto" style={{ background: `${accentColor}20`, borderRadius: 2 }}>
+                        <Check className="w-6 h-6" style={{ color: accentColor }} />
                       </div>
-                      <h3 className="text-lg font-semibold text-[#0A1F44] mb-2">
+                      <h3 className="text-lg font-semibold mb-2" style={{ color: surface.text }}>
                         Your data is confidential
                       </h3>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-sm" style={{ color: surface.muted }}>
                         End-to-end encrypted and HIPAA compliant
                       </p>
                     </div>
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg border-2 border-blue-100 hover:border-blue-300 transition-all duration-300">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4 mx-auto">
-                        <Sparkles className="w-6 h-6 text-blue-600" />
+                    <div className="backdrop-blur-sm p-6 border" 
+                      style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                      <div className="w-12 h-12 flex items-center justify-center mb-4 mx-auto" style={{ background: `${accentColor}20`, borderRadius: 2 }}>
+                        <Sparkles className="w-6 h-6" style={{ color: accentColor }} />
                       </div>
-                      <h3 className="text-lg font-semibold text-[#0A1F44] mb-2">
+                      <h3 className="text-lg font-semibold mb-2" style={{ color: surface.text }}>
                         AI-Powered Analysis
                       </h3>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-sm" style={{ color: surface.muted }}>
                         Dynamic questions tailored to your answers
                       </p>
                     </div>
@@ -306,13 +311,14 @@ export default function AssessmentPage() {
 
                   <button
                     onClick={startAssessment}
-                    className="relative px-8 sm:px-12 py-4 sm:py-5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full font-semibold text-lg sm:text-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3 mx-auto animate-pulse hover:animate-none"
+                    className="relative px-8 sm:px-12 py-4 sm:py-5 text-white rounded-full font-semibold text-lg sm:text-xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-3 mx-auto animate-pulse hover:animate-none"
+                    style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                   >
                     {/* Animated ring effect */}
-                    <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75"></span>
+                    <span className="absolute inset-0 rounded-full animate-ping opacity-75" style={{ background: accentColor }}></span>
 
                     {/* Glow effect */}
-                    <span className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 blur-lg opacity-50 animate-pulse"></span>
+                    <span className="absolute inset-0 rounded-full blur-lg opacity-50 animate-pulse" style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)` }}></span>
 
                     {/* Button content */}
                     <span className="relative flex items-center gap-3">
@@ -326,26 +332,26 @@ export default function AssessmentPage() {
           </div>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 sm:pb-24">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
-              <div className="text-center p-6 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow">
-                <Heart className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-                <div className="text-3xl sm:text-4xl font-bold text-[#0A1F44] mb-2">
+              <div className="text-center p-6 border" style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                <Heart className="w-10 h-10 mx-auto mb-3" style={{ color: accentColor }} />
+                <div className="text-3xl sm:text-4xl font-bold mb-2" style={{ color: surface.text }}>
                   50K+
                 </div>
-                <div className="text-gray-600">Assessments Completed</div>
+                <div style={{ color: surface.muted }}>Assessments Completed</div>
               </div>
-              <div className="text-center p-6 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow">
-                <Activity className="w-10 h-10 text-blue-500 mx-auto mb-3" />
-                <div className="text-3xl sm:text-4xl font-bold text-[#0A1F44] mb-2">
+              <div className="text-center p-6 border" style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                <Activity className="w-10 h-10 mx-auto mb-3" style={{ color: accentColor }} />
+                <div className="text-3xl sm:text-4xl font-bold mb-2" style={{ color: surface.text }}>
                   95%
                 </div>
-                <div className="text-gray-600">Accuracy Rate</div>
+                <div style={{ color: surface.muted }}>Accuracy Rate</div>
               </div>
-              <div className="text-center p-6 bg-white rounded-2xl shadow-md hover:shadow-lg transition-shadow">
-                <Shield className="w-10 h-10 text-purple-500 mx-auto mb-3" />
-                <div className="text-3xl sm:text-4xl font-bold text-[#0A1F44] mb-2">
+              <div className="text-center p-6 border" style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                <Shield className="w-10 h-10 mx-auto mb-3" style={{ color: accentColor }} />
+                <div className="text-3xl sm:text-4xl font-bold mb-2" style={{ color: surface.text }}>
                   100%
                 </div>
-                <div className="text-gray-600">Confidential</div>
+                <div style={{ color: surface.muted }}>Confidential</div>
               </div>
             </div>
           </div>
@@ -357,19 +363,22 @@ export default function AssessmentPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-emerald-50">
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+    <div className="min-h-screen flex flex-col" style={{ background: surface.bg }}>
+      <div className="border-b sticky top-0 z-10 shadow-sm" style={{ background: surface.surface, borderColor: surface.border }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <button
             onClick={() => (window.location.href = "/")}
-            className="flex items-center gap-2 text-gray-600 hover:text-emerald-600 transition-colors"
+            className="flex items-center gap-2 transition-colors"
+            style={{ color: surface.muted }}
+            onMouseEnter={e => e.currentTarget.style.color = accentColor}
+            onMouseLeave={e => e.currentTarget.style.color = surface.muted}
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Back</span>
           </button>
           {/* Logo */}
           <div className="shrink-0 flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 flex items-center justify-center shadow-sm">
               <Image
                 src="/white logo.png"
                 alt="Logo"
@@ -378,12 +387,12 @@ export default function AssessmentPage() {
                 className="object-cover w-full h-full"
               />
             </div>
-            <span className="font-bold text-lg text-gray-900 tracking-tight">
-              H<span className="text-emerald-600">MEX</span>
+            <span className="font-bold text-lg tracking-tight" style={{ color: surface.text }}>
+              H<span style={{ color: accentColor }}>MEX</span>
             </span>
           </div>
           {!completed && (
-            <div className="text-sm font-medium text-emerald-600">
+            <div className="text-sm font-medium" style={{ color: accentColor }}>
               {geminiService.getProgress()}% Complete
             </div>
           )}
@@ -391,12 +400,12 @@ export default function AssessmentPage() {
         </div>
       </div>
       {!completed && (
-        <div className="bg-white border-b border-gray-100">
+        <div style={{ background: surface.surface, borderBottom: `1px solid ${surface.border}` }}>
           <div className="max-w-4xl mx-auto">
-            <div className="h-2 bg-gray-100">
+            <div className="h-2" style={{ background: surface.border }}>
               <div
-                className="h-full bg-gradient-to-r  from-emerald-500 to-teal-500 transition-all duration-500"
-                style={{ width: `${geminiService.getProgress()}%` }}
+                className="h-full transition-all duration-500"
+                style={{ width: `${geminiService.getProgress()}%`, background: `linear-gradient(135deg,${accentColor},${accentColor}dd)` }}
               ></div>
             </div>
           </div>
@@ -413,18 +422,25 @@ export default function AssessmentPage() {
                 } animate-fade-in`}
               >
                 <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 sm:px-6 py-3 sm:py-4 ${
+                  className={`max-w-[85%] sm:max-w-[75%] px-4 sm:px-6 py-3 sm:py-4 ${
                     msg.type === "user"
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md"
-                      : "bg-white border-2 border-gray-100 text-gray-800 shadow-sm"
+                      ? "text-white shadow-md"
+                      : "border text-gray-800 shadow-sm"
                   }`}
+                  style={{
+                    background: msg.type === "user" 
+                      ? `linear-gradient(135deg,${accentColor},${accentColor}dd)`
+                      : surface.surface,
+                    borderColor: surface.border,
+                    borderRadius: 2
+                  }}
                 >
                   {msg.type === "bot" && (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center mb-2">
-                      <Activity className="w-5 h-5 text-emerald-600" />
+                    <div className="w-8 h-8 flex items-center justify-center mb-2" style={{ background: `${accentColor}20`, borderRadius: 2 }}>
+                      <Activity className="w-5 h-5" style={{ color: accentColor }} />
                     </div>
                   )}
-                  <p className="text-sm sm:text-base leading-relaxed">
+                  <p className="text-sm sm:text-base leading-relaxed" style={{ color: msg.type === "user" ? "#fff" : surface.text }}>
                     {msg.content}
                   </p>
                 </div>
@@ -433,9 +449,9 @@ export default function AssessmentPage() {
 
             {generatingReport && (
               <div className="flex justify-center py-8">
-                <div className="flex items-center gap-3 px-6 py-4 bg-white rounded-full shadow-lg border-2 border-emerald-100">
-                  <div className="w-6 h-6 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-                  <span className="text-gray-700 font-medium">
+                <div className="flex items-center gap-3 px-6 py-4 border shadow-lg" style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                  <div className="w-6 h-6 border-4 rounded-full animate-spin" style={{ borderColor: `${accentColor}20`, borderTopColor: accentColor }}></div>
+                  <span className="font-medium" style={{ color: surface.muted }}>
                     Analyzing your health profile...
                   </span>
                 </div>
@@ -445,31 +461,36 @@ export default function AssessmentPage() {
             {completed && riskResult && !generatingReport && (
               <div className="space-y-6 animate-fade-in mt-8">
                 <div
-                  className={`rounded-3xl p-6 sm:p-8 border-2 ${getRiskBgColor(
-                    riskResult.riskLevel
-                  )} shadow-lg`}
+                  className={`p-6 sm:p-8 border-2 shadow-lg`}
+                  style={{
+                    background: surface.surface,
+                    borderColor: riskResult.riskLevel === "low" ? "#22c55e" :
+                               riskResult.riskLevel === "moderate" ? "#eab308" :
+                               riskResult.riskLevel === "high" ? "#f97316" : "#ef4444",
+                    borderRadius: 2
+                  }}
                 >
                   <div className="text-center">
-                    <div className="text-sm font-medium text-gray-600 mb-2">
+                    <div className="text-sm font-medium mb-2" style={{ color: surface.muted }}>
                       Your Risk Level
                     </div>
                     <div
-                      className={`text-4xl sm:text-5xl font-bold ${getRiskColor(
+                      className={`text-4xl sm:text-5xl font-bold uppercase mb-4 ${getRiskColor(
                         riskResult.riskLevel
-                      )} uppercase mb-4`}
+                      )}`}
                     >
                       {riskResult.riskLevel.replace("-", " ")}
                     </div>
-                    <div className="text-6xl sm:text-7xl font-bold text-gray-800 mb-2">
+                    <div className="text-6xl sm:text-7xl font-bold mb-2" style={{ color: surface.text }}>
                       {riskResult.score}
                     </div>
-                    <div className="text-sm text-gray-600 mb-4">
+                    <div className="text-sm mb-4" style={{ color: surface.muted }}>
                       Risk Score (out of 100)
                     </div>
 
-                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div className="w-full h-3 overflow-hidden" style={{ background: surface.border }}>
                       <div
-                        className={`h-full rounded-full transition-all duration-1000 ${
+                        className={`h-full transition-all duration-1000 ${
                           riskResult.riskLevel === "low"
                             ? "bg-emerald-500"
                             : riskResult.riskLevel === "moderate"
@@ -482,7 +503,7 @@ export default function AssessmentPage() {
                       ></div>
                     </div>
 
-                    <p className="mt-6 text-gray-700 text-sm sm:text-base">
+                    <p className="mt-6 text-sm sm:text-base" style={{ color: surface.muted }}>
                       {riskResult.summary}
                     </p>
                   </div>
@@ -490,8 +511,8 @@ export default function AssessmentPage() {
 
                 <div className="relative">
                   <div className="relative filter blur-sm pointer-events-none select-none">
-                    <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 mb-6">
-                      <h3 className="text-lg font-bold text-[#0A1F44] mb-4">
+                    <div className="p-6 border mb-6" style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                      <h3 className="text-lg font-bold mb-4" style={{ color: surface.text }}>
                         Key Findings
                       </h3>
                       <ul className="space-y-3">
@@ -500,17 +521,18 @@ export default function AssessmentPage() {
                           .map((finding, idx) => (
                             <li
                               key={idx}
-                              className="text-gray-700 flex items-start gap-3"
+                              className="flex items-start gap-3"
+                              style={{ color: surface.muted }}
                             >
-                              <Check className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                              <Check className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: accentColor }} />
                               <span>{finding}</span>
                             </li>
                           ))}
                       </ul>
                     </div>
 
-                    <div className="bg-white rounded-2xl p-6 border-2 border-gray-200 mb-6">
-                      <h3 className="text-lg font-bold text-[#0A1F44] mb-4">
+                    <div className="p-6 border mb-6" style={{ background: surface.surface, borderColor: surface.border, borderRadius: 2 }}>
+                      <h3 className="text-lg font-bold mb-4" style={{ color: surface.text }}>
                         Personalized Recommendations
                       </h3>
                       <ul className="space-y-3">
@@ -519,45 +541,47 @@ export default function AssessmentPage() {
                           .map((rec, idx) => (
                             <li
                               key={idx}
-                              className="text-gray-700 flex items-start gap-3"
+                              className="flex items-start gap-3"
+                              style={{ color: surface.muted }}
                             >
-                              <Heart className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                              <Heart className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: accentColor }} />
                               <span>{rec}</span>
                             </li>
                           ))}
                       </ul>
                     </div>
 
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border-2 border-emerald-200">
-                      <h3 className="text-lg font-bold text-[#0A1F44] mb-4">
+                    <div className="p-6 border" style={{ background: `${accentColor}10`, borderColor: `${accentColor}20`, borderRadius: 2 }}>
+                      <h3 className="text-lg font-bold mb-4" style={{ color: surface.text }}>
                         Detailed Health Analysis
                       </h3>
-                      <p className="text-gray-700 leading-relaxed">
+                      <p className="leading-relaxed" style={{ color: surface.muted }}>
                         {riskResult.detailedAnalysis?.slice(0, 200)}...
                       </p>
                     </div>
                   </div>
 
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-transparent via-white/80 to-white">
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center px-6 py-8 max-w-md">
-                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                      <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}>
                         <Lock className="w-8 h-8 text-white" />
                       </div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                      <h3 className="text-2xl font-bold mb-3" style={{ color: surface.text }}>
                         Unlock Your Full Report
                       </h3>
-                      <p className="text-gray-600 mb-6">
+                      <p className="mb-6" style={{ color: surface.muted }}>
                         Get your complete health analysis with detailed
                         recommendations, action plans, and progress tracking.
                       </p>
                       <button
                         onClick={handleViewFullReport}
-                        className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto"
+                        className="px-8 py-4 text-white rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto"
+                        style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                       >
                         <Lock className="w-5 h-5" />
                         View Full Report
                       </button>
-                      <p className="text-sm text-gray-500 mt-4">
+                      <p className="text-sm mt-4" style={{ color: surface.subtle }}>
                         Free to sign up • View report as guest
                       </p>
                     </div>
@@ -570,21 +594,23 @@ export default function AssessmentPage() {
           </div>
 
           {!completed && currentQuestion && !loading && (
-            <div className="bg-white border-t-2 border-gray-100 px-4 sm:px-6 py-4 sm:py-6 shadow-lg">
+            <div className="border-t-2 px-4 sm:px-6 py-4 sm:py-6 shadow-lg" style={{ background: surface.surface, borderColor: surface.border }}>
               <div className="max-w-2xl mx-auto">
                 {currentQuestion.type === "yesno" && (
                   <div className="flex gap-3 sm:gap-4">
                     <button
                       onClick={() => handleAnswerClick(false)}
                       disabled={loading}
-                      className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                      className="flex-1 px-6 py-4 font-medium transition-all duration-200 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                      style={{ background: surface.surfaceAlt, color: surface.text, borderRadius: 2 }}
                     >
                       No
                     </button>
                     <button
                       onClick={() => handleAnswerClick(true)}
                       disabled={loading}
-                      className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg text-white rounded-2xl font-medium transition-all duration-200 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                      className="flex-1 px-6 py-4 text-white font-medium transition-all duration-200 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:shadow-lg"
+                      style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                     >
                       Yes
                     </button>
@@ -594,10 +620,10 @@ export default function AssessmentPage() {
                 {currentQuestion.type === "slider" && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-2xl sm:text-3xl font-bold text-emerald-600">
+                      <span className="text-2xl sm:text-3xl font-bold" style={{ color: accentColor }}>
                         {currentAnswer || currentQuestion.min}
                       </span>
-                      <span className="text-gray-500 text-sm">
+                      <span className="text-sm" style={{ color: surface.muted }}>
                         {currentQuestion.unit}
                       </span>
                     </div>
@@ -611,17 +637,19 @@ export default function AssessmentPage() {
                           : currentQuestion.min
                       }
                       onChange={(e) => setCurrentAnswer(Number(e.target.value))}
-                      className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-3 appearance-none cursor-pointer"
+                      style={{ background: surface.border }}
                       disabled={loading}
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs" style={{ color: surface.muted }}>
                       <span>{currentQuestion.min}</span>
                       <span>{currentQuestion.max}</span>
                     </div>
                     <button
                       onClick={handleAnswer}
                       disabled={loading}
-                      className="w-full px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base active:scale-95"
+                      className="w-full px-6 py-4 text-white font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base active:scale-95"
+                      style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                     >
                       Continue
                     </button>
@@ -635,7 +663,16 @@ export default function AssessmentPage() {
                         key={idx}
                         onClick={() => handleAnswerClick(option)}
                         disabled={loading}
-                        className="w-full px-6 py-4 bg-white border-2 border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 text-gray-800 rounded-2xl font-medium transition-all duration-200 text-left text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                        className="w-full px-6 py-4 border font-medium transition-all duration-200 text-left text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                        style={{ background: surface.surface, borderColor: surface.border, color: surface.text, borderRadius: 2 }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = accentColor;
+                          e.currentTarget.style.background = `${accentColor}10`;
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = surface.border;
+                          e.currentTarget.style.background = surface.surface;
+                        }}
                       >
                         {option}
                       </button>
@@ -656,7 +693,8 @@ export default function AssessmentPage() {
                       }
                       onChange={(e) => setCurrentAnswer(e.target.value)}
                       placeholder="Type your answer..."
-                      className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:outline-none text-sm sm:text-base placeholder:text-gray-400 text-gray-500"
+                      className="flex-1 px-6 py-4 border focus:outline-none text-sm sm:text-base"
+                      style={{ background: surface.surfaceAlt, borderColor: surface.border, color: surface.text, borderRadius: 2 }}
                       onKeyPress={(e) => {
                         if (e.key === "Enter" && !loading && currentAnswer) {
                           handleAnswer();
@@ -667,7 +705,8 @@ export default function AssessmentPage() {
                     <button
                       onClick={handleAnswer}
                       disabled={loading || !currentAnswer}
-                      className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                      className="px-6 py-4 text-white font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                      style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                     >
                       Send
                     </button>
@@ -687,7 +726,8 @@ export default function AssessmentPage() {
                       }
                       onChange={(e) => setCurrentAnswer(Number(e.target.value))}
                       placeholder="Enter number..."
-                      className="flex-1 px-6 py-4 border-2 border-gray-200 rounded-2xl focus:border-emerald-500 focus:outline-none text-sm sm:text-base placeholder:text-gray-400 text-gray-500"
+                      className="flex-1 px-6 py-4 border focus:outline-none text-sm sm:text-base"
+                      style={{ background: surface.surfaceAlt, borderColor: surface.border, color: surface.text, borderRadius: 2 }}
                       onKeyPress={(e) =>
                         e.key === "Enter" && !loading && handleAnswer()
                       }
@@ -696,7 +736,8 @@ export default function AssessmentPage() {
                     <button
                       onClick={handleAnswer}
                       disabled={loading || !currentAnswer}
-                      className="px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50"
+                      className="px-6 py-4 text-white font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50"
+                      style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
                     >
                       Send
                     </button>
