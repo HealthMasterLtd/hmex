@@ -1,12 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-/**
- * ThemeToggle.tsx
- * Full-height drawer from right edge. Compact vertical tab on mobile.
- * Slides in smoothly, backdrop closes it.
- */
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   useTheme,
@@ -49,7 +43,6 @@ const CheckIcon = ({ s = 8, c = "currentColor" }) => (
   </svg>
 );
 
-// ─── SECTION LABEL ───────────────────────────────────────────────────────────
 function Sec({ label, S }: { label: string; S: { muted: string; border: string } }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 4 }}>
@@ -61,7 +54,6 @@ function Sec({ label, S }: { label: string; S: { muted: string; border: string }
   );
 }
 
-// ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function ThemeToggle() {
   const {
     isDark, theme, darkVariant, accent,
@@ -76,7 +68,6 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     setMounted(true);
-    // Pulse the tab after 3s to attract attention, then every 8s
     const initial = setTimeout(() => setPulse(true), 3000);
     return () => clearTimeout(initial);
   }, []);
@@ -84,11 +75,13 @@ export default function ThemeToggle() {
   useEffect(() => {
     if (!pulse) return;
     const t = setTimeout(() => setPulse(false), 1200);
-    const interval = setInterval(() => { setPulse(true); setTimeout(() => setPulse(false), 1200); }, 8000);
+    const interval = setInterval(() => {
+      setPulse(true);
+      setTimeout(() => setPulse(false), 1200);
+    }, 8000);
     return () => { clearTimeout(t); clearInterval(interval); };
   }, [pulse]);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const fn = (e: MouseEvent) => {
@@ -98,21 +91,37 @@ export default function ThemeToggle() {
     return () => document.removeEventListener("mousedown", fn);
   }, [open]);
 
-  // Lock body scroll when open on mobile
+  // Smart scroll lock — only lock if navbar isn't already locking (navbar sets overflow directly)
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    if (open) {
+      if (document.body.style.overflow !== "hidden") {
+        document.body.setAttribute("data-theme-lock", "1");
+        document.body.style.overflow = "hidden";
+      }
+    } else {
+      if (document.body.getAttribute("data-theme-lock") === "1") {
+        document.body.removeAttribute("data-theme-lock");
+        document.body.style.overflow = "";
+      }
+    }
+    return () => {
+      if (document.body.getAttribute("data-theme-lock") === "1") {
+        document.body.removeAttribute("data-theme-lock");
+        document.body.style.overflow = "";
+      }
+    };
   }, [open]);
 
   if (!mounted) return null;
 
   return (
     <>
-      {/* ── Backdrop ── */}
+      {/* Backdrop — z 9993, safely below navbar (9998–9999) */}
       <div
         onClick={() => setOpen(false)}
         style={{
-          position: "fixed", inset: 0, zIndex: 9995,
+          position: "fixed", inset: 0,
+          zIndex: 9993,
           background: "rgba(0,0,0,0.45)",
           backdropFilter: "blur(3px)",
           opacity: open ? 1 : 0,
@@ -121,20 +130,18 @@ export default function ThemeToggle() {
         }}
       />
 
-      {/* ── Container ── */}
+      {/* Wrapper — z 9994 */}
       <div
         ref={ref}
         style={{
           position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 9997,
+          top: 0, right: 0, bottom: 0,
+          zIndex: 9994,
           display: "flex",
           alignItems: "stretch",
         }}
       >
-        {/* ── DRAWER PANEL (full height) ── */}
+        {/* ── DRAWER ── */}
         <div
           style={{
             width: 300,
@@ -161,10 +168,7 @@ export default function ThemeToggle() {
             zIndex: 1,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{
-                width: 3, height: 22,
-                background: `linear-gradient(180deg, ${accentColor}, ${accentSecondary})`,
-              }} />
+              <div style={{ width: 3, height: 22, background: `linear-gradient(180deg, ${accentColor}, ${accentSecondary})` }} />
               <div>
                 <p style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.2em", textTransform: "uppercase", color: accentColor, margin: 0 }}>
                   Appearance
@@ -179,10 +183,8 @@ export default function ThemeToggle() {
               style={{
                 width: 30, height: 30,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                background: S.surfaceAlt,
-                border: `1px solid ${S.border}`,
-                cursor: "pointer",
-                borderRadius: 2,
+                background: S.surfaceAlt, border: `1px solid ${S.border}`,
+                cursor: "pointer", borderRadius: 2,
               }}
             >
               <CloseIcon s={14} c={S.muted} />
@@ -191,8 +193,6 @@ export default function ThemeToggle() {
 
           {/* Body */}
           <div style={{ padding: "20px 20px 28px", flex: 1 }}>
-
-            {/* Mode */}
             <Sec label="Mode" S={S} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7, marginBottom: 24 }}>
               {([["light", "Light", SunIcon], ["dark", "Dark", MoonIcon]] as const).map(([mode, label, Icon]) => (
@@ -212,12 +212,7 @@ export default function ThemeToggle() {
                     {label}
                   </span>
                   {theme === mode && (
-                    <div style={{
-                      position: "absolute", top: 5, right: 5,
-                      width: 15, height: 15,
-                      background: accentColor,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
+                    <div style={{ position: "absolute", top: 5, right: 5, width: 15, height: 15, background: accentColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <CheckIcon s={8} c="#fff" />
                     </div>
                   )}
@@ -225,21 +220,16 @@ export default function ThemeToggle() {
               ))}
             </div>
 
-            {/* Accent */}
             <Sec label="Accent Color" S={S} />
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
               {(Object.entries(ACCENT_PALETTES) as [AccentColor, typeof ACCENT_PALETTES[AccentColor]][]).map(([key, val]) => (
                 <button
-                  key={key}
-                  title={val.label}
-                  onClick={() => setAccent(key)}
+                  key={key} title={val.label} onClick={() => setAccent(key)}
                   style={{
-                    width: 32, height: 32,
-                    background: val.primary,
+                    width: 32, height: 32, background: val.primary,
                     border: accent === key ? `3px solid ${S.text}` : "3px solid transparent",
                     outline: accent === key ? `2px solid ${val.primary}` : "2px solid transparent",
-                    outlineOffset: 1,
-                    cursor: "pointer",
+                    outlineOffset: 1, cursor: "pointer",
                     transition: "transform 0.12s ease",
                     transform: accent === key ? "scale(1.2)" : "scale(1)",
                     borderRadius: 2,
@@ -251,18 +241,15 @@ export default function ThemeToggle() {
               {ACCENT_PALETTES[accent].label}
             </p>
 
-            {/* Dark variant */}
             {isDark && (
               <>
                 <Sec label="Dark Variant" S={S} />
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 20 }}>
                   {(Object.entries(DARK_VARIANTS) as [DarkVariant, typeof DARK_VARIANTS[DarkVariant]][]).map(([key, val]) => (
                     <button
-                      key={key}
-                      onClick={() => setDarkVariant(key)}
+                      key={key} onClick={() => setDarkVariant(key)}
                       style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "9px 10px",
+                        display: "flex", alignItems: "center", gap: 10, padding: "9px 10px",
                         background: darkVariant === key ? `${accentColor}12` : "transparent",
                         border: `1px solid ${darkVariant === key ? accentColor : S.border}`,
                         cursor: "pointer", transition: "all 0.12s",
@@ -273,16 +260,10 @@ export default function ThemeToggle() {
                           <div key={i} style={{ width: 10, height: 22, background: c }} />
                         ))}
                       </div>
-                      <span style={{
-                        fontSize: 12, flex: 1, textAlign: "left",
-                        fontWeight: darkVariant === key ? 700 : 500,
-                        color: darkVariant === key ? accentColor : S.text,
-                      }}>
+                      <span style={{ fontSize: 12, flex: 1, textAlign: "left", fontWeight: darkVariant === key ? 700 : 500, color: darkVariant === key ? accentColor : S.text }}>
                         {val.label}
                       </span>
-                      {darkVariant === key && (
-                        <div style={{ width: 6, height: 6, background: accentColor, borderRadius: "50%", flexShrink: 0 }} />
-                      )}
+                      {darkVariant === key && <div style={{ width: 6, height: 6, background: accentColor, borderRadius: "50%", flexShrink: 0 }} />}
                     </button>
                   ))}
                 </div>
@@ -291,75 +272,42 @@ export default function ThemeToggle() {
           </div>
 
           {/* Footer */}
-          <div style={{
-            padding: "12px 20px",
-            borderTop: `1px solid ${S.border}`,
-            textAlign: "center",
-          }}>
+          <div style={{ padding: "12px 20px", borderTop: `1px solid ${S.border}`, textAlign: "center" }}>
             <p style={{ fontSize: 10, color: S.subtle, letterSpacing: "0.12em", textTransform: "uppercase", margin: 0 }}>
               HMEX · Appearance
             </p>
           </div>
         </div>
 
-        {/* ── TAB BUTTON (full-height column, slim) ── */}
+        {/* ── TAB — z 9995, above backdrop, below navbar ── */}
         {!open && (
-          <div
-            style={{
-              position: "fixed",
-              right: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 9998,
-            }}
-          >
+          <div style={{
+            position: "fixed", right: 0, top: "50%",
+            transform: "translateY(-50%)",
+            zIndex: 9995,
+          }}>
             <button
               onClick={() => setOpen(true)}
               style={{
-                width: 44,
-                height: 110,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
+                width: 44, height: 110,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
                 background: `linear-gradient(180deg, ${S.surface} 0%, ${S.surfaceAlt} 100%)`,
                 borderTop: `1px solid ${S.border}`,
                 borderBottom: `1px solid ${S.border}`,
                 borderLeft: `2px solid ${accentColor}`,
                 borderRight: "none",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
+                cursor: "pointer", transition: "all 0.2s ease",
                 boxShadow: isDark
                   ? `-6px 0 32px rgba(0,0,0,0.6), -2px 0 12px ${accentColor}30`
                   : `-6px 0 24px rgba(0,0,0,0.13), -2px 0 10px ${accentColor}25`,
                 animation: pulse ? "tabPulse 0.7s ease-in-out" : "none",
               }}
             >
-              {/* Icon */}
-              {isDark
-                ? <MoonIcon s={17} c={accentColor} />
-                : <SunIcon  s={17} c={accentColor} />
-              }
-
-              {/* Accent dot with ring */}
+              {isDark ? <MoonIcon s={17} c={accentColor} /> : <SunIcon s={17} c={accentColor} />}
               <div style={{ position: "relative", width: 10, height: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{
-                  position: "absolute",
-                  width: 20, height: 20,
-                  background: `${accentColor}35`,
-                  borderRadius: "50%",
-                  animation: "ring 2.4s ease-in-out infinite",
-                }} />
-                <div style={{
-                  width: 9, height: 9,
-                  borderRadius: "50%",
-                  background: accentColor,
-                  flexShrink: 0,
-                }} />
+                <div style={{ position: "absolute", width: 20, height: 20, background: `${accentColor}35`, borderRadius: "50%", animation: "ring 2.4s ease-in-out infinite" }} />
+                <div style={{ width: 9, height: 9, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
               </div>
-
-              {/* Palette icon */}
               <PaletteIcon s={15} c={accentColor} />
             </button>
           </div>

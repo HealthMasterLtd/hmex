@@ -12,7 +12,6 @@ import Footer from "@/components/ui/Footer"
 export default function Home() {
   return (
     <main className="w-full">
-      
       <Navbar/>
       <Hero/>
       <QuoteSection/>
