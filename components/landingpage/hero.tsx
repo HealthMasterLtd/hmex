@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "../Themetoggle";
 
 export default function Hero() {
   const { isDark, surface, accentColor, accentFaint } = useTheme();
@@ -234,6 +235,7 @@ export default function Hero() {
           </div>
         </div>
       </div>
+      <ThemeToggle />
 
       <style jsx>{`
         @keyframes breathe {
