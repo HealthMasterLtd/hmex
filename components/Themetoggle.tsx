@@ -91,7 +91,7 @@ export default function ThemeToggle() {
     return () => document.removeEventListener("mousedown", fn);
   }, [open]);
 
-  // Smart scroll lock — only lock if navbar isn't already locking (navbar sets overflow directly)
+  // Scroll lock only while drawer is open
   useEffect(() => {
     if (open) {
       if (document.body.style.overflow !== "hidden") {
@@ -116,21 +116,26 @@ export default function ThemeToggle() {
 
   return (
     <>
-      {/* Backdrop — z 9993, safely below navbar (9998–9999) */}
-      <div
-        onClick={() => setOpen(false)}
-        style={{
-          position: "fixed", inset: 0,
-          zIndex: 9993,
-          background: "rgba(0,0,0,0.45)",
-          backdropFilter: "blur(3px)",
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? "auto" : "none",
-          transition: "opacity 0.28s ease",
-        }}
-      />
+      {/* Backdrop — only rendered + interactive when open */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: "fixed", inset: 0,
+            zIndex: 9993,
+            background: "rgba(0,0,0,0.45)",
+            backdropFilter: "blur(3px)",
+          }}
+        />
+      )}
 
-      {/* Wrapper — z 9994 */}
+      {/* 
+        THE CORE FIX:
+        When closed, this wrapper must NOT cover the page.
+        - pointerEvents: "none" when closed so zero touch/click interception
+        - Only the tab button itself gets pointerEvents: "auto"
+        - When open, wrapper is interactive normally
+      */}
       <div
         ref={ref}
         style={{
@@ -139,6 +144,8 @@ export default function ThemeToggle() {
           zIndex: 9994,
           display: "flex",
           alignItems: "stretch",
+          // ✅ KEY FIX: pass all events through when drawer is closed
+          pointerEvents: open ? "auto" : "none",
         }}
       >
         {/* ── DRAWER ── */}
@@ -279,38 +286,43 @@ export default function ThemeToggle() {
           </div>
         </div>
 
-        {/* ── TAB — z 9995, above backdrop, below navbar ── */}
+        {/* 
+          ── TAB BUTTON ──
+          Positioned fixed independently so it's completely outside
+          the pointer-events:none wrapper. Always clickable.
+        */}
         {!open && (
-          <div style={{
-            position: "fixed", right: 0, top: "50%",
-            transform: "translateY(-50%)",
-            zIndex: 9995,
-          }}>
-            <button
-              onClick={() => setOpen(true)}
-              style={{
-                width: 44, height: 110,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
-                background: `linear-gradient(180deg, ${S.surface} 0%, ${S.surfaceAlt} 100%)`,
-                borderTop: `1px solid ${S.border}`,
-                borderBottom: `1px solid ${S.border}`,
-                borderLeft: `2px solid ${accentColor}`,
-                borderRight: "none",
-                cursor: "pointer", transition: "all 0.2s ease",
-                boxShadow: isDark
-                  ? `-6px 0 32px rgba(0,0,0,0.6), -2px 0 12px ${accentColor}30`
-                  : `-6px 0 24px rgba(0,0,0,0.13), -2px 0 10px ${accentColor}25`,
-                animation: pulse ? "tabPulse 0.7s ease-in-out" : "none",
-              }}
-            >
-              {isDark ? <MoonIcon s={17} c={accentColor} /> : <SunIcon s={17} c={accentColor} />}
-              <div style={{ position: "relative", width: 10, height: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <div style={{ position: "absolute", width: 20, height: 20, background: `${accentColor}35`, borderRadius: "50%", animation: "ring 2.4s ease-in-out infinite" }} />
-                <div style={{ width: 9, height: 9, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
-              </div>
-              <PaletteIcon s={15} c={accentColor} />
-            </button>
-          </div>
+          <button
+            onClick={() => setOpen(true)}
+            style={{
+              // Fixed independently — not affected by parent pointerEvents:none
+              position: "fixed",
+              right: 0,
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 9995,
+              pointerEvents: "auto", // explicit — always clickable
+              width: 44, height: 110,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
+              background: `linear-gradient(180deg, ${S.surface} 0%, ${S.surfaceAlt} 100%)`,
+              borderTop: `1px solid ${S.border}`,
+              borderBottom: `1px solid ${S.border}`,
+              borderLeft: `2px solid ${accentColor}`,
+              borderRight: "none",
+              cursor: "pointer", transition: "all 0.2s ease",
+              boxShadow: isDark
+                ? `-6px 0 32px rgba(0,0,0,0.6), -2px 0 12px ${accentColor}30`
+                : `-6px 0 24px rgba(0,0,0,0.13), -2px 0 10px ${accentColor}25`,
+              animation: pulse ? "tabPulse 0.7s ease-in-out" : "none",
+            }}
+          >
+            {isDark ? <MoonIcon s={17} c={accentColor} /> : <SunIcon s={17} c={accentColor} />}
+            <div style={{ position: "relative", width: 10, height: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ position: "absolute", width: 20, height: 20, background: `${accentColor}35`, borderRadius: "50%", animation: "ring 2.4s ease-in-out infinite" }} />
+              <div style={{ width: 9, height: 9, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
+            </div>
+            <PaletteIcon s={15} c={accentColor} />
+          </button>
         )}
       </div>
 
