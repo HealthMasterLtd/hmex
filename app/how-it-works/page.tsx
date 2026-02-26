@@ -9,6 +9,7 @@ import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import HowItWorks from "@/components/landingpage/how-it-works";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -431,6 +432,7 @@ export default function HowItWorksPage() {
       </section>
 
       <Footer />
+      <ThemeToggle />
 
       <style jsx>{`
         @keyframes breathe {

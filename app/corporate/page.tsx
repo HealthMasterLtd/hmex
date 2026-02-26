@@ -5,6 +5,7 @@ import Footer from "@/components/ui/Footer";
 import { Users, Briefcase, Calendar, ArrowRight, CheckCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 function useInView(threshold = 0.15) {
   const ref = useRef<HTMLDivElement>(null);
@@ -360,6 +361,7 @@ export default function CorporatePage() {
           </div>
         </div>
       </section>
+      <ThemeToggle />
 
       <Footer />
     </div>

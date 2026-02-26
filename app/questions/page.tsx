@@ -14,6 +14,7 @@ import { holdAssessmentLocally } from "@/services/AppwriteService";
 import { holdRecommendationsLocally } from "@/services/RecommendationService";
 import Navbar from "@/components/landingpage/navbar";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 // ─── ICON MAPPING ─────────────────────────────────────────────────────────────
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -827,6 +828,7 @@ export default function PreLoginAssessmentPage() {
           Based on FINDRISC & Framingham validated frameworks · Private & confidential
         </p>
       </div>
+      <ThemeToggle />
     </div>
   );
 }
