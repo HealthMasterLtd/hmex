@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     // Send auto-reply confirmation to the user
     await resend.emails.send({
-      from: "HMEX <onboarding@resend.dev>", // replace with your domain once verified
+      from: "HMEX <no-reply@healthmasterco.com>", // replace with your domain once verified
       to: email,
       subject: "We received your message — HMEX",
       html: `
