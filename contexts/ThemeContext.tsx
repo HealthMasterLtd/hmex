@@ -113,7 +113,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const dv = localStorage.getItem("hmex-dark-variant") as DarkVariant | null;
       const ac = localStorage.getItem("hmex-accent") as AccentColor | null;
       if (t === "light" || t === "dark") setTheme(t);
-      else if (window.matchMedia("(prefers-color-scheme: dark)").matches) setTheme("dark");
+      // else if (window.matchMedia("(prefers-color-scheme: dark)").matches) setTheme("dark");
       if (dv && DARK_VARIANTS[dv]) setDarkVariantState(dv);
       if (ac && ACCENT_PALETTES[ac]) setAccentState(ac);
     } catch {}
