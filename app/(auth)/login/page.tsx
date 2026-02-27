@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import ThemeToggle from "@/components/Themetoggle";
+import OAuthCallbackHandler from "@/components/OAuthCallbackHandler";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,6 @@ export default function LoginPage() {
     "Continue your prevention journey with personalized guidance",
   ];
 
-  // Shared styles — all sharp corners
   const inputStyle = (field: string): React.CSSProperties => ({
     width: "100%",
     borderRadius: 0,
@@ -141,7 +141,6 @@ export default function LoginPage() {
     cursor: "pointer",
   };
 
-  // Shared form fields (used in both mobile + desktop)
   const FormFields = () => (
     <div className="space-y-4">
       {/* Email */}
@@ -237,6 +236,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen relative" style={{ background: surface.bg }}>
 
+      {/* ── Silent OAuth handler — no UI ── */}
+      <OAuthCallbackHandler />
+
       {/* Theme Toggle */}
       <motion.button
         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -290,7 +292,6 @@ export default function LoginPage() {
               </h2>
               <p className="text-sm mb-6" style={{ color: surface.muted }}>Continue your health journey</p>
 
-              {/* Tab switcher */}
               <div className="flex gap-2 p-1 mb-6" style={{ background: isDark ? "rgba(0,0,0,0.2)" : surface.surfaceAlt }}>
                 <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: surface.surface, color: surface.text }}>
                   Sign in
@@ -300,7 +301,6 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              {/* Error */}
               <AnimatePresence>
                 {(validationError || error) && (
                   <motion.div
@@ -345,7 +345,7 @@ export default function LoginPage() {
                     <span style={{ color: accentColor }}>your health journey.</span>
                   </h1>
                   <p className="text-base leading-relaxed max-w-md" style={{ color: surface.muted }}>
-                  Your risk insights, progress, and recommendations are waiting for you.
+                    Your risk insights, progress, and recommendations are waiting for you.
                   </p>
                 </div>
 
@@ -353,7 +353,6 @@ export default function LoginPage() {
                   <HealthLottie />
                 </div>
 
-                {/* Benefits */}
                 <div className="flex flex-col gap-2.5">
                   {benefits.map((b) => (
                     <div key={b} className="flex items-center gap-3">
@@ -367,8 +366,6 @@ export default function LoginPage() {
                     </div>
                   ))}
                 </div>
-
-                
               </div>
 
               {/* RIGHT */}
@@ -386,7 +383,6 @@ export default function LoginPage() {
                     </p>
                   </div>
 
-                  {/* Error */}
                   <AnimatePresence>
                     {(validationError || error) && (
                       <motion.div
@@ -404,7 +400,6 @@ export default function LoginPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* Larger inputs for desktop */}
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold mb-2" style={{ color: surface.text }}>Email Address</label>

@@ -527,3 +527,40 @@ export async function getUserStats(userId: string): Promise<{
     return null;
   }
 }
+
+// ─── UPSERT USER (FOR AUTH FLOWS) ────────────────────────────────────────────
+
+/**
+ * Called after email signup, email login, and Google OAuth redirect.
+ * Builds on top of your existing createUserProfile / getUserProfile functions.
+ *
+ * - First call  → creates the full profile document with all defaults
+ * - Repeat call → no-op (profile already exists), UNLESS fullName was blank
+ *                 (edge case with Google OAuth) in which case it fills it in
+ *
+ * This is what OAuthCallbackHandler and AuthService call — do not remove.
+ */
+export async function upsertUser(authUser: {
+  id: string;
+  name: string;
+  email: string;
+}): Promise<UserProfile | null> {
+  try {
+    // getUserProfile uses the auth userId as the document ID directly
+    const existing = await getUserProfile(authUser.id);
+
+    if (existing) {
+      // Profile exists — only patch fullName if blank (Google OAuth edge case)
+      if (!existing.fullName && authUser.name) {
+        return await updateUserProfile(authUser.id, { fullName: authUser.name } as any);
+      }
+      return existing;
+    }
+
+    // No profile yet — create it with all defaults via your existing function
+    return await createUserProfile(authUser.id, authUser.email, authUser.name || "");
+  } catch (e) {
+    console.error("[UserService] upsertUser error:", e);
+    return null;
+  }
+}

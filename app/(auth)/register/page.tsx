@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { claimPendingAssessment, getPendingAssessment } from "@/services/AppwriteService";
 import { claimPendingRecommendations, getPendingRecommendations } from "@/services/RecommendationService";
+import OAuthCallbackHandler from "@/components/OAuthCallbackHandler";
 import {
   Heart,
   Sun,
@@ -32,7 +33,6 @@ import ThemeToggle from "@/components/Themetoggle";
 
 export const dynamic = 'force-dynamic';
 
-// Lottie Animation Component
 function HealthLottie() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -86,7 +86,6 @@ export default function SignUpPage() {
   const { signUp, loginWithGoogle, loading, error, clearError, user } = useAuth();
   const { isDark, toggleTheme, surface, accentColor } = useTheme();
 
-  // ── ALL HOOKS MUST BE HERE BEFORE ANY CONDITIONAL RETURN ──
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -104,8 +103,6 @@ export default function SignUpPage() {
   const [savingAssessment, setSavingAssessment] = useState(false);
   const [assessmentSaved, setAssessmentSaved] = useState(false);
   const [hasPendingAssessment, setHasPendingAssessment] = useState(false);
-  
-  // NEW: Recommendations state
   const [savingRecommendations, setSavingRecommendations] = useState(false);
   const [recommendationsSaved, setRecommendationsSaved] = useState(false);
   const [hasPendingReco, setHasPendingReco] = useState(false);
@@ -115,7 +112,6 @@ export default function SignUpPage() {
     setMounted(true);
     const pending = getPendingAssessment();
     setHasPendingAssessment(!!pending);
-    // NEW: Check for pending recommendations
     setHasPendingReco(!!getPendingRecommendations());
   }, []);
 
@@ -133,7 +129,6 @@ export default function SignUpPage() {
     setPasswordStrength(strength);
   }, [formData.password]);
 
-  // Capture userId from user context after signup (handles delayed auth update / Google path)
   useEffect(() => {
     if (signupSuccess && user && !newUserId) {
       const uid = (user as any).$id || (user as any).uid || (user as any).id;
@@ -141,15 +136,14 @@ export default function SignUpPage() {
     }
   }, [user, signupSuccess, newUserId]);
 
-  // STAGE 1: Claim pending assessment from localStorage → Appwrite
+  // STAGE 1: Claim pending assessment
   useEffect(() => {
     if (!newUserId || !hasPendingAssessment) return;
-    
+
     setSavingAssessment(true);
     claimPendingAssessment(newUserId)
       .then((saved) => {
         if (saved) {
-          console.log('✅ Assessment saved to Appwrite:', saved.$id);
           savedAssessmentIdRef.current = saved.$id;
           setAssessmentSaved(true);
         }
@@ -158,8 +152,7 @@ export default function SignUpPage() {
       .finally(() => setSavingAssessment(false));
   }, [newUserId, hasPendingAssessment]);
 
-  // STAGE 2: Claim pending recommendations from localStorage → Appwrite
-  // Fires AFTER assessment is saved so we have a real assessmentId to link to
+  // STAGE 2: Claim pending recommendations after assessment is saved
   useEffect(() => {
     if (!assessmentSaved || !newUserId || !hasPendingReco) return;
     const assessmentId = savedAssessmentIdRef.current;
@@ -167,30 +160,22 @@ export default function SignUpPage() {
 
     setSavingRecommendations(true);
     claimPendingRecommendations(newUserId, assessmentId)
-      .then((saved) => {
-        if (saved) {
-          console.log('✅ Recommendations saved to Appwrite:', saved.$id);
-          setRecommendationsSaved(true);
-        }
-      })
+      .then((saved) => { if (saved) setRecommendationsSaved(true); })
       .catch((err) => console.error('Failed to claim recommendations:', err))
       .finally(() => setSavingRecommendations(false));
   }, [assessmentSaved, newUserId, hasPendingReco]);
 
-  // Edge case: If there's NO pending assessment but there ARE recommendations
+  // Edge case: recommendations but no assessment
   useEffect(() => {
     if (!newUserId || hasPendingAssessment || !hasPendingReco) return;
 
     setSavingRecommendations(true);
     claimPendingRecommendations(newUserId, "unlinked")
-      .then((saved) => {
-        if (saved) setRecommendationsSaved(true);
-      })
+      .then((saved) => { if (saved) setRecommendationsSaved(true); })
       .catch(console.error)
       .finally(() => setSavingRecommendations(false));
   }, [newUserId, hasPendingAssessment, hasPendingReco]);
 
-  // ── HANDLERS ──
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     clearError();
     setValidationError(null);
@@ -239,7 +224,6 @@ export default function SignUpPage() {
 
   const isSaving = savingAssessment || savingRecommendations;
 
-  // ── CONDITIONAL RETURN — after ALL hooks ──
   if (!mounted) return null;
 
   const colors = {
@@ -260,7 +244,6 @@ export default function SignUpPage() {
     "Your data stays private and secure",
   ];
 
-  // Success screen content with both assessment and recommendation status
   const SuccessContent = (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
@@ -298,7 +281,6 @@ export default function SignUpPage() {
         Your account has been created successfully.
       </motion.p>
 
-      {/* Assessment Status */}
       {hasPendingAssessment && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -341,7 +323,6 @@ export default function SignUpPage() {
         </motion.div>
       )}
 
-      {/* Recommendations Status */}
       {hasPendingReco && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -421,6 +402,10 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen relative" style={{ background: colors.bg }}>
+
+      {/* ── Silent OAuth handler — no UI ── */}
+      <OAuthCallbackHandler />
+
       {/* Theme Toggle */}
       <motion.button
         initial={{ opacity: 0 }}
@@ -448,7 +433,6 @@ export default function SignUpPage() {
 
       {/* MOBILE VIEW */}
       <div className="lg:hidden min-h-screen flex flex-col relative">
-        {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80"
@@ -458,17 +442,10 @@ export default function SignUpPage() {
           <div className="absolute inset-0" style={{ background: "rgba(0, 0, 0, 0.5)" }} />
         </div>
 
-        {/* Mobile Header */}
         <div className="relative z-10 px-5 py-6">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 flex items-center justify-center shadow-sm" style={{ borderRadius: 2 }}>
-              <Image
-                src='/white logo.png'
-                alt="Logo"
-                width={120}
-                height={50}
-                className="object-cover w-full h-full"
-              />
+              <Image src='/white logo.png' alt="Logo" width={120} height={50} className="object-cover w-full h-full" />
             </div>
             <span className="text-xl font-bold text-white">HMEX</span>
           </div>
@@ -478,11 +455,9 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        {/* Form Container */}
         <div className="flex-1 relative z-10 flex flex-col justify-end pb-8">
           <div className="mx-5">
             <div className="p-6" style={{ background: colors.surface, borderRadius: 2 }}>
-
               <AnimatePresence mode="wait">
                 {signupSuccess ? (
                   <motion.div key="mobile-success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -493,11 +468,8 @@ export default function SignUpPage() {
                     <h2 className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: colors.text }}>
                       Create account
                     </h2>
-                    <p className="text-sm mb-6" style={{ color: colors.muted }}>
-                      Start your health journey today
-                    </p>
+                    <p className="text-sm mb-6" style={{ color: colors.muted }}>Start your health journey today</p>
 
-                    {/* Tab Switcher */}
                     <div className="flex gap-2 p-1 mb-6" style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6", borderRadius: 2 }}>
                       <div className="flex-1 py-2 text-center text-sm font-semibold" style={{ background: colors.surface, color: colors.text, borderRadius: 2 }}>
                         Sign up
@@ -507,7 +479,6 @@ export default function SignUpPage() {
                       </Link>
                     </div>
 
-                    {/* Error message */}
                     <AnimatePresence>
                       {(validationError || error) && (
                         <motion.div
@@ -527,193 +498,88 @@ export default function SignUpPage() {
                       )}
                     </AnimatePresence>
 
-                    {/* Form Fields */}
                     <div className="space-y-4">
                       {/* Full Name */}
                       <div>
-                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                          Full Name
-                        </label>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Full Name</label>
                         <div className="relative">
                           <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                          <input
-                            type="text"
-                            name="fullName"
-                            value={formData.fullName}
-                            onChange={handleChange}
-                            onKeyPress={handleKeyPress}
-                            placeholder="John Doe"
-                            disabled={loading}
-                            className="w-full pl-10 pr-3 py-2.5 text-sm"
-                            style={{
-                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                              color: colors.text,
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 2,
-                            }}
-                          />
+                          <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} onKeyPress={handleKeyPress}
+                            placeholder="John Doe" disabled={loading} className="w-full pl-10 pr-3 py-2.5 text-sm"
+                            style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6", color: colors.text, border: "none", outline: "none", borderRadius: 2 }} />
                         </div>
                       </div>
 
                       {/* Email */}
                       <div>
-                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                          Email Address
-                        </label>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Email Address</label>
                         <div className="relative">
                           <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                          <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            onKeyPress={handleKeyPress}
-                            placeholder="you@example.com"
-                            disabled={loading}
-                            className="w-full pl-10 pr-3 py-2.5 text-sm"
-                            style={{
-                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                              color: colors.text,
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 2,
-                            }}
-                          />
+                          <input type="email" name="email" value={formData.email} onChange={handleChange} onKeyPress={handleKeyPress}
+                            placeholder="you@example.com" disabled={loading} className="w-full pl-10 pr-3 py-2.5 text-sm"
+                            style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6", color: colors.text, border: "none", outline: "none", borderRadius: 2 }} />
                         </div>
                       </div>
 
                       {/* Password */}
                       <div>
-                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                          Password
-                        </label>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Password</label>
                         <div className="relative">
                           <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                          <input
-                            type={showPassword ? "text" : "password"}
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            onKeyPress={handleKeyPress}
-                            placeholder="••••••••"
-                            disabled={loading}
+                          <input type={showPassword ? "text" : "password"} name="password" value={formData.password}
+                            onChange={handleChange} onKeyPress={handleKeyPress} placeholder="••••••••" disabled={loading}
                             className="w-full pl-10 pr-10 py-2.5 text-sm"
-                            style={{
-                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                              color: colors.text,
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 2,
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                            style={{ color: colors.muted }}
-                          >
+                            style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6", color: colors.text, border: "none", outline: "none", borderRadius: 2 }} />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }}>
                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
                         {formData.password && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            className="mt-2 space-y-1"
-                          >
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-1">
                             <div className="flex gap-1">
                               {[1, 2, 3, 4].map((i) => (
-                                <div
-                                  key={i}
-                                  className="h-1 flex-1 transition-all"
-                                  style={{
-                                    background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
-                                    borderRadius: 2,
-                                  }}
-                                />
+                                <div key={i} className="h-1 flex-1 transition-all"
+                                  style={{ background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border, borderRadius: 2 }} />
                               ))}
                             </div>
-                            <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>
-                              {getStrengthText()} password
-                            </p>
+                            <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>{getStrengthText()} password</p>
                           </motion.div>
                         )}
                       </div>
 
                       {/* Confirm Password */}
                       <div>
-                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                          Confirm Password
-                        </label>
+                        <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Confirm Password</label>
                         <div className="relative">
                           <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                          <input
-                            type={showConfirmPassword ? "text" : "password"}
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            onKeyPress={handleKeyPress}
-                            placeholder="••••••••"
-                            disabled={loading}
+                          <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword}
+                            onChange={handleChange} onKeyPress={handleKeyPress} placeholder="••••••••" disabled={loading}
                             className="w-full pl-10 pr-10 py-2.5 text-sm"
-                            style={{
-                              background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6",
-                              color: colors.text,
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 2,
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                            style={{ color: colors.muted }}
-                          >
+                            style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : "#F3F4F6", color: colors.text, border: "none", outline: "none", borderRadius: 2 }} />
+                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }}>
                             {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
                         {formData.confirmPassword && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                             className="mt-1 flex items-center gap-1.5 text-xs font-medium"
-                            style={{
-                              color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438",
-                            }}
-                          >
-                            {formData.password === formData.confirmPassword ? (
-                              <><Check size={12} /> Passwords match</>
-                            ) : (
-                              <><AlertCircle size={12} /> Passwords don&apos;t match</>
-                            )}
+                            style={{ color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438" }}>
+                            {formData.password === formData.confirmPassword
+                              ? <><Check size={12} /> Passwords match</>
+                              : <><AlertCircle size={12} /> Passwords don&apos;t match</>}
                           </motion.div>
                         )}
                       </div>
 
-                      {/* Submit Button */}
-                      <button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className="w-full py-3 px-4 text-sm font-semibold transition-all mt-2"
-                        style={{
-                          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                          color: "white",
-                          opacity: loading ? 0.7 : 1,
-                          borderRadius: 2,
-                        }}
-                      >
+                      {/* Submit */}
+                      <button onClick={handleSubmit} disabled={loading} className="w-full py-3 px-4 text-sm font-semibold transition-all mt-2"
+                        style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`, color: "white", opacity: loading ? 0.7 : 1, borderRadius: 2 }}>
                         {loading ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Creating...
-                          </span>
+                          <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Creating...</span>
                         ) : (
-                          <span className="flex items-center justify-center gap-2">
-                            Create Account
-                            <ArrowRight size={16} />
-                          </span>
+                          <span className="flex items-center justify-center gap-2">Create Account<ArrowRight size={16} /></span>
                         )}
                       </button>
 
@@ -723,24 +589,14 @@ export default function SignUpPage() {
                           <div className="w-full border-t" style={{ borderColor: colors.border }} />
                         </div>
                         <div className="relative flex justify-center text-xs">
-                          <span className="px-2" style={{ background: colors.surface, color: colors.muted }}>
-                            or continue with
-                          </span>
+                          <span className="px-2" style={{ background: colors.surface, color: colors.muted }}>or continue with</span>
                         </div>
                       </div>
 
-                      {/* Google Button */}
-                      <button
-                        onClick={loginWithGoogle}
-                        disabled={loading}
+                      {/* Google */}
+                      <button onClick={loginWithGoogle} disabled={loading}
                         className="w-full py-2.5 px-4 text-sm font-medium border flex items-center justify-center gap-2"
-                        style={{
-                          background: colors.surface,
-                          borderColor: colors.border,
-                          color: colors.text,
-                          borderRadius: 2,
-                        }}
-                      >
+                        style={{ background: colors.surface, borderColor: colors.border, color: colors.text, borderRadius: 2 }}>
                         <svg width="16" height="16" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -750,18 +606,14 @@ export default function SignUpPage() {
                         Continue with Google
                       </button>
 
-                      {/* Sign In Link */}
                       <p className="text-center text-sm mt-4" style={{ color: colors.muted }}>
                         Already have an account?{" "}
-                        <Link href="/login" className="font-semibold" style={{ color: colors.primary }}>
-                          Sign in
-                        </Link>
+                        <Link href="/login" className="font-semibold" style={{ color: colors.primary }}>Sign in</Link>
                       </p>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-
             </div>
           </div>
         </div>
@@ -775,21 +627,13 @@ export default function SignUpPage() {
 
               {/* LEFT SIDE */}
               <div className="space-y-8">
-                {/* Logo */}
                 <Link href="/" className="inline-flex items-center gap-3 group">
                   <div className="w-10 h-10 flex items-center justify-center shadow-sm" style={{ borderRadius: 2 }}>
-                    <Image
-                      src='/white logo.png'
-                      alt="Logo"
-                      width={120}
-                      height={50}
-                      className="object-cover w-full h-full"
-                    />
+                    <Image src='/white logo.png' alt="Logo" width={120} height={50} className="object-cover w-full h-full" />
                   </div>
                   <span className="text-2xl font-bold" style={{ color: colors.text }}>HMEX</span>
                 </Link>
 
-                {/* Headline */}
                 <div className="space-y-3">
                   <h1 className="text-5xl font-black leading-tight" style={{ letterSpacing: "-0.04em", color: colors.text }}>
                     Take control of<br />
@@ -801,281 +645,134 @@ export default function SignUpPage() {
                   </p>
                 </div>
 
-                {/* Large Lottie Animation */}
                 <div style={{ height: 360, width: "100%" }}>
                   <HealthLottie />
                 </div>
 
-                {/* Benefits */}
                 <div className="flex flex-col gap-2.5">
                   {benefits.map((benefit) => (
                     <div key={benefit} className="flex items-center gap-3">
                       <div className="w-5 h-5 flex items-center justify-center flex-shrink-0"
-                        style={{
-                          background: `color-mix(in srgb, ${colors.primary} 15%, transparent)`,
-                          border: `1px solid color-mix(in srgb, ${colors.primary} 30%, transparent)`,
-                          borderRadius: 2,
-                        }}>
+                        style={{ background: `color-mix(in srgb, ${colors.primary} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${colors.primary} 30%, transparent)`, borderRadius: 2 }}>
                         <Check className="w-3 h-3" style={{ color: colors.primary }} />
                       </div>
                       <span className="text-sm font-medium" style={{ color: colors.muted }}>{benefit}</span>
                     </div>
                   ))}
                 </div>
-
-                
               </div>
 
-              {/* RIGHT SIDE - Form or Success */}
+              {/* RIGHT SIDE */}
               <div className="w-full max-w-md mx-auto lg:mx-0">
                 <AnimatePresence mode="wait">
                   {signupSuccess ? (
-                    <motion.div
-                      key="desktop-success"
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -12 }}
-                      transition={{ duration: 0.35 }}
-                      className="p-8"
-                      style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 2 }}
-                    >
+                    <motion.div key="desktop-success" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.35 }}
+                      className="p-8" style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 2 }}>
                       {SuccessContent}
                     </motion.div>
                   ) : (
-                    <motion.div
-                      key="desktop-form"
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -12 }}
-                      transition={{ duration: 0.35 }}
-                    >
+                    <motion.div key="desktop-form" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.35 }}>
                       <div className="p-8" style={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 2 }}>
                         <div className="mb-6">
-                          <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-                            Create account
-                          </h2>
-                          <p className="text-sm mt-1" style={{ color: colors.muted }}>
-                            Free health assessments. No credit card required.
-                          </p>
+                          <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: colors.text }}>Create account</h2>
+                          <p className="text-sm mt-1" style={{ color: colors.muted }}>Free health assessments. No credit card required.</p>
                         </div>
 
-                        {/* Error message */}
                         <AnimatePresence>
                           {(validationError || error) && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: "auto" }}
-                              exit={{ opacity: 0, height: 0 }}
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                               className="mb-6 p-3 flex items-start gap-2"
-                              style={{
-                                background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2",
-                                border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`,
-                                borderRadius: 2,
-                              }}
-                            >
+                              style={{ background: isDark ? "rgba(239, 68, 68, 0.1)" : "#FEF2F2", border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.2)" : "#FEE2E2"}`, borderRadius: 2 }}>
                               <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
                               <p className="text-sm" style={{ color: "#EF4444" }}>{validationError || error}</p>
                             </motion.div>
                           )}
                         </AnimatePresence>
 
-                        {/* Form Fields */}
                         <div className="space-y-4">
                           {/* Full Name */}
                           <div>
-                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                              Full Name
-                            </label>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Full Name</label>
                             <div className="relative">
                               <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                              <input
-                                type="text"
-                                name="fullName"
-                                value={formData.fullName}
-                                onChange={handleChange}
-                                onKeyPress={handleKeyPress}
-                                onFocus={() => setFocusedField("name")}
-                                onBlur={() => setFocusedField(null)}
-                                placeholder="John Doe"
-                                disabled={loading}
-                                className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
-                                style={{
-                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                                  borderColor: focusedField === "name" ? colors.primary : colors.border,
-                                  color: colors.text,
-                                  outline: "none",
-                                  borderRadius: 2,
-                                }}
-                              />
+                              <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)}
+                                placeholder="John Doe" disabled={loading} className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
+                                style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface, borderColor: focusedField === "name" ? colors.primary : colors.border, color: colors.text, outline: "none", borderRadius: 2 }} />
                             </div>
                           </div>
 
                           {/* Email */}
                           <div>
-                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                              Email Address
-                            </label>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Email Address</label>
                             <div className="relative">
                               <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                              <input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                onKeyPress={handleKeyPress}
-                                onFocus={() => setFocusedField("email")}
-                                onBlur={() => setFocusedField(null)}
-                                placeholder="you@example.com"
-                                disabled={loading}
-                                className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
-                                style={{
-                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                                  borderColor: focusedField === "email" ? colors.primary : colors.border,
-                                  color: colors.text,
-                                  outline: "none",
-                                  borderRadius: 2,
-                                }}
-                              />
+                              <input type="email" name="email" value={formData.email} onChange={handleChange} onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)}
+                                placeholder="you@example.com" disabled={loading} className="w-full pl-11 pr-4 py-3 text-sm border transition-all"
+                                style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface, borderColor: focusedField === "email" ? colors.primary : colors.border, color: colors.text, outline: "none", borderRadius: 2 }} />
                             </div>
                           </div>
 
                           {/* Password */}
                           <div>
-                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                              Password
-                            </label>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Password</label>
                             <div className="relative">
                               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                              <input
-                                type={showPassword ? "text" : "password"}
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                onKeyPress={handleKeyPress}
-                                onFocus={() => setFocusedField("password")}
-                                onBlur={() => setFocusedField(null)}
-                                placeholder="••••••••"
-                                disabled={loading}
-                                className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
-                                style={{
-                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                                  borderColor: focusedField === "password" ? colors.primary : colors.border,
-                                  color: colors.text,
-                                  outline: "none",
-                                  borderRadius: 2,
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2"
-                                style={{ color: colors.muted }}
-                              >
+                              <input type={showPassword ? "text" : "password"} name="password" value={formData.password}
+                                onChange={handleChange} onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)}
+                                placeholder="••••••••" disabled={loading} className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
+                                style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface, borderColor: focusedField === "password" ? colors.primary : colors.border, color: colors.text, outline: "none", borderRadius: 2 }} />
+                              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }}>
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                               </button>
                             </div>
                             {formData.password && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                className="mt-2 space-y-2"
-                              >
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-2">
                                 <div className="flex gap-1">
                                   {[1, 2, 3, 4].map((i) => (
-                                    <div
-                                      key={i}
-                                      className="h-1 flex-1 transition-all"
-                                      style={{
-                                        background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border,
-                                        borderRadius: 2,
-                                      }}
-                                    />
+                                    <div key={i} className="h-1 flex-1 transition-all"
+                                      style={{ background: passwordStrength >= i * 25 ? getStrengthColor() : colors.border, borderRadius: 2 }} />
                                   ))}
                                 </div>
-                                <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>
-                                  {getStrengthText()} password
-                                </p>
+                                <p className="text-xs font-medium" style={{ color: getStrengthColor() }}>{getStrengthText()} password</p>
                               </motion.div>
                             )}
                           </div>
 
                           {/* Confirm Password */}
                           <div>
-                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>
-                              Confirm Password
-                            </label>
+                            <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Confirm Password</label>
                             <div className="relative">
                               <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }} />
-                              <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                name="confirmPassword"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                onKeyPress={handleKeyPress}
-                                onFocus={() => setFocusedField("confirm")}
-                                onBlur={() => setFocusedField(null)}
-                                placeholder="••••••••"
-                                disabled={loading}
-                                className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
-                                style={{
-                                  background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface,
-                                  borderColor: focusedField === "confirm" ? colors.primary : colors.border,
-                                  color: colors.text,
-                                  outline: "none",
-                                  borderRadius: 2,
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2"
-                                style={{ color: colors.muted }}
-                              >
+                              <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword}
+                                onChange={handleChange} onKeyPress={handleKeyPress}
+                                onFocus={() => setFocusedField("confirm")} onBlur={() => setFocusedField(null)}
+                                placeholder="••••••••" disabled={loading} className="w-full pl-11 pr-11 py-3 text-sm border transition-all"
+                                style={{ background: isDark ? "rgba(0, 0, 0, 0.2)" : colors.surface, borderColor: focusedField === "confirm" ? colors.primary : colors.border, color: colors.text, outline: "none", borderRadius: 2 }} />
+                              <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: colors.muted }}>
                                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                               </button>
                             </div>
                             {formData.confirmPassword && (
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
+                              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                                 className="mt-1 flex items-center gap-1.5 text-xs font-medium"
-                                style={{
-                                  color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438",
-                                }}
-                              >
-                                {formData.password === formData.confirmPassword ? (
-                                  <><Check size={14} /> Passwords match</>
-                                ) : (
-                                  <><AlertCircle size={14} /> Passwords don&apos;t match</>
-                                )}
+                                style={{ color: formData.password === formData.confirmPassword ? "#0FBB7D" : "#F04438" }}>
+                                {formData.password === formData.confirmPassword
+                                  ? <><Check size={14} /> Passwords match</>
+                                  : <><AlertCircle size={14} /> Passwords don&apos;t match</>}
                               </motion.div>
                             )}
                           </div>
 
-                          {/* Submit Button */}
-                          <button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="w-full py-3 px-4 text-sm font-semibold transition-all group mt-2"
-                            style={{
-                              background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
-                              color: "white",
-                              opacity: loading ? 0.7 : 1,
-                              borderRadius: 2,
-                            }}
-                          >
+                          {/* Submit */}
+                          <button onClick={handleSubmit} disabled={loading} className="w-full py-3 px-4 text-sm font-semibold transition-all group mt-2"
+                            style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`, color: "white", opacity: loading ? 0.7 : 1, borderRadius: 2 }}>
                             <span className="flex items-center justify-center gap-2">
-                              {loading ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Creating Account...
-                                </>
-                              ) : (
-                                <>
-                                  Create Account
-                                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                </>
-                              )}
+                              {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Creating Account...</> : <>Create Account<ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>}
                             </span>
                           </button>
 
@@ -1085,24 +782,14 @@ export default function SignUpPage() {
                               <div className="w-full border-t" style={{ borderColor: colors.border }} />
                             </div>
                             <div className="relative flex justify-center text-sm">
-                              <span className="px-3" style={{ background: colors.surface, color: colors.muted }}>
-                                or continue with
-                              </span>
+                              <span className="px-3" style={{ background: colors.surface, color: colors.muted }}>or continue with</span>
                             </div>
                           </div>
 
-                          {/* Google Button */}
-                          <button
-                            onClick={loginWithGoogle}
-                            disabled={loading}
+                          {/* Google */}
+                          <button onClick={loginWithGoogle} disabled={loading}
                             className="w-full py-3 px-4 border text-sm font-medium flex items-center justify-center gap-3 transition-all"
-                            style={{
-                              background: colors.surface,
-                              borderColor: colors.border,
-                              color: colors.text,
-                              borderRadius: 2,
-                            }}
-                          >
+                            style={{ background: colors.surface, borderColor: colors.border, color: colors.text, borderRadius: 2 }}>
                             <svg width="20" height="20" viewBox="0 0 24 24">
                               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -1112,22 +799,13 @@ export default function SignUpPage() {
                             Continue with Google
                           </button>
 
-                          {/* Sign In Link */}
                           <p className="text-center text-sm mt-6" style={{ color: colors.muted }}>
                             Already have an account?{" "}
-                            <Link
-                              href="/login"
-                              className="font-semibold hover:underline underline-offset-4"
-                              style={{ color: colors.primary }}
-                            >
-                              Sign in
-                            </Link>
+                            <Link href="/login" className="font-semibold hover:underline underline-offset-4" style={{ color: colors.primary }}>Sign in</Link>
                           </p>
 
                           <div className="text-center mt-3">
-                            <Link href="/" className="text-xs hover:underline underline-offset-4" style={{ color: colors.subtle }}>
-                              ← Back to home
-                            </Link>
+                            <Link href="/" className="text-xs hover:underline underline-offset-4" style={{ color: colors.subtle }}>← Back to home</Link>
                           </div>
                         </div>
                       </div>
