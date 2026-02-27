@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { MapPin, Mail, Phone, ArrowRight } from "lucide-react";
+import { MapPin, Mail, Phone, ArrowRight, CheckCircle2, Send } from "lucide-react";
 import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useState, useEffect, useRef } from "react";
@@ -64,6 +64,7 @@ export default function ContactPage() {
   const [status,  setStatus]    = useState<"idle"|"success"|"error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", message:"" });
+  const [sentName, setSentName] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -79,6 +80,7 @@ export default function ContactPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
+      setSentName(formData.name.split(" ")[0]);
       setStatus("success");
       setFormData({ name:"", email:"", phone:"", message:"" });
     } catch (err) {
@@ -188,71 +190,172 @@ export default function ContactPage() {
               />
             </div>
 
-            {/* Right — form */}
+            {/* Right — form or success */}
             <div
               className="flex flex-col gap-6 p-8 md:p-12"
               style={{ background: isDark ? "#161b25" : "#f0f4f8" }}
             >
-              <div>
-                <p className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
-                  Send a Message
-                </p>
-                <h2 className={`text-[clamp(1.4rem,2.4vw,1.8rem)] font-bold leading-tight tracking-tight ${h}`}>
-                  We&apos;ll get back to you
-                  <br />within 24 hours.
-                </h2>
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {/* Name */}
-                <div>
-                  <label className={labelBase}>Name</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleChange}
-                    placeholder="Your full name" className={inputBase} required />
-                </div>
-
-                {/* Email + Phone */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className={labelBase}>Email</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleChange}
-                      placeholder="you@example.com" className={inputBase} required />
-                  </div>
-                  <div>
-                    <label className={labelBase}>Phone</label>
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
-                      placeholder="+250 789 399 765" className={inputBase} required />
-                  </div>
-                </div>
-
-                {/* Message */}
-                <div>
-                  <label className={labelBase}>Message</label>
-                  <textarea name="message" value={formData.message} onChange={handleChange}
-                    placeholder="How can we help?" rows={5}
-                    className={`${inputBase} resize-none`} required />
-                </div>
-
-                {status === "success" && (
-                  <p className="text-[13px] text-teal-500">Message sent — we&apos;ll be in touch soon.</p>
-                )}
-                {status === "error" && (
-                  <p className="text-[13px] text-red-500">{errorMsg || "Something went wrong. Please try again."}</p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group mt-1 inline-flex w-full items-center justify-center gap-2.5 rounded-lg py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-[.98] disabled:opacity-50"
-                  style={{
-                    background: "linear-gradient(135deg, #0d9488, #059669)",
-                    boxShadow: "0 4px 18px rgba(13,148,136,.25)",
-                  }}
+              {status === "success" ? (
+                /* ── SUCCESS STATE ── */
+                <div
+                  className="flex flex-col items-center justify-center text-center h-full py-8 gap-0"
+                  style={{ animation: "fadeUp .5s ease both" }}
                 >
-                  {loading ? "Sending…" : "Send Message"}
-                  {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
-                </button>
-              </form>
+                  {/* Animated ring + icon */}
+                  <div className="relative flex items-center justify-center mb-8">
+                    {/* Outer pulse ring */}
+                    <div
+                      className="absolute h-28 w-28 rounded-full"
+                      style={{
+                        background: isDark
+                          ? "radial-gradient(circle, rgba(13,148,136,.18) 0%, transparent 70%)"
+                          : "radial-gradient(circle, rgba(13,148,136,.13) 0%, transparent 70%)",
+                        animation: "ping 2.5s ease-out infinite",
+                      }}
+                    />
+                    {/* Middle ring */}
+                    <div
+                      className="absolute h-20 w-20 rounded-full border"
+                      style={{
+                        borderColor: isDark ? "rgba(13,148,136,.25)" : "rgba(13,148,136,.2)",
+                        animation: "ping 2.5s ease-out .4s infinite",
+                      }}
+                    />
+                    {/* Icon circle */}
+                    <div
+                      className="relative flex h-16 w-16 items-center justify-center rounded-full"
+                      style={{
+                        background: "linear-gradient(135deg, #0d9488, #059669)",
+                        boxShadow: "0 8px 32px rgba(13,148,136,.35)",
+                        animation: "popIn .4s cubic-bezier(.34,1.56,.64,1) both",
+                      }}
+                    >
+                      <CheckCircle2 className="h-8 w-8 text-white" strokeWidth={2.5} />
+                    </div>
+                  </div>
+
+                  {/* Text */}
+                  <div style={{ animation: "fadeUp .5s ease .15s both" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-500 mb-3">
+                      Message Sent
+                    </p>
+                    <h3 className={`text-[clamp(1.6rem,2.5vw,2rem)] font-bold leading-tight tracking-tight mb-3 ${h}`}>
+                      Thanks{sentName ? `, ${sentName}` : ""}!
+                    </h3>
+                    <p className={`text-[14px] leading-[1.8] max-w-[36ch] mx-auto ${p}`}>
+                      We&apos;ve received your message and our team will get back to you within <span className="font-semibold text-teal-500">24 hours</span>.
+                    </p>
+                  </div>
+
+                  {/* Divider */}
+                  <div
+                    className="my-8 w-16 h-px"
+                    style={{ background: isDark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.08)" }}
+                  />
+
+                  {/* What happens next */}
+                  <div
+                    className="w-full max-w-sm rounded-xl p-5 text-left mb-8"
+                    style={{
+                      background: isDark ? "rgba(13,148,136,.07)" : "rgba(13,148,136,.06)",
+                      border: `1px solid ${isDark ? "rgba(13,148,136,.15)" : "rgba(13,148,136,.15)"}`,
+                      animation: "fadeUp .5s ease .25s both",
+                    }}
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-500 mb-4">
+                      What happens next
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      {[
+                        { step: "1", text: "Our team reviews your message" },
+                        { step: "2", text: "We prepare a tailored response" },
+                        { step: "3", text: "You hear back within 24 hours" },
+                      ].map(({ step, text }) => (
+                        <div key={step} className="flex items-center gap-3">
+                          <div
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                            style={{ background: "linear-gradient(135deg, #0d9488, #059669)" }}
+                          >
+                            {step}
+                          </div>
+                          <p className={`text-[13px] ${p}`}>{text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Send another */}
+                  <button
+                    onClick={() => setStatus("idle")}
+                    className="inline-flex items-center gap-2 text-[13px] font-semibold text-teal-500 hover:text-teal-400 transition-colors"
+                    style={{ animation: "fadeUp .5s ease .35s both" }}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Send another message
+                  </button>
+                </div>
+              ) : (
+                /* ── FORM STATE ── */
+                <>
+                  <div>
+                    <p className={`mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-teal-400" : "text-teal-600"}`}>
+                      Send a Message
+                    </p>
+                    <h2 className={`text-[clamp(1.4rem,2.4vw,1.8rem)] font-bold leading-tight tracking-tight ${h}`}>
+                      We&apos;ll get back to you
+                      <br />within 24 hours.
+                    </h2>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    {/* Name */}
+                    <div>
+                      <label className={labelBase}>Name</label>
+                      <input type="text" name="name" value={formData.name} onChange={handleChange}
+                        placeholder="Your full name" className={inputBase} required />
+                    </div>
+
+                    {/* Email + Phone */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className={labelBase}>Email</label>
+                        <input type="email" name="email" value={formData.email} onChange={handleChange}
+                          placeholder="you@example.com" className={inputBase} required />
+                      </div>
+                      <div>
+                        <label className={labelBase}>Phone</label>
+                        <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
+                          placeholder="+250 789 399 765" className={inputBase} required />
+                      </div>
+                    </div>
+
+                    {/* Message */}
+                    <div>
+                      <label className={labelBase}>Message</label>
+                      <textarea name="message" value={formData.message} onChange={handleChange}
+                        placeholder="How can we help?" rows={5}
+                        className={`${inputBase} resize-none`} required />
+                    </div>
+
+                    {status === "error" && (
+                      <p className="text-[13px] text-red-500">{errorMsg || "Something went wrong. Please try again."}</p>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="group mt-1 inline-flex w-full items-center justify-center gap-2.5 rounded-lg py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:scale-[.98] disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, #0d9488, #059669)",
+                        boxShadow: "0 4px 18px rgba(13,148,136,.25)",
+                      }}
+                    >
+                      {loading ? "Sending…" : "Send Message"}
+                      {!loading && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -278,6 +381,18 @@ export default function ContactPage() {
         @keyframes breathe {
           0%, 100% { transform: scale(1);    opacity: 1;   }
           50%       { transform: scale(1.1); opacity: .65; }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0);    }
+        }
+        @keyframes popIn {
+          from { opacity: 0; transform: scale(.6); }
+          to   { opacity: 1; transform: scale(1);  }
+        }
+        @keyframes ping {
+          0%   { transform: scale(1);   opacity: .6; }
+          100% { transform: scale(1.8); opacity: 0;  }
         }
       `}</style>
     </div>
