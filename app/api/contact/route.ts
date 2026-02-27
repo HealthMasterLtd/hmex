@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     // Send notification email to HMEX team
     await resend.emails.send({
-      from: "HMEX Contact <onboarding@resend.dev>", // use your domain here once verified e.g. contact@healthmasterco.com
+      from: "Health Master Contact <no-reply@healthmasterco.com>", // use your domain here once verified e.g. contact@healthmasterco.com
       to: TO_EMAIL,
       replyTo: email,                               // hitting Reply goes straight to the user
       subject: `New Contact Message from ${name}`,
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
           
           <div style="background: linear-gradient(135deg, #0d9488, #059669); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
             <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 700;">New Contact Message</h1>
-            <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 13px;">via HMEX Contact Form</p>
+            <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 13px;">via Health Master Contact Form</p>
           </div>
 
           <div style="background: white; border-radius: 8px; padding: 24px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
@@ -75,9 +75,9 @@ export async function POST(req: NextRequest) {
 
     // Send auto-reply confirmation to the user
     await resend.emails.send({
-      from: "HMEX <no-reply@healthmasterco.com>", // replace with your domain once verified
+      from: "Health Master <no-reply@healthmasterco.com>", // replace with your domain once verified
       to: email,
-      subject: "We received your message — HMEX",
+      subject: "We received your message — Health Master ",
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #f8fafc; border-radius: 12px;">
           
@@ -88,11 +88,11 @@ export async function POST(req: NextRequest) {
 
           <div style="background: white; border-radius: 8px; padding: 24px; border: 1px solid #e2e8f0;">
             <p style="font-size: 14px; color: #334155; line-height: 1.7; margin: 0 0 16px;">
-              Hi ${name}, thanks for reaching out to HMEX. We've received your message and our team will get back to you within <strong>24 hours</strong>.
+              Hi ${name}, thanks for reaching out to Health Master. We've received your message and our team will get back to you within <strong>24 hours</strong>.
             </p>
             <p style="font-size: 14px; color: #334155; line-height: 1.7; margin: 0;">
               In the meantime, you can learn more about our health monitoring tools at 
-              <a href="https://hmex.health" style="color: #0d9488;">hmex.health</a>.
+              <a href="https://hmex.vercel.app" style="color: #0d9488;">Health Master</a>.
             </p>
           </div>
 
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
           </div>
 
           <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 20px 0 0;">
-            HMEX · Norrsken House Kigali · info@healthmasterco.com
+            Health Master · Norrsken House Kigali · info@healthmasterco.com
           </p>
         </div>
       `,
