@@ -1,5 +1,6 @@
 import { account } from "@/lib/appwrite";
 import { ID, OAuthProvider, AppwriteException } from "appwrite";
+import { upsertUser } from "./userService";
 
 export interface SignUpData {
   fullName: string;
@@ -17,50 +18,65 @@ export interface AuthUser {
 
 export const authService = {
   /**
-   * Register a new user with email & password
+   * Register a new user with email & password.
+   * Also saves them to the `users` collection.
    */
   async signUp({ fullName, email, password }: SignUpData): Promise<AuthUser> {
     try {
-      // 1. Create the account
+      // 1. Create the Appwrite Auth account
       const user = await account.create(ID.unique(), email, password, fullName);
 
-      // 2. Automatically log them in after registration
+      // 2. Automatically log them in
       await account.createEmailPasswordSession(email, password);
 
-      return {
+      const authUser: AuthUser = {
         id: user.$id,
         name: user.name,
         email: user.email,
         emailVerification: user.emailVerification,
         createdAt: user.$createdAt,
       };
+
+      // 3. Save to `users` collection (non-blocking — don't fail signup if this errors)
+      upsertUser({ id: authUser.id, name: authUser.name, email: authUser.email })
+        .catch((e) => console.error("[AuthService] signUp upsertUser failed:", e));
+
+      return authUser;
     } catch (error) {
       throw handleAppwriteError(error);
     }
   },
 
   /**
-   * Login with email & password
+   * Login with email & password.
+   * Updates the user profile record (non-blocking).
    */
   async login(email: string, password: string): Promise<AuthUser> {
     try {
       await account.createEmailPasswordSession(email, password);
-      return await authService.getCurrentUser();
+      const authUser = await authService.getCurrentUser();
+
+      // Update profile record (non-blocking)
+      upsertUser({ id: authUser.id, name: authUser.name, email: authUser.email })
+        .catch((e) => console.error("[AuthService] login upsertUser failed:", e));
+
+      return authUser;
     } catch (error) {
       throw handleAppwriteError(error);
     }
   },
 
   /**
-   * Login / Sign up with Google OAuth
-   * Redirects the browser — call this on button click
+   * Login / Sign up with Google OAuth.
+   * Redirects the browser — no async here.
+   * After redirect, OAuthCallbackHandler handles upsertUser + claiming pending data.
    */
   loginWithGoogle(redirectPath = "/dashboard") {
     const origin = window.location.origin;
     account.createOAuth2Session(
       OAuthProvider.Google,
-      `${origin}${redirectPath}`,      // success redirect
-      `${origin}/login?error=oauth`    // failure redirect
+      `${origin}${redirectPath}`,
+      `${origin}/login?error=oauth`
     );
   },
 
@@ -94,8 +110,8 @@ export const authService = {
   },
 
   /**
-   * Check if a user session exists (non-throwing)
-   * Returns null if not logged in
+   * Check if a user session exists (non-throwing).
+   * Returns null if not logged in.
    */
   async getSession(): Promise<AuthUser | null> {
     try {
@@ -109,7 +125,6 @@ export const authService = {
 // ─── Error Handler ────────────────────────────────────────────────────────────
 function handleAppwriteError(error: unknown): Error {
   if (error instanceof AppwriteException) {
-    // Map Appwrite error codes to user-friendly messages
     switch (error.code) {
       case 401:
         return new Error("Invalid email or password. Please try again.");
