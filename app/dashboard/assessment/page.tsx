@@ -17,6 +17,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useRequireAuth } from "@/hooks/useAuth";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { generateAndSaveRecommendations } from "@/services/RecommendationService";
+import { createAssessmentNotifications } from "@/services/NotificationsService";
 import ThemeToggle from "@/components/Themetoggle";
 
 // ─── ICON MAP ────────────────────────────────────────────────────────────────
@@ -101,7 +102,7 @@ function RingProgress({ pct, step, total, isDark }: { pct: number; step: number;
           style={{ transition: "stroke-dashoffset 0.5s ease" }} />
         <defs>
           <linearGradient id="rpg" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={isDark ? "#0FBB7D" : "#0FBB7D"} /><stop offset="100%" stopColor="#059669" />
+            <stop offset="0%" stopColor="#0FBB7D" /><stop offset="100%" stopColor="#059669" />
           </linearGradient>
         </defs>
       </svg>
@@ -175,8 +176,6 @@ function CompletionScreen({ isDark, totalXp, saveError }: { isDark: boolean; tot
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function DashboardAssessmentPage() {
   const { isDark, surface, accentColor, accentFaint } = useTheme();
-  // useRequireAuth redirects to /login if not signed in.
-  // auth.user.id === Appwrite $id (mapped in authService: id: user.$id)
   const auth = useRequireAuth();
   const router = useRouter();
 
@@ -196,18 +195,13 @@ export default function DashboardAssessmentPage() {
   const [xpVisible, setXpVisible] = useState(false);
   const [streak, setStreak]       = useState(0);
 
-  // ── CRITICAL: refs so async loadQuestion always reads CURRENT values ──────
-  // React state is captured at closure time — by the time assessment finishes
-  // (many await calls later), user and totalXp would still be the stale
-  // mount-time values (null and 0). Refs are always live.
+  // Refs so async closures always read the latest values
   const userIdRef  = useRef<string | null>(null);
   const totalXpRef = useRef<number>(0);
   const qStartRef  = useRef<number>(Date.now());
   const streakRef  = useRef<number>(0);
 
-  // Keep refs in sync with the latest state every render
   useEffect(() => {
-    // FIX: auth.user.id — NOT auth.user.$id
     userIdRef.current = auth.user?.id ?? null;
   }, [auth.user]);
 
@@ -228,8 +222,7 @@ export default function DashboardAssessmentPage() {
     primaryFaint: accentFaint,
   };
 
-  // ── LOAD QUESTION ────────────────────────────────────────────────────────
-  // useCallback with empty deps — stable reference. All values read via refs.
+  // ── LOAD QUESTION ──────────────────────────────────────────────────────────
   const loadQuestion = useCallback(async () => {
     setLoading(true);
     setVisible(false);
@@ -239,51 +232,60 @@ export default function DashboardAssessmentPage() {
       const next = await groqService.getNextQuestion();
 
       if (!next) {
-        // ── DONE ──────────────────────────────────────────────────────────
+        // ── ALL QUESTIONS ANSWERED — generate assessment ───────────────────
         setCompleting(true);
 
-        const assessment = await groqService.generateRiskAssessment();
-        const allAnswers = groqService.getAnswers();
+        const assessment  = await groqService.generateRiskAssessment();
+        const allAnswers  = groqService.getAnswers();
 
         // +5 XP completion bonus
         const finalXp = totalXpRef.current + 5;
         setTotalXp(finalXp);
         totalXpRef.current = finalXp;
 
-        // READ THE REF — not state (state is stale inside async closure)
         const uid = userIdRef.current;
-
         console.log("[Assessment] Complete. userId from ref:", uid, "| XP:", finalXp);
 
         if (uid) {
           try {
             const saved = await saveAssessment(uid, assessment, allAnswers, finalXp);
             console.log("[Assessment] Saved OK. doc:", saved.$id);
-            
-            // 🔥 Fire-and-forget — generates AI recommendations in background
+
+            // ── Fire notifications based on risk levels (non-blocking) ────
+            createAssessmentNotifications(
+              uid,
+              assessment.diabetesRisk.level,
+              assessment.hypertensionRisk.level,
+              saved.assessmentNumber,
+              finalXp
+            ).catch(e =>
+              console.error("[Notifications] createAssessmentNotifications failed:", e)
+            );
+
+            // ── Generate AI recommendations in background ─────────────────
             generateAndSaveRecommendations(saved, uid).catch(e =>
               console.error("[Recommendations] background generation failed:", e)
             );
           } catch (e: any) {
             console.error("[Assessment] Appwrite save error:", e);
-            setSaveError(`Could not save: ${e?.message ?? "unknown error"}. Your results are still shown below.`);
+            setSaveError(
+              `Could not save: ${e?.message ?? "unknown error"}. Your results are still shown below.`
+            );
           }
         } else {
-          // This should never happen since useRequireAuth redirects if not logged in
           console.error("[Assessment] No userId in ref — user was null at save time");
           setSaveError("Session error — please refresh and try again.");
         }
 
-        // Cache in sessionStorage so review page shows immediately
+        // Cache for the review page
         try {
           sessionStorage.setItem("hmex_review", JSON.stringify({
             assessment,
             answers: allAnswers,
             xpEarned: finalXp,
           }));
-        } catch { /* private mode or full */ }
+        } catch { /* private mode or storage full */ }
 
-        // Small delay so user sees the completion screen
         await new Promise(r => setTimeout(r, 1200));
         router.push("/dashboard/review");
         return;
@@ -293,6 +295,7 @@ export default function DashboardAssessmentPage() {
       const patched = next.type === "yesno" && !next.options
         ? { ...next, options: ["Yes", "No"] }
         : next;
+
       setQuestion(patched);
       setTimeout(() => { setLoading(false); setVisible(true); }, 80);
     } catch (e) {
@@ -300,7 +303,7 @@ export default function DashboardAssessmentPage() {
       setError("Could not load next question. Please try again.");
       setLoading(false);
     }
-  }, []); // intentionally empty — reads live values from refs
+  }, []); // intentionally empty — all values read via refs
 
   useEffect(() => {
     groqService.reset();
@@ -308,18 +311,17 @@ export default function DashboardAssessmentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const maxQ = groqService.getMaxQuestions();
-  const progress = Math.min(100, Math.round((step / maxQ) * 100));
+  const maxQ          = groqService.getMaxQuestions();
+  const progress      = Math.min(100, Math.round((step / maxQ) * 100));
   const currentAnswer = question ? answers[question.id] : undefined;
-  const hasAnswer = currentAnswer !== undefined && currentAnswer !== "" && currentAnswer !== null;
+  const hasAnswer     = currentAnswer !== undefined && currentAnswer !== "" && currentAnswer !== null;
 
-  // ── XP AWARD ─────────────────────────────────────────────────────────────
-  // Max 3 XP per question. Deliberate and earned.
+  // ── XP AWARD ──────────────────────────────────────────────────────────────
   const awardXp = useCallback((currentStreak: number) => {
     const elapsed = (Date.now() - qStartRef.current) / 1000;
-    let earned = 1; // base: always 1
-    if (elapsed <= 5) earned = Math.min(earned + 1, 3);  // +1 speed bonus
-    if (currentStreak > 0 && currentStreak % 5 === 0) earned = Math.min(earned + 1, 3); // +1 streak bonus every 5
+    let earned = 1;
+    if (elapsed <= 5) earned = Math.min(earned + 1, 3);
+    if (currentStreak > 0 && currentStreak % 5 === 0) earned = Math.min(earned + 1, 3);
     setLastXp(earned);
     setTotalXp(prev => {
       const next = prev + earned;
@@ -374,7 +376,11 @@ export default function DashboardAssessmentPage() {
           return (
             <button key={opt.value} onClick={() => handleSelect(opt.value)}
               className="flex flex-col items-center gap-2 p-3 transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
-              style={{ backgroundColor: sel ? C.primaryFaint : "transparent", border: `1px solid ${sel ? C.primary : C.border}`, boxShadow: sel ? `0 0 0 3px ${C.primary}22` : "none" }}>
+              style={{
+                backgroundColor: sel ? C.primaryFaint : "transparent",
+                border: `1px solid ${sel ? C.primary : C.border}`,
+                boxShadow: sel ? `0 0 0 3px ${C.primary}22` : "none",
+              }}>
               <div className="relative w-full h-28 overflow-hidden">
                 <Image src={opt.img} alt={opt.label} fill className="object-contain" />
               </div>
@@ -401,10 +407,14 @@ export default function DashboardAssessmentPage() {
           <div key={key}>
             <label className="block mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: C.muted }}>{label}</label>
             <div className="relative">
-              <input type="number" placeholder={placeholder} value={String(answers[key] ?? "")}
+              <input
+                type="number"
+                placeholder={placeholder}
+                value={String(answers[key] ?? "")}
                 onChange={e => { setAnswers(prev => ({ ...prev, [key]: e.target.value })); setError(null); }}
                 className="w-full px-4 py-3.5 pr-12 text-base focus:outline-none"
-                style={{ backgroundColor: surface.surfaceAlt, border: `1px solid ${C.border}`, color: C.text }} />
+                style={{ backgroundColor: surface.surfaceAlt, border: `1px solid ${C.border}`, color: C.text }}
+              />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: C.muted }}>{unit}</span>
             </div>
           </div>
@@ -425,7 +435,11 @@ export default function DashboardAssessmentPage() {
           return (
             <button key={i} onClick={() => handleSelect(opt)}
               className="flex items-center gap-3 px-4 py-3.5 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
-              style={{ backgroundColor: sel ? C.primaryFaint : "transparent", border: `1px solid ${sel ? C.primary : C.border}`, boxShadow: sel ? `0 0 0 3px ${C.primary}18` : "none" }}>
+              style={{
+                backgroundColor: sel ? C.primaryFaint : "transparent",
+                border: `1px solid ${sel ? C.primary : C.border}`,
+                boxShadow: sel ? `0 0 0 3px ${C.primary}18` : "none",
+              }}>
               {isYesNo ? (
                 <div className="flex items-center justify-center w-7 h-7 text-sm font-bold shrink-0"
                   style={{ backgroundColor: sel ? C.primary : surface.surfaceAlt, color: sel ? "#fff" : C.muted }}>
@@ -460,8 +474,11 @@ export default function DashboardAssessmentPage() {
           <div className="h-3 overflow-hidden" style={{ backgroundColor: surface.surfaceAlt }}>
             <div className="h-full" style={{ width: `${pct}%`, background: `linear-gradient(90deg,${C.primary},#059669)` }} />
           </div>
-          <input type="range" min={min} max={max} value={val} onChange={e => handleSelect(Number(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+          <input
+            type="range" min={min} max={max} value={val}
+            onChange={e => handleSelect(Number(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
           <div className="absolute top-0.5 w-7 h-7 shadow-lg border-4 border-white pointer-events-none"
             style={{ left: `calc(${pct}% - 14px)`, backgroundColor: C.primary }} />
         </div>
@@ -473,7 +490,6 @@ export default function DashboardAssessmentPage() {
   };
 
   // ── RENDER ────────────────────────────────────────────────────────────────
-  // Wait for auth before starting — prevents the stale userId race
   if (auth.loading) {
     return (
       <DashboardLayout>
@@ -517,9 +533,11 @@ export default function DashboardAssessmentPage() {
           <div className="text-center space-y-4">
             <AlertCircle className="mx-auto w-11 h-11 text-red-500" />
             <h2 className="text-xl font-bold" style={{ color: C.text }}>Something went wrong</h2>
-            <button onClick={() => window.location.reload()}
+            <button
+              onClick={() => window.location.reload()}
               className="px-6 py-3 font-semibold text-white"
-              style={{ background: `linear-gradient(135deg,${C.primary},#059669)` }}>
+              style={{ background: `linear-gradient(135deg,${C.primary},#059669)` }}
+            >
               Try Again
             </button>
           </div>
@@ -569,15 +587,22 @@ export default function DashboardAssessmentPage() {
           transform: visible ? "translateY(0)" : "translateY(20px)",
           transition: "all 0.3s ease",
         }}>
-
           {/* Header */}
           <div className="flex items-start gap-4 p-6 border-b" style={{ borderColor: C.border }}>
             <div className="flex items-center justify-center w-11 h-11 shrink-0"
-              style={{ background: question?.aiGenerated ? "linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.08))" : `linear-gradient(135deg,${C.primaryFaint},rgba(5,150,105,0.06))`, color: question?.aiGenerated ? "#8B5CF6" : C.primary, border: `1px solid ${question?.aiGenerated ? "rgba(139,92,246,0.2)" : "rgba(15,187,125,0.2)"}` }}>
+              style={{
+                background: question?.aiGenerated
+                  ? "linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.08))"
+                  : `linear-gradient(135deg,${C.primaryFaint},rgba(5,150,105,0.06))`,
+                color: question?.aiGenerated ? "#8B5CF6" : C.primary,
+                border: `1px solid ${question?.aiGenerated ? "rgba(139,92,246,0.2)" : "rgba(15,187,125,0.2)"}`,
+              }}>
               {ICON_MAP[question?.id ?? ""] ?? <Activity className="w-5 h-5" />}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-[17px] font-bold leading-snug mb-1.5" style={{ color: C.text }}>{question?.question}</h2>
+              <h2 className="text-[17px] font-bold leading-snug mb-1.5" style={{ color: C.text }}>
+                {question?.question}
+              </h2>
               <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
                 {SUBTITLES[question?.id ?? ""] ?? SUBTITLES.default}
               </p>
@@ -609,10 +634,14 @@ export default function DashboardAssessmentPage() {
             {question?.type === "slider" && question.id !== "height_weight" && renderSlider()}
             {question?.options && question.id !== "waist_circumference" && renderOptions()}
             {question?.type === "text" && question.id !== "height_weight" && (
-              <input type="text" placeholder="Type your answer…" value={String(currentAnswer ?? "")}
+              <input
+                type="text"
+                placeholder="Type your answer…"
+                value={String(currentAnswer ?? "")}
                 onChange={e => handleSelect(e.target.value)}
                 className="w-full px-4 py-3.5 text-base focus:outline-none"
-                style={{ backgroundColor: surface.surfaceAlt, border: `1px solid ${C.border}`, color: C.text }} />
+                style={{ backgroundColor: surface.surfaceAlt, border: `1px solid ${C.border}`, color: C.text }}
+              />
             )}
             {question?.tooltip && (
               <div className="flex items-start gap-3 px-4 py-3 text-[12px] leading-relaxed"
@@ -625,18 +654,24 @@ export default function DashboardAssessmentPage() {
 
         {/* Nav */}
         <div className="mt-6 flex items-center justify-between gap-3">
-          <button onClick={handleBack} disabled={step === 1}
+          <button
+            onClick={handleBack}
+            disabled={step === 1}
             className="flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none hover:scale-[1.02] active:scale-[0.98]"
-            style={{ color: C.muted, backgroundColor: surface.surfaceAlt, border: `1px solid ${C.border}` }}>
+            style={{ color: C.muted, backgroundColor: surface.surfaceAlt, border: `1px solid ${C.border}` }}
+          >
             <ChevronLeft className="w-4 h-4" />Back
           </button>
           <p className="hidden sm:block text-[11px]" style={{ color: C.muted }}>
             <Zap size={10} className="inline mr-1" style={{ color: "#f59e0b" }} />
             Fast answers · streaks · finish = XP
           </p>
-          <button onClick={handleNext} disabled={submitting}
+          <button
+            onClick={handleNext}
+            disabled={submitting}
             className="flex items-center gap-2 px-8 py-3 text-sm font-black text-white transition-all active:scale-[0.97] disabled:opacity-50 hover:scale-[1.02]"
-            style={{ background: `linear-gradient(135deg,${C.primary},#059669)`, boxShadow: "0 4px 20px rgba(15,187,125,0.32)" }}>
+            style={{ background: `linear-gradient(135deg,${C.primary},#059669)`, boxShadow: "0 4px 20px rgba(15,187,125,0.32)" }}
+          >
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" />Loading…</>
               : groqService.getQuestionCount() >= maxQ
