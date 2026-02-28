@@ -16,6 +16,7 @@ import {
   type NotificationCategory,
   getNotificationColor,
 } from "@/services/NotificationsService";
+import ThemeToggle from "@/components/Themetoggle";
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function timeAgo(iso: string): string {
@@ -500,6 +501,7 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+      <ThemeToggle />
     </DashboardLayout>
   );
 }
