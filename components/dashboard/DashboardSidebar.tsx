@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const PRIMARY_NAV = [
   { id: "overview",        label: "Overview",        icon: LayoutDashboard, href: "/dashboard" },
@@ -74,9 +75,51 @@ function Tooltip({ label, children, S, accentColor }: {
   );
 }
 
+// ─── UNREAD BADGE ─────────────────────────────────────────────────────────────
+function UnreadBadge({ count, collapsed }: { count: number; collapsed: boolean }) {
+  if (count === 0) return null;
+  const label = count > 99 ? "99+" : String(count);
+
+  if (collapsed) {
+    // Small dot in top-right of icon when sidebar is collapsed
+    return (
+      <span style={{
+        position: "absolute", top: 4, right: 4,
+        minWidth: 16, height: 16, padding: "0 4px",
+        background: "#ef4444",
+        color: "#fff",
+        fontSize: 9, fontWeight: 900,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        lineHeight: 1,
+        boxShadow: "0 1px 6px rgba(239,68,68,0.5)",
+        borderRadius: 2,
+      }}>
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <span style={{
+      marginLeft: "auto",
+      minWidth: 18, height: 18, padding: "0 5px",
+      background: "#ef4444",
+      color: "#fff",
+      fontSize: 10, fontWeight: 900,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      lineHeight: 1,
+      boxShadow: "0 1px 6px rgba(239,68,68,0.45)",
+      borderRadius: 2,
+      flexShrink: 0,
+    }}>
+      {label}
+    </span>
+  );
+}
+
 // ─── NAV ITEM ─────────────────────────────────────────────────────────────────
 function NavItem({
-  item, collapsed, S, accentColor, accentFaint, onClick,
+  item, collapsed, S, accentColor, accentFaint, onClick, badge,
 }: {
   item: (typeof PRIMARY_NAV)[0];
   collapsed: boolean;
@@ -84,6 +127,7 @@ function NavItem({
   accentColor: string;
   accentFaint: string;
   onClick?: () => void;
+  badge?: number;
 }) {
   const pathname = usePathname();
   const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -121,19 +165,24 @@ function NavItem({
         display: "flex", alignItems: "center", justifyContent: "center",
         background: isActive ? `${accentColor}18` : "transparent",
         transition: "background 0.15s",
+        position: "relative",
       }}>
         <Icon size={15} strokeWidth={isActive ? 2.2 : 1.8} />
+        {collapsed && badge !== undefined && <UnreadBadge count={badge} collapsed={true} />}
       </span>
 
       {!collapsed && (
-        <span style={{
-          fontSize: 13, fontWeight: isActive ? 700 : 400,
-          color: isActive ? accentColor : S.muted,
-          letterSpacing: isActive ? "-0.01em" : "0.01em",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          {item.label}
-        </span>
+        <>
+          <span style={{
+            fontSize: 13, fontWeight: isActive ? 700 : 400,
+            color: isActive ? accentColor : S.muted,
+            letterSpacing: isActive ? "-0.01em" : "0.01em",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {item.label}
+          </span>
+          {badge !== undefined && <UnreadBadge count={badge} collapsed={false} />}
+        </>
       )}
     </Link>
   );
@@ -159,6 +208,7 @@ interface SidebarProps {
 export default function DashboardSidebar({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }: SidebarProps) {
   const { isDark, accentColor, accentFaint, surface: S } = useTheme();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications(user?.id ?? undefined);
 
   // Sidebar bg is slightly offset from page bg for contrast
   const sidebarBg = isDark ? S.surfaceAlt : S.surface;
@@ -200,7 +250,16 @@ export default function DashboardSidebar({ collapsed, onToggleCollapse, mobileOp
         )}
 
         {SECONDARY_NAV.map(item => (
-          <NavItem key={item.id} item={item} collapsed={collapsed} S={S} accentColor={accentColor} accentFaint={accentFaint} onClick={onMobileClose} />
+          <NavItem
+            key={item.id}
+            item={item}
+            collapsed={collapsed}
+            S={S}
+            accentColor={accentColor}
+            accentFaint={accentFaint}
+            onClick={onMobileClose}
+            badge={item.id === "notifications" ? unreadCount : undefined}
+          />
         ))}
       </nav>
 
