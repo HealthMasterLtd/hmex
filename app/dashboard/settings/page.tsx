@@ -740,7 +740,7 @@ function AccountSection({
         {deletePhase === 1 && (
           <div style={{ padding: "16px" }}>
             <p style={{ fontSize: 12, color: S.text, margin: "0 0 10px", lineHeight: 1.6 }}>
-              To confirm, type <strong style={{ color: "#ef4444" }}>"{CONFIRM_PHRASE}"</strong> in the field below:
+              To confirm, type <strong style={{ color: "#ef4444" }}>&quot;{CONFIRM_PHRASE}&quot;</strong> in the field below:
             </p>
             <input
               type="text"
@@ -772,7 +772,7 @@ function AccountSection({
               </button>
               <button
                 onClick={handleDeleteAccount}
-                disabled={deletePhase === 2}
+                disabled={(deletePhase as number) === 2}
                 style={{
                   flex: 1, padding: "9px",
                   background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)",
