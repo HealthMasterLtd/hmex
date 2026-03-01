@@ -230,6 +230,14 @@ export default function LoginPage() {
         Don&apos;t have an account?{" "}
         <Link href="/register" className="font-semibold" style={{ color: accentColor }}>Sign up</Link>
       </p>
+
+      {/* ── Terms link ── */}
+      <p className="text-center text-xs mt-1" style={{ color: surface.muted }}>
+        By signing in, you agree to our{" "}
+        <Link href="/terms" style={{ color: accentColor, fontWeight: 600 }}>
+          Terms of Service
+        </Link>
+      </p>
     </div>
   );
 
@@ -379,7 +387,7 @@ export default function LoginPage() {
                       Sign in
                     </h2>
                     <p className="text-sm mt-1" style={{ color: surface.muted }}>
-                      Access your dashboard, API keys, and usage analytics.
+                      Access your dashboard, assessments, and health insights.
                     </p>
                   </div>
 
@@ -489,6 +497,14 @@ export default function LoginPage() {
                         ← Back to home
                       </Link>
                     </div>
+
+                    {/* ── Terms link ── */}
+                    <p className="text-center text-xs mt-1" style={{ color: surface.muted }}>
+                      By signing in, you agree to our{" "}
+                      <Link href="/terms" className="font-semibold hover:underline underline-offset-3" style={{ color: accentColor }}>
+                        Terms of Service
+                      </Link>
+                    </p>
                   </div>
                 </div>
               </div>
