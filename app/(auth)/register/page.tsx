@@ -108,6 +108,10 @@ export default function SignUpPage() {
   const [hasPendingReco, setHasPendingReco] = useState(false);
   const savedAssessmentIdRef = useRef<string | null>(null);
 
+  // ── Terms agreement ──────────────────────────────────────────────────────
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     const pending = getPendingAssessment();
@@ -179,10 +183,16 @@ export default function SignUpPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     clearError();
     setValidationError(null);
+    setTermsError(false);
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const validate = () => {
+    if (!agreedToTerms) {
+      setTermsError(true);
+      setValidationError("Please agree to the Terms of Service to continue.");
+      return false;
+    }
     if (!formData.fullName.trim()) { setValidationError("Please enter your full name"); return false; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { setValidationError("Please enter a valid email"); return false; }
     if (formData.password.length < 8) { setValidationError("Password must be at least 8 characters"); return false; }
@@ -243,6 +253,51 @@ export default function SignUpPage() {
     "No credit card required",
     "Your data stays private and secure",
   ];
+
+  // ── TERMS CHECKBOX (shared between mobile + desktop) ─────────────────────
+  const TermsCheckbox = (
+    <div>
+      <div
+        onClick={() => { setAgreedToTerms(v => !v); setTermsError(false); setValidationError(null); }}
+        style={{
+          display: "flex", alignItems: "flex-start", gap: 10,
+          padding: "10px 12px",
+          background: termsError
+            ? "rgba(239,68,68,0.07)"
+            : agreedToTerms
+            ? `${colors.primary}0D`
+            : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+          border: `1px solid ${termsError ? "rgba(239,68,68,0.3)" : agreedToTerms ? `${colors.primary}35` : colors.border}`,
+          cursor: "pointer",
+          userSelect: "none" as const,
+          transition: "all 0.15s",
+          borderRadius: 2,
+        }}
+      >
+        {/* Custom checkbox square */}
+        <div style={{
+          width: 18, height: 18, flexShrink: 0, marginTop: 1,
+          border: `2px solid ${termsError ? "#ef4444" : agreedToTerms ? colors.primary : colors.border}`,
+          background: agreedToTerms ? colors.primary : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all 0.15s", borderRadius: 2,
+        }}>
+          {agreedToTerms && <Check size={11} strokeWidth={3} color="#fff" />}
+        </div>
+        <p style={{ fontSize: 12, color: colors.muted, lineHeight: 1.55, margin: 0 }}>
+          I have read and agree to the{" "}
+          <Link
+            href="/terms"
+            onClick={e => e.stopPropagation()}
+            style={{ color: colors.primary, fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 3 }}
+          >
+            Terms of Service
+          </Link>
+          {" "}of Health Master. By creating an account, I acknowledge that HMEX is a preventive tool and not a substitute for medical advice.
+        </p>
+      </div>
+    </div>
+  );
 
   const SuccessContent = (
     <motion.div
@@ -573,6 +628,9 @@ export default function SignUpPage() {
                         )}
                       </div>
 
+                      {/* ── TERMS CHECKBOX ── */}
+                      {TermsCheckbox}
+
                       {/* Submit */}
                       <button onClick={handleSubmit} disabled={loading} className="w-full py-3 px-4 text-sm font-semibold transition-all mt-2"
                         style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`, color: "white", opacity: loading ? 0.7 : 1, borderRadius: 2 }}>
@@ -767,6 +825,9 @@ export default function SignUpPage() {
                               </motion.div>
                             )}
                           </div>
+
+                          {/* ── TERMS CHECKBOX ── */}
+                          {TermsCheckbox}
 
                           {/* Submit */}
                           <button onClick={handleSubmit} disabled={loading} className="w-full py-3 px-4 text-sm font-semibold transition-all group mt-2"
