@@ -638,7 +638,7 @@ export default function TermsPage() {
               }}>
                 <p style={{ fontSize: 13, color: S.muted, lineHeight: 1.75, margin: 0 }}>
                   Welcome to <strong style={{ color: S.text }}>HMEX</strong>, a digital health risk assessment service provided by{" "}
-                  <strong style={{ color: S.text }}>Health Master</strong> ("Company," "we," "us," or "our"). By accessing or using HMEX, you agree to these Terms of Service.
+                  <strong style={{ color: S.text }}>Health Master</strong> (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). By accessing or using HMEX, you agree to these Terms of Service.
                 </p>
                 <p style={{
                   fontSize: 12, color: accentColor, margin: "10px 0 0",
