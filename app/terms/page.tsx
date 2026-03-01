@@ -8,6 +8,7 @@ import {
   UserCheck, WifiOff, RefreshCw, Globe, Phone,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import ThemeToggle from "@/components/Themetoggle";
 
 // ─── EFFECTIVE DATE — update before deploy ────────────────────────────────────
 const EFFECTIVE_DATE = "1 July 2025";
@@ -678,6 +679,7 @@ export default function TermsPage() {
               </p>
             </div>
           </main>
+          <ThemeToggle/>
         </div>
       </div>
 
