@@ -56,7 +56,7 @@ export default function EmployerLayout({ children }: { children: React.ReactNode
   const mainBg = S.surface;
 
   if (!mounted) {
-    return <div style={{ display: "flex", height: "100vh", background: pageBg }} />;
+    return <div style={{ display: "flex", height: "100vh", background: pageBg,}} />;
   }
 
   return (
@@ -82,8 +82,8 @@ export default function EmployerLayout({ children }: { children: React.ReactNode
             : `0 0 0 1px ${S.border}, 0 4px 24px rgba(0,0,0,0.07)`,
         }}>
           <DashboardHeader onMobileMenuOpen={() => setMobileOpen(true)} />
-          <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", background: "transparent" }}>
-            <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 24px" }}>
+          <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", background: "transparent"}}>
+            <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 24px"}}>
               {children}
             </div>
           </main>

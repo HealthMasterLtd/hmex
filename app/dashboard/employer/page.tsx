@@ -466,10 +466,10 @@ export default function EmployerDashboardPage() {
           ))
         ) : (
           <>
-            <StatCard icon={<Users size={18} />}       value={totalCount}    label="Total Employees"      color={c.primary} />
-            <StatCard icon={<CheckCircle size={18} />} value={activeCount}   label="Active Members"       color="#0FBB7D"   />
-            <StatCard icon={<Clock size={18} />}       value={pendingCount}  label="Pending Invites"      color="#F79009"   />
-            <StatCard icon={<Activity size={18} />}    value={assessedCount} label="Assessments Complete" color="#8B5CF6"   />
+         <StatCard icon={<Users size={18} />}       value={totalCount}    label="Total Employees"      />
+<StatCard icon={<CheckCircle size={18} />} value={activeCount}   label="Active Members"       />
+<StatCard icon={<Clock size={18} />}       value={pendingCount}  label="Pending Invites"      />
+<StatCard icon={<Activity size={18} />}    value={assessedCount} label="Assessments Complete" />
           </>
         )}
       </div>

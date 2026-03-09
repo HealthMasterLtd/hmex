@@ -337,6 +337,7 @@ export default function EmployerSidebar({
         flexDirection: "column",
         height: "100%",
         background: sidebarBg,
+        borderTopRightRadius: "18px",
       }}
     >
       {/* Brand - HMEX Employer Portal */}
@@ -349,6 +350,7 @@ export default function EmployerSidebar({
           justifyContent: collapsed ? "center" : "flex-start",
           borderBottom: `1px solid ${S.border}`,
           flexShrink: 0,
+          
         }}
       >
         <div
