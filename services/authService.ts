@@ -1,12 +1,19 @@
 import { account } from "@/lib/appwrite";
 import { ID, OAuthProvider, AppwriteException } from "appwrite";
-import { upsertUser, getUserProfile, getDashboardPath, type UserRole } from "./userService";
+import { upsertUser, getUserProfile, updateUserProfile, getDashboardPath, type UserRole } from "./userService";
+import { createCompany, claimInvite } from "./companyService";
 
 export interface SignUpData {
-  fullName: string;
-  email:    string;
-  password: string;
-  role:     UserRole;   // ← NEW: passed from the toggle on the register page
+  fullName:     string;
+  email:        string;
+  password:     string;
+  role:         UserRole;
+  // invite-link signup
+  inviteToken?: string;
+  // employer-only
+  companyName?: string;
+  companySize?: string;
+  industry?:    string;
 }
 
 export interface AuthUser {
@@ -15,15 +22,16 @@ export interface AuthUser {
   email:             string;
   emailVerification: boolean;
   createdAt:         string;
-  role:              UserRole;  // ← NEW: resolved from the users collection
+  role:              UserRole;
 }
 
 export const authService = {
   /**
    * Register a new user with email & password.
-   * role comes from the User / Employer toggle on the signup form.
+   * - Employer role: creates a company record and links it to the user profile.
+   * - Invite-link signup: claims the invite and auto-links to the company.
    */
-  async signUp({ fullName, email, password, role }: SignUpData): Promise<AuthUser> {
+  async signUp({ fullName, email, password, role, inviteToken, companyName, companySize, industry }: SignUpData): Promise<AuthUser> {
     try {
       // 1. Create the Appwrite Auth account
       const user = await account.create(ID.unique(), email, password, fullName);
@@ -31,9 +39,31 @@ export const authService = {
       // 2. Automatically log them in
       await account.createEmailPasswordSession(email, password);
 
-      // 3. Save to `users` collection — pass role so it's stored on first creation
+      // 3. Save to `users` collection — role stored on first creation
       await upsertUser({ id: user.$id, name: user.name, email: user.email, role })
         .catch((e) => console.error("[AuthService] signUp upsertUser failed:", e));
+
+      // 4a. Employer signup → create the company and link it to the user profile
+      if (role === "employer" && companyName) {
+        const company = await createCompany({
+          name:     companyName,
+          ownerId:  user.$id,
+          size:     companySize,
+          industry: industry,
+        });
+        if (company) {
+          await updateUserProfile(user.$id, {
+            companyName: company.name,
+            companyId:   company.$id,
+          } as never).catch((e) => console.error("[AuthService] employer profile link failed:", e));
+        }
+      }
+
+      // 4b. Invite-link signup → claim the invite and auto-link to the company
+      if (inviteToken) {
+        await claimInvite(inviteToken, user.$id)
+          .catch((e) => console.error("[AuthService] claimInvite failed:", e));
+      }
 
       return {
         id:                user.$id,
@@ -71,7 +101,7 @@ export const authService = {
     const origin = window.location.origin;
     account.createOAuth2Session(
       OAuthProvider.Google,
-      `${origin}/auth/callback`,        // handler resolves correct dashboard from role
+      `${origin}/auth/callback`,
       `${origin}/login?error=oauth`
     );
   },

@@ -10,7 +10,7 @@
  * We store JSON as strings and parse/stringify on the fly.
  */
 
-import { Client, Databases, Storage, ID } from "appwrite";
+import { Client, Databases, Storage, ID, Query } from "appwrite";
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const ENDPOINT   = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
@@ -37,7 +37,7 @@ export interface UserProfile {
   userId:         string;
   fullName:       string;
   email:          string;
-  role:           UserRole;          // ← NEW: "user" | "employer"
+  role:           UserRole;
   avatar:         string | null;
   bio:            string;
   location:       string;
@@ -49,9 +49,11 @@ export interface UserProfile {
   healthGoals:    string;
   medicalHistory: string;
   // employer-only fields
-  companyName:    string;            // ← NEW
-  companySize:    string;            // ← NEW  e.g. "1-10", "11-50", "51-200", "201+"
-  industry:       string;            // ← NEW
+  companyName:    string;
+  companySize:    string;
+  industry:       string;
+  // company link (set when user joins a company)
+  companyId:      string;
   notifications:  {
     email: boolean;
     push:  boolean;
@@ -114,7 +116,7 @@ function parseUserProfile(doc: any): UserProfile {
     userId:         doc.userId,
     fullName:       doc.fullName,
     email:          doc.email,
-    role:           (doc.role as UserRole) || "user",   // ← default to "user" for existing records
+    role:           (doc.role as UserRole) || "user",
     avatar:         doc.avatar || null,
     bio:            doc.bio || "",
     location:       doc.location || "",
@@ -124,9 +126,10 @@ function parseUserProfile(doc: any): UserProfile {
     occupation:     doc.occupation || "",
     healthGoals:    doc.healthGoals || "",
     medicalHistory: doc.medicalHistory || "",
-    companyName:    doc.companyName || "",              // ← NEW
-    companySize:    doc.companySize || "",              // ← NEW
-    industry:       doc.industry || "",                 // ← NEW
+    companyName:    doc.companyName || "",
+    companySize:    doc.companySize || "",
+    industry:       doc.industry || "",
+    companyId:      doc.companyId || "",
     notifications:  parseNotifications(doc.notifications),
     preferences:    parsePreferences(doc.preferences),
   };
@@ -149,7 +152,7 @@ export async function createUserProfile(
         userId,
         fullName,
         email,
-        role,                                                   // ← NEW
+        role,
         avatar:         null,
         bio:            "",
         location:       "",
@@ -159,9 +162,10 @@ export async function createUserProfile(
         occupation:     "",
         healthGoals:    "",
         medicalHistory: "",
-        companyName:    "",                                     // ← NEW
-        companySize:    "",                                     // ← NEW
-        industry:       "",                                     // ← NEW
+        companyName:    "",
+        companySize:    "",
+        industry:       "",
+        companyId:      "",
         notifications:  serializeNotifications({ email: true, push: false, sms: false }),
         preferences:    serializePreferences({ theme: "auto", language: "en", units: "metric" }),
       }
@@ -182,6 +186,26 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return parseUserProfile(doc);
   } catch (e) {
     console.error("[UserService] getUserProfile error:", e);
+    return null;
+  }
+}
+
+// ─── GET USER BY EMAIL ────────────────────────────────────────────────────────
+
+/**
+ * Queries the users collection for an exact email match.
+ * Used by the employer dashboard "instant add existing user" flow.
+ */
+export async function getUserByEmail(email: string): Promise<UserProfile | null> {
+  try {
+    const res = await db.listDocuments(USERS_DB_ID, USERS_COLLECTION_ID, [
+      Query.equal("email", email.toLowerCase().trim()),
+      Query.limit(1),
+    ]);
+    if (res.documents.length === 0) return null;
+    return parseUserProfile(res.documents[0]);
+  } catch (e) {
+    console.error("[UserService] getUserByEmail error:", e);
     return null;
   }
 }
@@ -366,6 +390,7 @@ export async function getUserStats(userId: string): Promise<{
 /**
  * Called after email signup, email login, and Google OAuth redirect.
  * role is only used on first creation — if profile exists, role is NOT overwritten.
+ * companyId and companyName are never overwritten here.
  */
 export async function upsertUser(authUser: {
   id:    string;
