@@ -1,539 +1,919 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from "react";
-import {
-  BarChart3, Download, FileText, Calendar,
-  TrendingUp, TrendingDown, Users, Activity,Filter, Mail, Share2,
-  FileSpreadsheet, FilePieChart, Clock, DownloadCloud,
-} from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/contexts/ThemeContext";
 import EmployerLayout from "@/components/dashboard/employer/EmployerLayout";
-import { Card } from "@/components/dashboard/Dashboardwidgets";
 import ThemeToggle from "@/components/Themetoggle";
+import {
+  getCompanyByOwner,
+  getCompanyMembers,
+  type Company,
+  type EmployeeDashboardRow,
+} from "@/services/companyService";
+import { fetchLatestAssessment, type StoredAssessment } from "@/services/AppwriteService";
+import {
+  BarChart3, Download, FileText, Users, Activity, Heart,
+  TrendingUp, TrendingDown, AlertCircle, CheckCircle,
+  RefreshCw, Building2, Calendar, Printer, FileSpreadsheet,
+  ChevronDown, Minus, Loader2,
+} from "lucide-react";
 
-const COLORS = {
-  navy: "#0f172a",
-  white: "#ffffff",
-  blue: "#2563eb",
-  teal: "#0d9488",
-  low: "#22c55e",
-  moderate: "#f97316",
-  high: "#ef4444",
-  border: "#e2e8f0",
-  muted: "#64748b",
-  subtle: "#94a3b8",
-  hover: "#f8fafc",
-};
+// ─── Chart.js ─────────────────────────────────────────────────────────────────
+let _Chart: any = null;
+async function getChart() {
+  if (_Chart) return _Chart;
+  const mod = await import("chart.js");
+  mod.Chart.register(...mod.registerables);
+  _Chart = mod.Chart;
+  return _Chart;
+}
 
-// ─── MOCK REPORT DATA ─────────────────────────────────────────────────────
-const MOCK_REPORTS = [
-  {
-    id: 1,
-    name: "Workforce Health Summary",
-    description: "Complete overview of workforce health metrics and risk distribution",
-    type: "PDF",
-    date: "2026-03-07",
-    size: "2.4 MB",
-    downloads: 45,
-    icon: FilePieChart,
-  },
-  {
-    id: 2,
-    name: "Risk Assessment Report",
-    description: "Detailed analysis of risk levels by department and demographic",
-    type: "Excel",
-    date: "2026-03-06",
-    size: "1.8 MB",
-    downloads: 32,
-    icon: FileSpreadsheet,
-  },
-  {
-    id: 3,
-    name: "Participation Analytics",
-    description: "Employee engagement and assessment completion trends",
-    type: "PDF",
-    date: "2026-03-05",
-    size: "3.1 MB",
-    downloads: 28,
-    icon: BarChart3,
-  },
-  {
-    id: 4,
-    name: "Wellness Program Impact",
-    description: "ROI and effectiveness of current health initiatives",
-    type: "Excel",
-    date: "2026-03-04",
-    size: "1.2 MB",
-    downloads: 19,
-    icon: Activity,
-  },
-  {
-    id: 5,
-    name: "Compliance & Privacy Report",
-    description: "Data anonymization stats and compliance metrics",
-    type: "PDF",
-    date: "2026-03-03",
-    size: "0.9 MB",
-    downloads: 23,
-    icon: FileText,
-  },
-  {
-    id: 6,
-    name: "Quarterly Health Trends",
-    description: "Q1 2026 health metrics and year-over-year comparison",
-    type: "Excel",
-    date: "2026-03-01",
-    size: "4.2 MB",
-    downloads: 56,
-    icon: TrendingUp,
-  },
-];
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+interface MemberWithRisk extends EmployeeDashboardRow {
+  assessment: StoredAssessment | null;
+}
 
-const MOCK_TRENDS = {
-  participation: [68, 72, 75, 78, 82, 84],
-  highRisk: [24, 26, 25, 28, 27, 31],
-  lowRisk: [45, 44, 46, 43, 44, 42],
-  months: ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"],
-};
+interface Analytics {
+  total: number;
+  active: number;
+  pending: number;
+  assessed: number;
+  assessmentRate: number;
+  diabetes: { low: number; medium: number; high: number; none: number };
+  hypertension: { low: number; medium: number; high: number; none: number };
+  avgDiabetesScore: number;
+  avgHypertensionScore: number;
+  highRiskCount: number;
+  joinedByMonth: Record<string, number>;
+  topRisks: { name: string; diabetesScore: number; hypertensionScore: number; diabetesLevel: string; hypertensionLevel: string }[];
+  genderBreakdown: Record<string, number>;
+  ageBreakdown: Record<string, number>;
+  bmiBreakdown: Record<string, number>;
+}
 
-// ─── STAT CARD ────────────────────────────────────────────────────────────
-function StatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  trend,
-  trendValue,
-  color = COLORS.blue 
-}: { 
-  icon: React.ElementType; 
-  label: string; 
-  value: string; 
-  trend?: "up" | "down";
-  trendValue?: string;
-  color?: string;
-}) {
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function riskColor(level: string | null | undefined): string {
+  switch (level?.toLowerCase()) {
+    case "low":    return "#10B981";
+    case "medium": return "#F59E0B";
+    case "high":   return "#EF4444";
+    default:       return "#94A3B8";
+  }
+}
+function riskBg(level: string | null | undefined): string {
+  switch (level?.toLowerCase()) {
+    case "low":    return "rgba(16,185,129,0.12)";
+    case "medium": return "rgba(245,158,11,0.12)";
+    case "high":   return "rgba(239,68,68,0.12)";
+    default:       return "rgba(148,163,184,0.10)";
+  }
+}
+function capitalize(s: string | null | undefined) {
+  if (!s) return "—";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function fmt(n: number) { return n.toLocaleString(); }
+
+function Skeleton({ w, h, radius = 4 }: { w: string | number; h: number; radius?: number }) {
+  const { isDark } = useTheme();
   return (
-    <div style={{
-      padding: 20,
-      background: COLORS.white,
-      border: `1px solid ${COLORS.border}`,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <div style={{
-          width: 40,
-          height: 40,
-          background: `${color}10`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}>
-          <Icon size={18} color={color} />
+    <div className="animate-pulse" style={{
+      width: w, height: h, borderRadius: radius,
+      background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
+    }} />
+  );
+}
+
+function computeAnalytics(members: MemberWithRisk[]): Analytics {
+  const active = members.filter(m => m.status === "active");
+  const assessed = active.filter(m => m.assessment);
+
+  const diabetes = { low: 0, medium: 0, high: 0, none: 0 };
+  const hypertension = { low: 0, medium: 0, high: 0, none: 0 };
+  let diabSum = 0, hypSum = 0;
+  const genderBreakdown: Record<string, number> = {};
+  const ageBreakdown: Record<string, number> = {};
+  const bmiBreakdown: Record<string, number> = {};
+
+  assessed.forEach(m => {
+    const a = m.assessment!;
+    const dl = a.diabetesLevel?.toLowerCase();
+    const hl = a.hypertensionLevel?.toLowerCase();
+    if (dl === "low") diabetes.low++;
+    else if (dl === "medium") diabetes.medium++;
+    else if (dl === "high") diabetes.high++;
+    else diabetes.none++;
+    if (hl === "low") hypertension.low++;
+    else if (hl === "medium") hypertension.medium++;
+    else if (hl === "high") hypertension.high++;
+    else hypertension.none++;
+    diabSum += Number(a.diabetesScore) || 0;
+    hypSum += Number(a.hypertensionScore) || 0;
+
+    const g = a.profileGender || "Unknown";
+    genderBreakdown[g] = (genderBreakdown[g] || 0) + 1;
+    const age = a.profileAge || "Unknown";
+    ageBreakdown[age] = (ageBreakdown[age] || 0) + 1;
+    const bmi = a.profileBmi || "Unknown";
+    bmiBreakdown[bmi] = (bmiBreakdown[bmi] || 0) + 1;
+  });
+
+  const joinedByMonth: Record<string, number> = {};
+  active.forEach(m => {
+    const d = new Date(m.$createdAt);
+    const key = d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+    joinedByMonth[key] = (joinedByMonth[key] || 0) + 1;
+  });
+
+  const topRisks = assessed
+    .filter(m => m.assessment)
+    .map(m => ({
+      name: m.fullName || m.email.split("@")[0],
+      diabetesScore: Number(m.assessment!.diabetesScore) || 0,
+      hypertensionScore: Number(m.assessment!.hypertensionScore) || 0,
+      diabetesLevel: m.assessment!.diabetesLevel || "",
+      hypertensionLevel: m.assessment!.hypertensionLevel || "",
+    }))
+    .sort((a, b) => (b.diabetesScore + b.hypertensionScore) - (a.diabetesScore + a.hypertensionScore))
+    .slice(0, 6);
+
+  const n = assessed.length || 1;
+  return {
+    total: members.length,
+    active: active.length,
+    pending: members.filter(m => m.status === "pending").length,
+    assessed: assessed.length,
+    assessmentRate: active.length ? Math.round((assessed.length / active.length) * 100) : 0,
+    diabetes, hypertension,
+    avgDiabetesScore: Math.round(diabSum / n),
+    avgHypertensionScore: Math.round(hypSum / n),
+    highRiskCount: diabetes.high + hypertension.high,
+    joinedByMonth,
+    topRisks,
+    genderBreakdown,
+    ageBreakdown,
+    bmiBreakdown,
+  };
+}
+
+// ─── STAT CARD ────────────────────────────────────────────────────────────────
+function StatCard({ icon, label, value, sub, color, loading }: {
+  icon: React.ReactNode; label: string; value: string | number;
+  sub?: string; color: string; loading?: boolean;
+}) {
+  const { surface } = useTheme();
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+      style={{ padding: "18px 20px", background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 2, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color }}>{icon}</span>
         </div>
-        <p style={{ fontSize: 12, color: COLORS.muted, margin: 0 }}>{label}</p>
+        <span style={{ fontSize: 11, fontWeight: 700, color: surface.muted, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</span>
       </div>
-      
-      <p style={{ fontSize: 28, fontWeight: 900, color: COLORS.navy, margin: 0, lineHeight: 1 }}>
-        {value}
-      </p>
-      
-      {trend && trendValue && (
-        <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
-          gap: 4, 
-          marginTop: 8,
-          color: trend === "up" ? COLORS.low : COLORS.high,
-        }}>
-          {trend === "up" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          <span style={{ fontSize: 11, fontWeight: 600 }}>{trendValue}</span>
+      {loading
+        ? <Skeleton w="55%" h={28} />
+        : <p style={{ margin: 0, fontSize: 26, fontWeight: 900, color: surface.text, lineHeight: 1 }}>{value}</p>
+      }
+      {sub && !loading && <p style={{ margin: "4px 0 0", fontSize: 11, color: surface.muted }}>{sub}</p>}
+    </motion.div>
+  );
+}
+
+// ─── DONUT CHART ──────────────────────────────────────────────────────────────
+function DonutChartWidget({ title, data, colors, surface, loading }: {
+  title: string; data: { label: string; value: number }[];
+  colors: string[]; surface: any; loading?: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<any>(null);
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  useEffect(() => {
+    if (loading || !data.some(d => d.value > 0)) return;
+    let alive = true;
+    getChart().then(Chart => {
+      if (!alive || !canvasRef.current) return;
+      chartRef.current?.destroy();
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "doughnut",
+        data: {
+          labels: data.map(d => d.label),
+          datasets: [{ data: data.map(d => d.value), backgroundColor: colors, borderColor: colors, borderWidth: 2, hoverOffset: 6 }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true, cutout: "72%",
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.label}: ${ctx.raw}` } } },
+          animation: { animateRotate: true, duration: 600 },
+        },
+      });
+    });
+    return () => { alive = false; chartRef.current?.destroy(); };
+  }, [data, loading]);
+
+  return (
+    <div style={{ padding: "20px 20px 16px", background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2, height: "100%" }}>
+      <p style={{ margin: "0 0 16px", fontSize: 13, fontWeight: 800, color: surface.text }}>{title}</p>
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+          <Skeleton w={120} h={120} radius={60} />
+          {[1,2,3].map(i => <Skeleton key={i} w="80%" h={14} />)}
         </div>
+      ) : total === 0 ? (
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <Activity size={24} style={{ color: surface.muted, opacity: 0.4 }} />
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: surface.muted }}>No data yet</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ position: "relative", width: 120, height: 120, margin: "0 auto 16px" }}>
+            <canvas ref={canvasRef} width={120} height={120} />
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+              <span style={{ fontSize: 20, fontWeight: 900, color: surface.text }}>{total}</span>
+              <span style={{ fontSize: 9, color: surface.muted, fontWeight: 600 }}>total</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {data.map((d, i) => (
+              <div key={d.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: colors[i] }} />
+                  <span style={{ fontSize: 11, color: surface.muted }}>{d.label}</span>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: surface.text }}>{d.value}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-// ─── TREND CHART ──────────────────────────────────────────────────────────
-function TrendChart() {
-  const maxValue = Math.max(...MOCK_TRENDS.participation, ...MOCK_TRENDS.highRisk);
-  
+// ─── HORIZONTAL BAR CHART ────────────────────────────────────────────────────
+function HBarChart({ title, labels, values, colors, surface, loading, maxVal = 100 }: {
+  title: string; labels: string[]; values: number[]; colors: string[];
+  surface: any; loading?: boolean; maxVal?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (loading || values.length === 0) return;
+    let alive = true;
+    getChart().then(Chart => {
+      if (!alive || !canvasRef.current) return;
+      chartRef.current?.destroy();
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{ data: values, backgroundColor: colors.map(c => c + "CC"), borderColor: colors, borderWidth: 1.5, borderRadius: 3 }],
+        },
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.raw}` } } },
+          scales: {
+            x: { max: maxVal, grid: { color: surface.border + "44" }, ticks: { color: surface.muted, font: { size: 10 } } },
+            y: { grid: { display: false }, ticks: { color: surface.text, font: { size: 11 } } },
+          },
+          animation: { duration: 500 },
+        },
+      });
+    });
+    return () => { alive = false; chartRef.current?.destroy(); };
+  }, [labels.join(), values.join(), loading]);
+
   return (
-    <Card>
-      <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 15, fontWeight: 800, color: COLORS.navy, margin: 0 }}>
-          Health Trends (Last 6 Months)
-        </p>
-        <p style={{ fontSize: 12, color: COLORS.muted, margin: "4px 0 0" }}>
-          Participation and risk level progression
-        </p>
-      </div>
-
-      <div style={{ height: 200, display: "flex", alignItems: "flex-end", gap: 16 }}>
-        {MOCK_TRENDS.months.map((month, i) => (
-          <div key={month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-            {/* Stacked bars */}
-            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 2 }}>
-              <div style={{
-                height: (MOCK_TRENDS.participation[i] / maxValue) * 120,
-                background: COLORS.blue,
-                width: "100%",
-              }} />
-              <div style={{
-                height: (MOCK_TRENDS.highRisk[i] / maxValue) * 80,
-                background: COLORS.high,
-                width: "100%",
-              }} />
-            </div>
-            <span style={{ fontSize: 11, color: COLORS.muted }}>{month}</span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ 
-        display: "flex", 
-        gap: 16, 
-        marginTop: 20,
-        paddingTop: 16,
-        borderTop: `1px solid ${COLORS.border}`,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 12, height: 12, background: COLORS.blue }} />
-          <span style={{ fontSize: 11, color: COLORS.muted }}>Participation Rate</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 12, height: 12, background: COLORS.high }} />
-          <span style={{ fontSize: 11, color: COLORS.muted }}>High Risk %</span>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-// ─── REPORT CARD ──────────────────────────────────────────────────────────
-function ReportCard({ report }: { report: typeof MOCK_REPORTS[0] }) {
-  const Icon = report.icon;
-  
-  return (
-    <div style={{
-      padding: 20,
-      background: COLORS.white,
-      border: `1px solid ${COLORS.border}`,
-      transition: "all 0.2s ease",
-    }}
-    onMouseEnter={e => {
-      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-      e.currentTarget.style.borderColor = COLORS.blue;
-    }}
-    onMouseLeave={e => {
-      e.currentTarget.style.boxShadow = "none";
-      e.currentTarget.style.borderColor = COLORS.border;
-    }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <div style={{
-          width: 48,
-          height: 48,
-          background: `${COLORS.blue}10`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}>
-          <Icon size={22} color={COLORS.blue} />
-        </div>
-        
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: COLORS.navy, margin: 0 }}>
-                {report.name}
-              </p>
-              <p style={{ fontSize: 12, color: COLORS.muted, margin: "4px 0 8px" }}>
-                {report.description}
-              </p>
-            </div>
-            <span style={{
-              padding: "4px 8px",
-              background: `${COLORS.blue}10`,
-              color: COLORS.blue,
-              fontSize: 11,
-              fontWeight: 700,
-            }}>
-              {report.type}
-            </span>
-          </div>
-          
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: 16,
-            marginBottom: 12,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <Calendar size={12} color={COLORS.muted} />
-              <span style={{ fontSize: 11, color: COLORS.muted }}>
-                {new Date(report.date).toLocaleDateString()}
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <Download size={12} color={COLORS.muted} />
-              <span style={{ fontSize: 11, color: COLORS.muted }}>{report.size}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <Users size={12} color={COLORS.muted} />
-              <span style={{ fontSize: 11, color: COLORS.muted }}>{report.downloads} downloads</span>
-            </div>
-          </div>
-          
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button style={{
-              padding: "8px 16px",
-              background: COLORS.blue,
-              border: "none",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}>
-              <Download size={13} />
-              Download
-            </button>
-            <button style={{
-              padding: "8px",
-              background: "transparent",
-              border: `1px solid ${COLORS.border}`,
-              color: COLORS.muted,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>
-              <Mail size={13} />
-            </button>
-            <button style={{
-              padding: "8px",
-              background: "transparent",
-              border: `1px solid ${COLORS.border}`,
-              color: COLORS.muted,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>
-              <Share2 size={13} />
-            </button>
-          </div>
-        </div>
-      </div>
+    <div style={{ padding: "20px", background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2, height: "100%" }}>
+      <p style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 800, color: surface.text }}>{title}</p>
+      {loading
+        ? <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{[1,2,3,4].map(i => <Skeleton key={i} w="100%" h={22} />)}</div>
+        : values.length === 0
+          ? <div style={{ textAlign: "center", padding: "24px 0" }}><p style={{ fontSize: 12, color: surface.muted }}>No data yet</p></div>
+          : <div style={{ height: Math.max(values.length * 36 + 24, 100) }}><canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} /></div>
+      }
     </div>
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────
+// ─── LINE / AREA CHART ────────────────────────────────────────────────────────
+function LineAreaChart({ title, labels, datasets, surface, loading }: {
+  title: string;
+  labels: string[];
+  datasets: { label: string; data: number[]; color: string }[];
+  surface: any; loading?: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (loading || labels.length === 0) return;
+    let alive = true;
+    getChart().then(Chart => {
+      if (!alive || !canvasRef.current) return;
+      chartRef.current?.destroy();
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "line",
+        data: {
+          labels,
+          datasets: datasets.map(ds => ({
+            label: ds.label,
+            data: ds.data,
+            borderColor: ds.color,
+            backgroundColor: ds.color + "18",
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: ds.color,
+            borderWidth: 2,
+          })),
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: "top", labels: { color: surface.muted, font: { size: 11 }, boxWidth: 12 } },
+            tooltip: { mode: "index", intersect: false },
+          },
+          scales: {
+            x: { grid: { color: surface.border + "33" }, ticks: { color: surface.muted, font: { size: 10 } } },
+            y: { grid: { color: surface.border + "33" }, ticks: { color: surface.muted, font: { size: 10 } } },
+          },
+          animation: { duration: 700 },
+        },
+      });
+    });
+    return () => { alive = false; chartRef.current?.destroy(); };
+  }, [labels.join(), loading]);
+
+  return (
+    <div style={{ padding: "20px", background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2 }}>
+      <p style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 800, color: surface.text }}>{title}</p>
+      {loading
+        ? <Skeleton w="100%" h={180} />
+        : labels.length < 2
+          ? <div style={{ textAlign: "center", padding: "32px 0" }}><p style={{ fontSize: 12, color: surface.muted }}>Not enough data yet</p></div>
+          : <div style={{ height: 200 }}><canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} /></div>
+      }
+    </div>
+  );
+}
+
+// ─── RADAR CHART ─────────────────────────────────────────────────────────────
+function RadarChartWidget({ title, labels, values, color, surface, loading }: {
+  title: string; labels: string[]; values: number[]; color: string; surface: any; loading?: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (loading || values.length === 0) return;
+    let alive = true;
+    getChart().then(Chart => {
+      if (!alive || !canvasRef.current) return;
+      chartRef.current?.destroy();
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "radar",
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: color + "22",
+            borderColor: color,
+            borderWidth: 2,
+            pointBackgroundColor: color,
+            pointRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            r: {
+              max: 100, min: 0,
+              ticks: { stepSize: 25, color: surface.muted, font: { size: 9 } },
+              grid: { color: surface.border + "55" },
+              pointLabels: { color: surface.text, font: { size: 10, weight: "bold" } },
+            },
+          },
+          animation: { duration: 600 },
+        },
+      });
+    });
+    return () => { alive = false; chartRef.current?.destroy(); };
+  }, [values.join(), loading]);
+
+  return (
+    <div style={{ padding: "20px", background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2 }}>
+      <p style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 800, color: surface.text }}>{title}</p>
+      {loading
+        ? <Skeleton w="100%" h={200} radius={8} />
+        : values.every(v => v === 0)
+          ? <div style={{ textAlign: "center", padding: "32px 0" }}><p style={{ fontSize: 12, color: surface.muted }}>No data yet</p></div>
+          : <div style={{ maxWidth: 240, margin: "0 auto" }}><canvas ref={canvasRef} /></div>
+      }
+    </div>
+  );
+}
+
+// ─── RISK TABLE ───────────────────────────────────────────────────────────────
+function RiskTable({ members, surface, loading }: { members: MemberWithRisk[]; surface: any; loading?: boolean }) {
+  const assessed = members.filter(m => m.assessment && m.status === "active");
+  return (
+    <div style={{ background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2, overflow: "hidden" }}>
+      <div style={{ padding: "16px 20px", borderBottom: `1px solid ${surface.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+        <AlertCircle size={15} style={{ color: "#EF4444" }} />
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: surface.text }}>Individual Risk Overview</p>
+        <span style={{ marginLeft: "auto", fontSize: 11, color: surface.muted }}>{assessed.length} assessed</span>
+      </div>
+      {/* Header */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 120px 90px 90px", gap: 8, padding: "8px 16px", background: surface.bg, fontSize: 10, fontWeight: 700, color: surface.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${surface.border}` }}>
+        <span>Employee</span><span>Diabetes</span><span>Hypertension</span><span style={{ textAlign: "right" }}>D. Score</span><span style={{ textAlign: "right" }}>H. Score</span>
+      </div>
+      {loading ? (
+        [1,2,3,4].map(i => (
+          <div key={i} style={{ padding: "12px 16px", borderBottom: `1px solid ${surface.border}`, display: "flex", gap: 12, alignItems: "center" }}>
+            <Skeleton w={28} h={28} radius={14} />
+            <Skeleton w="30%" h={13} />
+            <Skeleton w="15%" h={20} />
+            <Skeleton w="15%" h={20} />
+          </div>
+        ))
+      ) : assessed.length === 0 ? (
+        <div style={{ padding: "32px 20px", textAlign: "center" }}>
+          <p style={{ margin: 0, fontSize: 12, color: surface.muted }}>No assessment data yet</p>
+        </div>
+      ) : (
+        assessed.map((m, i) => {
+          const a = m.assessment!;
+          const name = m.fullName || m.email.split("@")[0];
+          const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+          return (
+            <motion.div key={m.$id}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
+              style={{ display: "grid", gridTemplateColumns: "1fr 110px 120px 90px 90px", gap: 8, padding: "10px 16px", borderBottom: i < assessed.length - 1 ? `1px solid ${surface.border}` : "none", alignItems: "center", fontSize: 12 }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: `linear-gradient(135deg,${riskColor(a.diabetesLevel)},${riskColor(a.hypertensionLevel)})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "white" }}>{initials}</div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: surface.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: surface.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</p>
+                </div>
+              </div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 2, background: riskBg(a.diabetesLevel), color: riskColor(a.diabetesLevel), fontWeight: 700, fontSize: 10, width: "fit-content" }}>{capitalize(a.diabetesLevel)}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 2, background: riskBg(a.hypertensionLevel), color: riskColor(a.hypertensionLevel), fontWeight: 700, fontSize: 10, width: "fit-content" }}>{capitalize(a.hypertensionLevel)}</span>
+              <span style={{ textAlign: "right", fontWeight: 700, color: riskColor(a.diabetesLevel) }}>{Math.round(Number(a.diabetesScore))}</span>
+              <span style={{ textAlign: "right", fontWeight: 700, color: riskColor(a.hypertensionLevel) }}>{Math.round(Number(a.hypertensionScore))}</span>
+            </motion.div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ─── PDF / CSV EXPORT ────────────────────────────────────────────────────────
+function buildCSV(company: Company | null, analytics: Analytics, members: MemberWithRisk[]): string {
+  const rows: string[][] = [];
+  rows.push(["HMEX Workforce Health Report"]);
+  rows.push(["Company", company?.name || "—"]);
+  rows.push(["Industry", company?.industry || "—"]);
+  rows.push(["Generated", new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })]);
+  rows.push([]);
+  rows.push(["SUMMARY"]);
+  rows.push(["Total Employees", String(analytics.total)]);
+  rows.push(["Active Members", String(analytics.active)]);
+  rows.push(["Assessments Completed", String(analytics.assessed)]);
+  rows.push(["Assessment Rate", `${analytics.assessmentRate}%`]);
+  rows.push(["Avg Diabetes Score", String(analytics.avgDiabetesScore)]);
+  rows.push(["Avg Hypertension Score", String(analytics.avgHypertensionScore)]);
+  rows.push([]);
+  rows.push(["DIABETES RISK DISTRIBUTION"]);
+  rows.push(["Low", String(analytics.diabetes.low)]);
+  rows.push(["Medium", String(analytics.diabetes.medium)]);
+  rows.push(["High", String(analytics.diabetes.high)]);
+  rows.push(["Not Assessed", String(analytics.diabetes.none)]);
+  rows.push([]);
+  rows.push(["HYPERTENSION RISK DISTRIBUTION"]);
+  rows.push(["Low", String(analytics.hypertension.low)]);
+  rows.push(["Medium", String(analytics.hypertension.medium)]);
+  rows.push(["High", String(analytics.hypertension.high)]);
+  rows.push(["Not Assessed", String(analytics.hypertension.none)]);
+  rows.push([]);
+  rows.push(["INDIVIDUAL RISK DATA"]);
+  rows.push(["Name", "Email", "Status", "Diabetes Level", "Diabetes Score", "Hypertension Level", "Hypertension Score", "Assessment Date"]);
+  members.filter(m => m.status === "active").forEach(m => {
+    const a = m.assessment;
+    rows.push([
+      m.fullName || "",
+      m.email,
+      m.status,
+      a ? capitalize(a.diabetesLevel) : "Not Assessed",
+      a ? String(Math.round(Number(a.diabetesScore))) : "",
+      a ? capitalize(a.hypertensionLevel) : "Not Assessed",
+      a ? String(Math.round(Number(a.hypertensionScore))) : "",
+      a ? new Date(a.$createdAt).toLocaleDateString("en-GB") : "",
+    ]);
+  });
+  return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+}
+
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printReport(company: Company | null, analytics: Analytics) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const ts = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  w.document.write(`<!DOCTYPE html><html><head><title>HMEX Health Report — ${company?.name}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; font-size: 13px; color: #0f172a; padding: 40px; background: #fff; }
+  h1 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+  h2 { font-size: 14px; font-weight: 800; margin: 28px 0 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
+  .meta { font-size: 11px; color: #64748b; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+  .card { padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 4px; }
+  .card-val { font-size: 24px; font-weight: 900; }
+  .card-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; background: #f8fafc; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+  .low { background: rgba(16,185,129,0.12); color: #10B981; }
+  .medium { background: rgba(245,158,11,0.12); color: #F59E0B; }
+  .high { background: rgba(239,68,68,0.12); color: #EF4444; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+  @media print { body { padding: 20px; } }
+</style></head><body>
+<h1>Workforce Health Report</h1>
+<p class="meta">${company?.name || "—"} &nbsp;·&nbsp; ${company?.industry || "—"} &nbsp;·&nbsp; Generated ${ts}</p>
+<h2>Summary</h2>
+<div class="grid">
+  <div class="card"><div class="card-lbl">Total Employees</div><div class="card-val">${analytics.total}</div></div>
+  <div class="card"><div class="card-lbl">Active Members</div><div class="card-val">${analytics.active}</div></div>
+  <div class="card"><div class="card-lbl">Assessments</div><div class="card-val">${analytics.assessed}</div></div>
+  <div class="card"><div class="card-lbl">Assessment Rate</div><div class="card-val">${analytics.assessmentRate}%</div></div>
+  <div class="card"><div class="card-lbl">Avg Diabetes Score</div><div class="card-val">${analytics.avgDiabetesScore}</div></div>
+  <div class="card"><div class="card-lbl">Avg Hypertension Score</div><div class="card-val">${analytics.avgHypertensionScore}</div></div>
+  <div class="card"><div class="card-lbl">High Risk Count</div><div class="card-val" style="color:#EF4444">${analytics.highRiskCount}</div></div>
+  <div class="card"><div class="card-lbl">Pending Invites</div><div class="card-val">${analytics.pending}</div></div>
+</div>
+<h2>Diabetes Risk Distribution</h2>
+<table><tr><th>Level</th><th>Count</th><th>%</th></tr>
+  <tr><td><span class="badge low">Low</span></td><td>${analytics.diabetes.low}</td><td>${analytics.assessed ? Math.round(analytics.diabetes.low/analytics.assessed*100) : 0}%</td></tr>
+  <tr><td><span class="badge medium">Medium</span></td><td>${analytics.diabetes.medium}</td><td>${analytics.assessed ? Math.round(analytics.diabetes.medium/analytics.assessed*100) : 0}%</td></tr>
+  <tr><td><span class="badge high">High</span></td><td>${analytics.diabetes.high}</td><td>${analytics.assessed ? Math.round(analytics.diabetes.high/analytics.assessed*100) : 0}%</td></tr>
+</table>
+<h2>Hypertension Risk Distribution</h2>
+<table><tr><th>Level</th><th>Count</th><th>%</th></tr>
+  <tr><td><span class="badge low">Low</span></td><td>${analytics.hypertension.low}</td><td>${analytics.assessed ? Math.round(analytics.hypertension.low/analytics.assessed*100) : 0}%</td></tr>
+  <tr><td><span class="badge medium">Medium</span></td><td>${analytics.hypertension.medium}</td><td>${analytics.assessed ? Math.round(analytics.hypertension.medium/analytics.assessed*100) : 0}%</td></tr>
+  <tr><td><span class="badge high">High</span></td><td>${analytics.hypertension.high}</td><td>${analytics.assessed ? Math.round(analytics.hypertension.high/analytics.assessed*100) : 0}%</td></tr>
+</table>
+<div class="footer"><span>HMEX Workforce Health Platform</span><span>Confidential — For Internal Use Only</span></div>
+</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function EmployerReportsPage() {
-  const [dateRange, setDateRange] = useState("last30");
-  const [reportType, setReportType] = useState("all");
-  
+  const { user } = useAuth();
+  const { isDark, surface, accentColor } = useTheme();
+
+  const [company, setCompany] = useState<Company | null>(null);
+  const [members, setMembers] = useState<MemberWithRisk[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingRisks, setLoadingRisks] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+  const c = surface;
+
+  const load = useCallback(async (uid: string) => {
+    setLoading(true);
+    try {
+      let co = await getCompanyByOwner(uid).catch(() => null);
+      if (!co) {
+        const { getUserProfile } = await import("@/services/userService");
+        const profile = await getUserProfile(uid).catch(() => null);
+        if (profile?.companyName) {
+          co = { $id: profile.companyId || uid, $createdAt: "", name: profile.companyName, ownerId: uid, size: profile.companySize || "", industry: profile.industry || "", inviteCount: 0 } as Company;
+        }
+      }
+      setCompany(co);
+      if (!co) { setLoading(false); return; }
+
+      const rows = await getCompanyMembers(co.$id).catch(() => []);
+      setLoading(false);
+
+      // Fetch assessments for active members
+      const active = rows.filter(m => m.status === "active" && m.userId);
+      if (active.length > 0) {
+        setLoadingRisks(true);
+        const withRisks: MemberWithRisk[] = await Promise.all(
+          rows.map(async (m): Promise<MemberWithRisk> => {
+            if (m.status !== "active" || !m.userId) return { ...m, assessment: null };
+            const a = await fetchLatestAssessment(m.userId).catch(() => null);
+            return { ...m, assessment: a };
+          })
+        );
+        setMembers(withRisks);
+        setAnalytics(computeAnalytics(withRisks));
+        setLoadingRisks(false);
+      } else {
+        const plain = rows.map(m => ({ ...m, assessment: null }));
+        setMembers(plain);
+        setAnalytics(computeAnalytics(plain));
+      }
+    } catch (e) {
+      console.error("[Reports] load error:", e);
+      setLoading(false);
+    } finally {
+      setLastRefreshed(new Date());
+    }
+  }, []);
+
+  useEffect(() => { if (user) load(user.id); }, [user]);
+
+  // Build chart data from analytics
+  const a = analytics;
+
+  const joinedLabels = a ? Object.keys(a.joinedByMonth).slice(-6) : [];
+  const joinedValues = a ? joinedLabels.map(k => a.joinedByMonth[k]) : [];
+
+  const topRiskLabels = a?.topRisks.map(r => r.name) ?? [];
+  const topDiabScores = a?.topRisks.map(r => r.diabetesScore) ?? [];
+  const topHypScores  = a?.topRisks.map(r => r.hypertensionScore) ?? [];
+  const topColors     = a?.topRisks.map(r => riskColor(r.diabetesLevel)) ?? [];
+
+  const gLabels = a ? Object.keys(a.genderBreakdown) : [];
+  const gValues = a ? gLabels.map(k => a.genderBreakdown[k]) : [];
+
+  const ageLabels = a ? Object.keys(a.ageBreakdown) : [];
+  const ageValues = a ? ageLabels.map(k => a.ageBreakdown[k]) : [];
+
+  // Radar data: overall risk spread
+  const radarLabels = ["Low Diab", "Med Diab", "High Diab", "Low BP", "Med BP", "High BP"];
+  const radarValues = a ? [
+    a.assessed ? Math.round(a.diabetes.low    / a.assessed * 100) : 0,
+    a.assessed ? Math.round(a.diabetes.medium / a.assessed * 100) : 0,
+    a.assessed ? Math.round(a.diabetes.high   / a.assessed * 100) : 0,
+    a.assessed ? Math.round(a.hypertension.low    / a.assessed * 100) : 0,
+    a.assessed ? Math.round(a.hypertension.medium / a.assessed * 100) : 0,
+    a.assessed ? Math.round(a.hypertension.high   / a.assessed * 100) : 0,
+  ] : [0,0,0,0,0,0];
+
+  const handleExportCSV = async () => {
+    if (!analytics) return;
+    setExporting(true);
+    setExportMenuOpen(false);
+    await new Promise(r => setTimeout(r, 400));
+    const csv = buildCSV(company, analytics, members);
+    downloadCSV(csv, `hmex-health-report-${company?.name?.replace(/\s+/g, "-") || "company"}-${new Date().toISOString().slice(0,10)}.csv`);
+    setExporting(false);
+  };
+
+  const handlePrint = () => {
+    if (!analytics) return;
+    setExportMenuOpen(false);
+    printReport(company, analytics);
+  };
+
+  const isLoading = loading || loadingRisks;
+
   return (
     <EmployerLayout>
-      <div style={{ paddingBottom: 48 }}>
-        
-        {/* Page Header */}
-        <div style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 16,
-          marginBottom: 28,
-        }}>
+      <div style={{ paddingBottom: 48 }} onClick={() => setExportMenuOpen(false)}>
+
+        {/* ── Page Header ─────────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 32 }}>
           <div>
-            <p style={{
-              margin: 0,
-              marginBottom: 5,
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: COLORS.blue,
-            }}>
-              Analytics
-            </p>
-            <h1 style={{
-              margin: 0,
-              fontSize: "clamp(1.4rem, 3vw, 1.75rem)",
-              fontWeight: 900,
-              color: COLORS.navy,
-              letterSpacing: "-0.025em",
-              lineHeight: 1.15,
-            }}>
+            <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 800, color: accentColor, letterSpacing: "0.12em", textTransform: "uppercase" }}>Analytics</p>
+            <h1 style={{ margin: 0, fontSize: "clamp(1.35rem,3vw,1.7rem)", fontWeight: 900, color: c.text, letterSpacing: "-0.03em", lineHeight: 1.15 }}>
               Reports & Analytics
             </h1>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: COLORS.muted }}>
-              Download detailed reports and analyze workforce health trends
-            </p>
+            {company && (
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: c.muted, display: "flex", alignItems: "center", gap: 5 }}>
+                <Building2 size={12} />{company.name} · {company.industry || "Workforce Health"}
+                {lastRefreshed && <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.55 }}>· {lastRefreshed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+              </p>
+            )}
           </div>
 
-          {/* Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                fontSize: 12,
-                border: `1px solid ${COLORS.border}`,
-                background: COLORS.white,
-                color: COLORS.navy,
-              }}
-            >
-              <option value="last7">Last 7 days</option>
-              <option value="last30">Last 30 days</option>
-              <option value="last90">Last 90 days</option>
-              <option value="year">This year</option>
-              <option value="custom">Custom range</option>
-            </select>
-            
-            <button style={{
-              padding: "8px 16px",
-              background: COLORS.blue,
-              border: "none",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}>
-              <DownloadCloud size={13} />
-              Generate Report
-            </button>
+          {/* Export Button */}
+          <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => load(user!.id)}
+                style={{ padding: "8px 12px", background: "transparent", border: `1px solid ${c.border}`, color: c.muted, borderRadius: 2, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+                <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+                Refresh
+              </button>
+
+              <button onClick={() => setExportMenuOpen(v => !v)} disabled={exporting || !analytics}
+                style={{ padding: "8px 16px", background: analytics ? accentColor : c.border, border: "none", color: analytics ? "white" : c.muted, borderRadius: 2, cursor: analytics ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700 }}>
+                {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                Export
+                <ChevronDown size={12} />
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {exportMenuOpen && (
+                <motion.div initial={{ opacity: 0, y: 6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 4, scale: 0.96 }} transition={{ duration: 0.15 }}
+                  style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 50, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 2, overflow: "hidden", minWidth: 180, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                  <button onClick={handleExportCSV}
+                    style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: c.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <FileSpreadsheet size={14} color={accentColor} />
+                    Download CSV
+                  </button>
+                  <button onClick={handlePrint}
+                    style={{ width: "100%", padding: "10px 16px", background: "none", border: "none", textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: c.text }}
+                    onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <Printer size={14} color={accentColor} />
+                    Print / Save PDF
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+        </motion.div>
+
+        {/* ── Stat Cards ──────────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 28 }}>
+          <StatCard icon={<Users size={16} />}       label="Total Employees"  value={fmt(a?.total ?? 0)}           sub={`${a?.pending ?? 0} pending`}             color={accentColor}  loading={loading} />
+          <StatCard icon={<CheckCircle size={16} />} label="Active Members"   value={fmt(a?.active ?? 0)}          sub="joined your plan"                         color="#10B981"      loading={loading} />
+          <StatCard icon={<Activity size={16} />}    label="Assessed"         value={`${a?.assessmentRate ?? 0}%`} sub={`${a?.assessed ?? 0} completed`}          color="#8B5CF6"      loading={loading} />
+          <StatCard icon={<Heart size={16} />}       label="Avg Diabetes"     value={a?.avgDiabetesScore ?? "—"}   sub="avg risk score"                           color="#F59E0B"      loading={isLoading} />
+          <StatCard icon={<TrendingUp size={16} />}  label="Avg Hypertension" value={a?.avgHypertensionScore ?? "—"} sub="avg risk score"                         color="#EF4444"      loading={isLoading} />
+          <StatCard icon={<AlertCircle size={16} />} label="High Risk"        value={fmt(a?.highRiskCount ?? 0)}   sub="need attention"                           color="#EF4444"      loading={isLoading} />
         </div>
 
-        {/* Stats Row */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 10,
-          marginBottom: 24,
-        }}>
-          <StatCard 
-            icon={Users}
-            label="Total Reports"
-            value="24"
-            trend="up"
-            trendValue="+8 this month"
-          />
-          <StatCard 
-            icon={Download}
-            label="Total Downloads"
-            value="1,284"
-            trend="up"
-            trendValue="+23% vs last month"
-            color={COLORS.low}
-          />
-          <StatCard 
-            icon={Clock}
-            label="Avg. Generation Time"
-            value="2.4 min"
-            color={COLORS.moderate}
-          />
-          <StatCard 
-            icon={Activity}
-            label="Data Points"
-            value="12.5K"
-            trend="up"
-            trendValue="+1,200 new"
-            color={COLORS.teal}
-          />
-        </div>
-
-        {/* Trend Chart */}
-        <div style={{ marginBottom: 24 }}>
-          <TrendChart />
-        </div>
-
-        {/* Report Type Filter */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 16,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              onClick={() => setReportType("all")}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                background: reportType === "all" ? COLORS.blue : "transparent",
-                color: reportType === "all" ? "#fff" : COLORS.muted,
-                border: `1px solid ${reportType === "all" ? COLORS.blue : COLORS.border}`,
-                cursor: "pointer",
-              }}
-            >
-              All Reports
-            </button>
-            <button
-              onClick={() => setReportType("pdf")}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                background: reportType === "pdf" ? COLORS.blue : "transparent",
-                color: reportType === "pdf" ? "#fff" : COLORS.muted,
-                border: `1px solid ${reportType === "pdf" ? COLORS.blue : COLORS.border}`,
-                cursor: "pointer",
-              }}
-            >
-              PDF
-            </button>
-            <button
-              onClick={() => setReportType("excel")}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                background: reportType === "excel" ? COLORS.blue : "transparent",
-                color: reportType === "excel" ? "#fff" : COLORS.muted,
-                border: `1px solid ${reportType === "excel" ? COLORS.blue : COLORS.border}`,
-                cursor: "pointer",
-              }}
-            >
-              Excel
-            </button>
+        {/* ── No data state ───────────────────────────────────────────────── */}
+        {!loading && a && a.active === 0 && (
+          <div style={{ padding: "48px 24px", textAlign: "center", background: c.surface, border: `1px solid ${c.border}`, borderRadius: 2, marginBottom: 28 }}>
+            <BarChart3 size={32} style={{ color: c.muted, opacity: 0.3, marginBottom: 12 }} />
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: c.text }}>No employee data yet</p>
+            <p style={{ margin: 0, fontSize: 12, color: c.muted }}>Invite your team to start seeing analytics here.</p>
           </div>
+        )}
 
-          <button style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "6px 12px",
-            fontSize: 12,
-            background: "transparent",
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.muted,
-            cursor: "pointer",
-          }}>
-            <Filter size={12} />
-            Filter
-          </button>
-        </div>
+        {/* ── Row 1: Donuts + Line chart ─────────────────────────────────── */}
+        {(!loading || isLoading) && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 14 }}>
+              <DonutChartWidget
+                title="Diabetes Risk Distribution"
+                data={[
+                  { label: "Low", value: a?.diabetes.low ?? 0 },
+                  { label: "Medium", value: a?.diabetes.medium ?? 0 },
+                  { label: "High", value: a?.diabetes.high ?? 0 },
+                  { label: "Not Assessed", value: a?.diabetes.none ?? 0 },
+                ]}
+                colors={["#10B981", "#F59E0B", "#EF4444", "rgba(148,163,184,0.3)"]}
+                surface={c} loading={isLoading}
+              />
+              <DonutChartWidget
+                title="Hypertension Risk Distribution"
+                data={[
+                  { label: "Low", value: a?.hypertension.low ?? 0 },
+                  { label: "Medium", value: a?.hypertension.medium ?? 0 },
+                  { label: "High", value: a?.hypertension.high ?? 0 },
+                  { label: "Not Assessed", value: a?.hypertension.none ?? 0 },
+                ]}
+                colors={["#10B981", "#F59E0B", "#EF4444", "rgba(148,163,184,0.3)"]}
+                surface={c} loading={isLoading}
+              />
+              <RadarChartWidget
+                title="Risk Profile Overview"
+                labels={radarLabels}
+                values={radarValues}
+                color={accentColor}
+                surface={c}
+                loading={isLoading}
+              />
+            </div>
 
-        {/* Reports Grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(500px, 1fr))",
-          gap: 10,
-          marginBottom: 24,
-        }}>
-          {MOCK_REPORTS.map(report => (
-            <ReportCard key={report.id} report={report} />
-          ))}
-        </div>
+            {/* ── Row 2: Employee growth + top risk bar ──────────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14, marginBottom: 14 }}>
+              <LineAreaChart
+                title="Employee Onboarding Timeline"
+                labels={joinedLabels}
+                datasets={[{ label: "New Members", data: joinedValues, color: accentColor }]}
+                surface={c}
+                loading={loading}
+              />
+              <HBarChart
+                title="Top Risk — Diabetes Scores"
+                labels={topRiskLabels}
+                values={topDiabScores}
+                colors={topColors}
+                surface={c}
+                loading={isLoading}
+                maxVal={100}
+              />
+            </div>
+
+            {/* ── Row 3: Hypertension scores + Gender + Age ─────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginBottom: 14 }}>
+              <HBarChart
+                title="Top Risk — Hypertension Scores"
+                labels={topRiskLabels}
+                values={topHypScores}
+                colors={(a?.topRisks ?? []).map(r => riskColor(r.hypertensionLevel))}
+                surface={c}
+                loading={isLoading}
+                maxVal={100}
+              />
+              <DonutChartWidget
+                title="Gender Distribution"
+                data={gLabels.map((l, i) => ({ label: capitalize(l), value: gValues[i] }))}
+                colors={["#6366F1", "#EC4899", "#10B981", "#F59E0B", "#94A3B8"]}
+                surface={c}
+                loading={isLoading}
+              />
+              <HBarChart
+                title="Age Category Breakdown"
+                labels={ageLabels.map(capitalize)}
+                values={ageValues}
+                colors={ageLabels.map((_, i) => ["#6366F1","#0EA5E9","#10B981","#F59E0B","#EF4444"][i % 5])}
+                surface={c}
+                loading={isLoading}
+                maxVal={Math.max(...ageValues, 1)}
+              />
+            </div>
+
+            {/* ── Score comparison ──────────────────────────────────────── */}
+            {a && a.topRisks.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <HBarChart
+                  title="Diabetes vs Hypertension Score Comparison (Top Members)"
+                  labels={topRiskLabels}
+                  values={topDiabScores.map((d, i) => Math.round((d + topHypScores[i]) / 2))}
+                  colors={topRiskLabels.map((_, i) => [accentColor, "#EF4444", "#F59E0B", "#8B5CF6", "#10B981", "#0EA5E9"][i % 6])}
+                  surface={c}
+                  loading={isLoading}
+                  maxVal={100}
+                />
+              </div>
+            )}
+
+            {/* ── Individual risk table ─────────────────────────────────── */}
+            <div style={{ marginBottom: 28 }}>
+              <RiskTable members={members} surface={c} loading={isLoading} />
+            </div>
+
+            {/* ── Report summary card ───────────────────────────────────── */}
+            {a && !isLoading && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                style={{ padding: "20px 24px", background: isDark ? `${accentColor}0A` : `${accentColor}06`, border: `1px solid ${accentColor}22`, borderRadius: 2, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 42, height: 42, background: `${accentColor}18`, borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <FileText size={18} style={{ color: accentColor }} />
+                  </div>
+                  <div>
+                    <p style={{ margin: "0 0 3px", fontSize: 14, fontWeight: 800, color: c.text }}>Workforce Health Summary</p>
+                    <p style={{ margin: 0, fontSize: 11, color: c.muted, lineHeight: 1.5 }}>
+                      {a.assessed}/{a.active} active members assessed &nbsp;·&nbsp;
+                      {a.diabetes.high + a.hypertension.high} high-risk &nbsp;·&nbsp;
+                      Avg diabetes score: {a.avgDiabetesScore} &nbsp;·&nbsp;
+                      Avg BP score: {a.avgHypertensionScore}
+                      {a.assessmentRate < 60 && <span style={{ color: "#F59E0B", marginLeft: 8, fontWeight: 700 }}>⚠ Low assessment rate</span>}
+                      {a.highRiskCount > 0 && <span style={{ color: "#EF4444", marginLeft: 8, fontWeight: 700 }}>· {a.highRiskCount} need follow-up</span>}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={handlePrint}
+                    style={{ padding: "9px 16px", background: "transparent", border: `1px solid ${accentColor}40`, color: accentColor, borderRadius: 2, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Printer size={13} />Print PDF
+                  </button>
+                  <button onClick={handleExportCSV}
+                    style={{ padding: "9px 16px", background: accentColor, border: "none", color: "white", borderRadius: 2, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Download size={13} />Export CSV
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </>
+        )}
 
         <ThemeToggle />
       </div>

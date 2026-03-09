@@ -93,6 +93,79 @@ const HERO_IMAGES: Record<string, string> = {
   evening:   "https://images.unsplash.com/photo-1534271057238-c2c170a76672?q=80&w=1500&auto=format",
 };
 
+// ─── AVATAR HELPERS ───────────────────────────────────────────────────────────
+const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+const APPWRITE_PROJECT  = "hmex";
+const BUCKET_ID         = "profile_images";
+
+function buildAvatarUrl(avatar: string | null): string | null {
+  if (!avatar) return null;
+  if (avatar.startsWith("http")) return avatar;
+  // avatar field stores the profile document $id which is also the file id
+  return `${APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${avatar}/view?project=${APPWRITE_PROJECT}&mode=admin`;
+}
+
+// ─── AVATAR COMPONENT ─────────────────────────────────────────────────────────
+function MemberAvatar({
+  name, avatar, diabetesLevel, hypertensionLevel, hasAssessment, size = 28,
+}: {
+  name: string;
+  avatar: string | null;
+  diabetesLevel: string | null;
+  hypertensionLevel: string | null;
+  hasAssessment: boolean;
+  size?: number;
+}) {
+  // appwrite → real photo, dicebear → illustrated gender-neutral, initials → last resort
+  const [stage, setStage] = useState<"appwrite" | "dicebear" | "initials">(
+    avatar ? "appwrite" : "dicebear"
+  );
+
+  const url = buildAvatarUrl(avatar);
+
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "?";
+
+  const fallbackGradient = hasAssessment
+    ? `linear-gradient(135deg, ${riskColor(diabetesLevel)}, ${riskColor(hypertensionLevel)})`
+    : "rgba(148,163,184,0.2)";
+
+  const circle: React.CSSProperties = { width: size, height: size, borderRadius: "50%", flexShrink: 0 };
+
+  if (stage === "appwrite" && url) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        style={{ ...circle, objectFit: "cover" }}
+        onError={() => setStage("dicebear")}
+      />
+    );
+  }
+
+  if (stage === "dicebear") {
+    return (
+      <img
+        src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(name || "user")}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&backgroundType=gradientLinear`}
+        alt={name}
+        style={{ ...circle, objectFit: "cover", background: "rgba(148,163,184,0.1)" }}
+        onError={() => setStage("initials")}
+      />
+    );
+  }
+
+  return (
+    <div style={{ ...circle, background: fallbackGradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.36, fontWeight: 700, color: "white" }}>
+      {initials}
+    </div>
+  );
+}
+
 // ─── GREETING HERO CARD ───────────────────────────────────────────────────────
 function GreetingCard({
   userName, companyName, activeCount, pendingCount, accentColor, isDark,
@@ -295,47 +368,79 @@ function ScoreBarChart({ members, field, label, surface }: {
   );
 }
 
+// ─── RESPONSIVE HOOK ─────────────────────────────────────────────────────────
+function useIsMobile(breakpoint = 600) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < breakpoint : false
+  );
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// ─── RISK BADGE ───────────────────────────────────────────────────────────────
+function RiskBadge({ level, muted }: { level: string | null; muted: string }) {
+  if (!level) return <span style={{ fontSize: 10, color: muted }}>—</span>;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(level), color: riskColor(level), fontWeight: 700, fontSize: 10 }}>
+      {riskIcon(level)}{level.charAt(0).toUpperCase() + level.slice(1)}
+    </span>
+  );
+}
+
 // ─── RISK TABLE ROW ───────────────────────────────────────────────────────────
 function RiskRow({ m, idx, c }: { m: MemberRisk; idx: number; c: any }) {
-  const name     = m.fullName || m.email.split("@")[0];
-  const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+  const isMobile = useIsMobile();
+  const name = m.fullName || m.email.split("@")[0];
+  const dateStr = m.lastAssessment
+    ? new Date(m.lastAssessment).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : "No data";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-      style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 90px", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: `1px solid ${c.border}`, fontSize: 12 }}
+      style={{ borderBottom: `1px solid ${c.border}` }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: m.hasAssessment ? `linear-gradient(135deg, ${riskColor(m.diabetesLevel)}, ${riskColor(m.hypertensionLevel)})` : "rgba(148,163,184,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "white" }}>
-          {initials}
+      {isMobile ? (
+        /* ── Mobile card ── */
+        <div style={{ padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <MemberAvatar name={name} avatar={m.avatar} diabetesLevel={m.diabetesLevel} hypertensionLevel={m.hypertensionLevel} hasAssessment={m.hasAssessment} size={38} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+              <p style={{ margin: "1px 0 0", fontSize: 10, color: c.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</p>
+            </div>
+            <span style={{ fontSize: 10, color: c.muted, flexShrink: 0 }}>{dateStr}</span>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 8, paddingLeft: 48, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Diabetes</span>
+              <RiskBadge level={m.hasAssessment ? m.diabetesLevel : null} muted={c.muted} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>BP</span>
+              <RiskBadge level={m.hasAssessment ? m.hypertensionLevel : null} muted={c.muted} />
+            </div>
+          </div>
         </div>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontWeight: 600, color: c.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
-          <p style={{ margin: 0, fontSize: 10, color: c.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</p>
+      ) : (
+        /* ── Desktop row ── */
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 110px 80px", alignItems: "center", gap: 8, fontSize: 12, padding: "10px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <MemberAvatar name={name} avatar={m.avatar} diabetesLevel={m.diabetesLevel} hypertensionLevel={m.hypertensionLevel} hasAssessment={m.hasAssessment} size={28} />
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontWeight: 600, color: c.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
+              <p style={{ margin: 0, fontSize: 10, color: c.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</p>
+            </div>
+          </div>
+          <div><RiskBadge level={m.hasAssessment ? m.diabetesLevel : null} muted={c.muted} /></div>
+          <div><RiskBadge level={m.hasAssessment ? m.hypertensionLevel : null} muted={c.muted} /></div>
+          <div style={{ textAlign: "right", fontSize: 10, color: c.muted }}>{dateStr}</div>
         </div>
-      </div>
-
-      <div>
-        {m.hasAssessment && m.diabetesLevel ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(m.diabetesLevel), color: riskColor(m.diabetesLevel), fontWeight: 700, fontSize: 10 }}>
-            {riskIcon(m.diabetesLevel)}{m.diabetesLevel.charAt(0).toUpperCase() + m.diabetesLevel.slice(1)}
-          </span>
-        ) : <span style={{ fontSize: 10, color: c.muted }}>—</span>}
-      </div>
-
-      <div>
-        {m.hasAssessment && m.hypertensionLevel ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(m.hypertensionLevel), color: riskColor(m.hypertensionLevel), fontWeight: 700, fontSize: 10 }}>
-            {riskIcon(m.hypertensionLevel)}{m.hypertensionLevel.charAt(0).toUpperCase() + m.hypertensionLevel.slice(1)}
-          </span>
-        ) : <span style={{ fontSize: 10, color: c.muted }}>—</span>}
-      </div>
-
-      <div style={{ textAlign: "right", fontSize: 10, color: c.muted }}>
-        {m.lastAssessment
-          ? new Date(m.lastAssessment).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-          : "No data"}
-      </div>
+      )}
     </motion.div>
   );
 }
@@ -421,6 +526,7 @@ export default function EmployerDashboardPage() {
   const hypHigh = memberRisks.filter((m) => m.hasAssessment && m.hypertensionLevel === "high").length;
   const hypNo   = activeCount - hypLow - hypMed - hypHigh;
 
+  const isMobile  = useIsMobile();
   const isLoading = loadingCompany || loadingMembers;
   const goToEmployees = () => router.push("/dashboard/employer/employees");
 
@@ -466,10 +572,10 @@ export default function EmployerDashboardPage() {
           ))
         ) : (
           <>
-         <StatCard icon={<Users size={18} />}       value={totalCount}    label="Total Employees"      />
-<StatCard icon={<CheckCircle size={18} />} value={activeCount}   label="Active Members"       />
-<StatCard icon={<Clock size={18} />}       value={pendingCount}  label="Pending Invites"      />
-<StatCard icon={<Activity size={18} />}    value={assessedCount} label="Assessments Complete" />
+            <StatCard icon={<Users size={18} />}       value={totalCount}    label="Total Employees"      />
+            <StatCard icon={<CheckCircle size={18} />} value={activeCount}   label="Active Members"       />
+            <StatCard icon={<Clock size={18} />}       value={pendingCount}  label="Pending Invites"      />
+            <StatCard icon={<Activity size={18} />}    value={assessedCount} label="Assessments Complete" />
           </>
         )}
       </div>
@@ -579,10 +685,12 @@ export default function EmployerDashboardPage() {
           </motion.div>
         ) : (
           <>
-            {/* Risk table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 90px", gap: 8, padding: "8px 16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)", borderBottom: `1px solid ${c.border}`, fontSize: 10, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              <span>Employee</span><span>Diabetes</span><span>Hypertension</span><span style={{ textAlign: "right" }}>Assessment</span>
-            </div>
+            {/* Risk table header — hidden on mobile */}
+            {!isMobile && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 110px 80px", gap: 8, padding: "8px 16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)", borderBottom: `1px solid ${c.border}`, fontSize: 10, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <span>Employee</span><span>Diabetes</span><span>Hypertension</span><span style={{ textAlign: "right" }}>Assessment</span>
+              </div>
+            )}
 
             {members.slice(0, 5).map((m, idx) => {
               const risk = memberRisks.find((r) => r.userId === m.userId);
