@@ -1,1309 +1,707 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import {
-  Activity, History, TrendingUp, TrendingDown,
-  Droplet, Heart, Plus, ArrowRight, Clock,
-  CheckCircle, AlertTriangle, Zap, RefreshCw,
-  ChevronRight, Sun, Sunset, Moon, Coffee,
-  Shield, Target, Award, BarChart2, ChevronDown,
-} from "lucide-react";
-import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale, PointElement,
-  LineElement, ArcElement, Filler, Tooltip as ChartTooltip,
-  Legend,
-} from "chart.js";
-import { Line, Doughnut } from "react-chartjs-2";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useRequireAuth } from "@/hooks/useAuth";
-import {
-  fetchUserAssessments,
-  fetchLatestAssessment,
-  fetchUserXp,
-  type StoredAssessment,
-  type UserXpRecord,
-} from "@/services/AppwriteService";
+import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/contexts/ThemeContext";
+import EmployerLayout from "@/components/dashboard/employer/EmployerLayout";
+import { StatCard, SectionHeader, Card } from "@/components/dashboard/Dashboardwidgets";
 import ThemeToggle from "@/components/Themetoggle";
+import {
+  getCompanyByOwner,
+  getCompanyMembers,
+  type Company,
+  type EmployeeDashboardRow,
+} from "@/services/companyService";
+import { fetchLatestAssessment } from "@/services/AppwriteService";
+import {
+  Users, Clock, CheckCircle, ChevronRight, BarChart3, Building2,
+  Plus, TrendingUp, TrendingDown, Minus, Activity, Heart, AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 
-ChartJS.register(
-  CategoryScale, LinearScale, PointElement,
-  LineElement, ArcElement, Filler, ChartTooltip, Legend,
-);
+// ─── Chart.js dynamic import (avoids SSR issues) ─────────────────────────────
+let _Chart: any = null;
+async function getChart() {
+  if (_Chart) return _Chart;
+  const mod = await import("chart.js");
+  mod.Chart.register(...mod.registerables);
+  _Chart = mod.Chart;
+  return _Chart;
+}
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const RISK_ORDER: Record<string, number> = {
-  "low": 1, "slightly-elevated": 2, "moderate": 3, "high": 4, "very-high": 5,
-};
-const RISK_COLOR: Record<string, string> = {
-  "low": "#22c55e",
-  "slightly-elevated": "#eab308",
-  "moderate": "#f97316",
-  "high": "#ef4444",
-  "very-high": "#dc2626",
-};
-const RISK_LABEL: Record<string, string> = {
-  "low": "Low",
-  "slightly-elevated": "Slightly Elevated",
-  "moderate": "Moderate",
-  "high": "High",
-  "very-high": "Very High",
-};
-
-const XP_CONSULTATION_THRESHOLD = 300;
-
-const HERO_IMAGES = {
-  morning:   "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1400&q=80&auto=format",
-  afternoon: "https://plus.unsplash.com/premium_photo-1663100808180-6248dd9cdaa7?q=80&w=1400&auto=format",
-  evening:   "https://images.unsplash.com/photo-1558701056-a01e5f5afcce?q=80&w=1400&auto=format",
-  night:     "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1400&q=80&auto=format",
-};
+// ─── TYPES ────────────────────────────────────────────────────────────────────
+interface MemberRisk {
+  memberId:          string;
+  userId:            string;
+  email:             string;
+  fullName:          string | null;
+  avatar:            string | null;
+  status:            string;
+  diabetesLevel:     string | null;
+  diabetesScore:     number | null;
+  hypertensionLevel: string | null;
+  hypertensionScore: number | null;
+  lastAssessment:    string | null;
+  hasAssessment:     boolean;
+}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-function getTimeOfDay(): "morning" | "afternoon" | "evening" | "night" {
+function Skeleton({ style }: { style?: React.CSSProperties }) {
+  return <div className="animate-pulse" style={{ background: "rgba(128,128,128,0.12)", borderRadius: 2, ...style }} />;
+}
+
+function riskColor(level: string | null): string {
+  if (!level) return "#94A3B8";
+  switch (level.toLowerCase()) {
+    case "low":    return "#10B981";
+    case "medium": return "#F59E0B";
+    case "high":   return "#EF4444";
+    default:       return "#94A3B8";
+  }
+}
+
+function riskBg(level: string | null): string {
+  switch (level?.toLowerCase()) {
+    case "low":    return "rgba(16,185,129,0.12)";
+    case "medium": return "rgba(245,158,11,0.12)";
+    case "high":   return "rgba(239,68,68,0.12)";
+    default:       return "rgba(148,163,184,0.10)";
+  }
+}
+
+function riskIcon(level: string | null) {
+  switch (level?.toLowerCase()) {
+    case "low":    return <TrendingDown size={11} />;
+    case "high":   return <TrendingUp size={11} />;
+    default:       return <Minus size={11} />;
+  }
+}
+
+function timeOfDay(): "morning" | "afternoon" | "evening" {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return "morning";
-  if (h >= 12 && h < 17) return "afternoon";
-  if (h >= 17 && h < 21) return "evening";
-  return "night";
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  return "evening";
 }
 
-function getGreeting(name: string): { greeting: string; sub: string; Icon: React.ElementType } {
-  const tod = getTimeOfDay();
-  const first = name?.split(" ")[0] || "there";
-  const greetings = {
-    morning:   { greeting: `Good morning, ${first}.`,   sub: "Start the day with your health in focus.",      Icon: Coffee },
-    afternoon: { greeting: `Good afternoon, ${first}.`, sub: "How are you feeling this afternoon?",           Icon: Sun },
-    evening:   { greeting: `Good evening, ${first}.`,   sub: "Take a moment to check in on your health.",     Icon: Sunset },
-    night:     { greeting: `Good night, ${first}.`,     sub: "Rest well — your health tomorrow starts now.",  Icon: Moon },
-  };
-  return greetings[tod];
+const HERO_IMAGES: Record<string, string> = {
+  morning:   "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1500&auto=format",
+  afternoon: "https://images.unsplash.com/photo-1624864873074-4264549e5cf1?q=80&w=1500&auto=format",
+  evening:   "https://images.unsplash.com/photo-1534271057238-c2c170a76672?q=80&w=1500&auto=format",
+};
+
+// ─── AVATAR HELPERS ───────────────────────────────────────────────────────────
+const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+const APPWRITE_PROJECT  = "hmex";
+const BUCKET_ID         = "profile_images";
+
+function buildAvatarUrl(avatar: string | null): string | null {
+  if (!avatar) return null;
+  // Already a full URL
+  if (avatar.startsWith("http")) return avatar;
+  // Reconstruct from file/profile doc ID stored in avatar field
+  return `${APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${avatar}/view?project=${APPWRITE_PROJECT}&mode=admin`;
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d === 1) return "Yesterday";
-  if (d < 7) return `${d} days ago`;
-  if (d < 30) return `${Math.floor(d / 7)}w ago`;
-  return `${Math.floor(d / 30)}mo ago`;
+function dicebearUrl(seed: string): string {
+  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
 }
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function capitalize(s: string): string {
-  return (s || "").split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ");
-}
-
-// ─── ANIMATION HOOK ───────────────────────────────────────────────────────────
-function useInView(threshold = 0.1) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [vis, setVis] = useState(false);
-  useEffect(() => {
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) { setVis(true); io.disconnect(); }
-    }, { threshold });
-    if (ref.current) io.observe(ref.current);
-    return () => io.disconnect();
-  }, [threshold]);
-  return { ref, vis };
-}
-
-// ─── COUNT-UP HOOK ────────────────────────────────────────────────────────────
-function useCountUp(target: number, enabled = true) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!enabled || target === 0) { setVal(target); return; }
-    let start: number | null = null;
-    const step = (ts: number) => {
-      if (!start) start = ts;
-      const p = Math.min((ts - start) / 900, 1);
-      setVal(Math.round((1 - (1 - p) ** 3) * target));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, enabled]);
-  return val;
-}
-
-// ─── RISK BADGE ───────────────────────────────────────────────────────────────
-function RiskBadge({ level }: { level: string }) {
-  const c = RISK_COLOR[level] ?? "#22c55e";
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide"
-      style={{ background: `${c}18`, color: c, borderRadius: 2 }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c }} />
-      {RISK_LABEL[level] ?? "Low"}
-    </span>
-  );
-}
-
-// ─── STAT CARD ────────────────────────────────────────────────────────────────
-function StatCard({
-  label, value, sub, icon, accentColor: customAccentColor,
-  trend, trendLabel, delay = 0,
+// ─── AVATAR COMPONENT ─────────────────────────────────────────────────────────
+function MemberAvatar({
+  name, avatar, diabetesLevel, hypertensionLevel, hasAssessment, size = 28,
 }: {
-  label: string; value: string | React.ReactNode; sub?: string;
-  icon: React.ReactNode; accentColor?: string;
-  trend?: "up" | "down" | "flat"; trendLabel?: string; delay?: number;
+  name: string;
+  avatar: string | null;
+  diabetesLevel: string | null;
+  hypertensionLevel: string | null;
+  hasAssessment: boolean;
+  size?: number;
 }) {
-  const { isDark, surface, accentColor, accentFaint } = useTheme();
-  const effectiveAccent = customAccentColor || accentColor;
-  const bg     = surface.surface;
-  const border = surface.border;
-  const textH  = surface.text;
-  const textM  = surface.muted;
-  const { ref, vis } = useInView();
+  const [imgError, setImgError] = useState(false);
+  const url = buildAvatarUrl(avatar);
 
-  const trendClr = trend === "up" ? "#ef4444" : trend === "down" ? "#22c55e" : textM;
-  const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : null;
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
+  const fallbackGradient = hasAssessment
+    ? `linear-gradient(135deg, ${riskColor(diabetesLevel)}, ${riskColor(hypertensionLevel)})`
+    : "rgba(148,163,184,0.2)";
+
+  const sharedStyle: React.CSSProperties = {
+    width: size,
+    height: size,
+    borderRadius: "50%",
+    flexShrink: 0,
+    objectFit: "cover",
+  };
+
+  // 1. Has a real profile image and it hasn't errored
+  if (url && !imgError) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        style={sharedStyle}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  // 2. No profile image — show DiceBear gender-neutral avatar
   return (
-    <div
-      ref={ref}
-      className="flex flex-col gap-3 p-5 transition-all duration-700"
-      style={{
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 2,
-        opacity: vis ? 1 : 0,
-        transform: vis ? "translateY(0)" : "translateY(16px)",
-        transitionDelay: `${delay}ms`,
+    <img
+      src={dicebearUrl(name || "user")}
+      alt={name}
+      style={{ ...sharedStyle, background: fallbackGradient }}
+      onError={(e) => {
+        // 3. DiceBear also failed — last resort: initials div
+        const target = e.currentTarget as HTMLImageElement;
+        target.style.display = "none";
+        const parent = target.parentElement;
+        if (parent) {
+          parent.setAttribute("data-initials", initials);
+        }
       }}
-    >
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: textM }}>{label}</p>
-        <div className="w-8 h-8 flex items-center justify-center" style={{ borderRadius: 2, background: accentFaint, color: effectiveAccent }}>
-          {icon}
-        </div>
-      </div>
-      <div>
-        <div className="text-[1.65rem] font-black leading-none" style={{ color: textH, letterSpacing: "-0.03em" }}>
-          {value}
-        </div>
-        {sub && <p className="mt-1.5 text-[11.5px]" style={{ color: textM }}>{sub}</p>}
-      </div>
-      {trend && trendLabel && (
-        <div className="flex items-center gap-1.5 pt-2" style={{ borderTop: `1px solid ${border}` }}>
-          {TrendIcon && <TrendIcon size={11} strokeWidth={2.5} style={{ color: trendClr }} />}
-          <p className="text-[11px] font-medium" style={{ color: trendClr }}>{trendLabel}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── SKELETON ─────────────────────────────────────────────────────────────────
-function Skeleton({ h = 16, w = "100%", r = 2 }: { h?: number; w?: string | number; r?: number }) {
-  const { isDark } = useTheme();
-  return (
-    <div
-      className="animate-pulse"
-      style={{ height: h, width: w, borderRadius: r, background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}
     />
   );
 }
 
-function CardShell({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const { surface } = useTheme();
-  const { ref, vis } = useInView();
-  const bg     = surface.surface;
-  const border = surface.border;
-  return (
-    <div
-      ref={ref}
-      className={`p-5 transition-all duration-700 ${className}`}
-      style={{
-        background: bg, border: `1px solid ${border}`, borderRadius: 2,
-        opacity: vis ? 1 : 0,
-        transform: vis ? "translateY(0)" : "translateY(16px)",
-        transitionDelay: `${delay}ms`,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ─── SECTION LABEL ────────────────────────────────────────────────────────────
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  const { surface } = useTheme();
-  return (
-    <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4"
-       style={{ color: surface.subtle }}>
-      {children}
-    </p>
-  );
-}
-
-// ─── RISK GAUGE RING ──────────────────────────────────────────────────────────
-function RiskGaugeRing({ level, label, isDark }: { level: string; label: string; isDark: boolean }) {
-  const color = RISK_COLOR[level] ?? "#22c55e";
-  const pct = (RISK_ORDER[level] ?? 1) / 5;
-  const r = 36, cx = 44, cy = 44;
-  const circumference = 2 * Math.PI * r;
-  const strokeDash = circumference * pct;
-
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative">
-        <svg width={88} height={88} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={8}
-            stroke={isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"} />
-          <circle cx={cx} cy={cy} r={r} fill="none" strokeWidth={8}
-            stroke={color} strokeLinecap="round"
-            strokeDasharray={`${strokeDash} ${circumference}`}
-            style={{ transition: "stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)" }} />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[13px] font-black" style={{ color }}>{Math.round(pct * 100)}%</span>
-        </div>
-      </div>
-      <div className="text-center">
-        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isDark ? "#4a5568" : "#94a3b8" }}>{label}</p>
-        <p className="text-[11px] font-semibold" style={{ color }}>{RISK_LABEL[level] ?? "Low"}</p>
-      </div>
-    </div>
-  );
-}
-
-// ─── LINE CHART ───────────────────────────────────────────────────────────────
-function RiskTrendChart({ assessments }: { assessments: StoredAssessment[]; isDark: boolean }) {
-  const { surface } = useTheme();
-  const sorted = [...assessments].reverse().slice(-10);
-  if (sorted.length < 2) return (
-    <div className="flex items-center justify-center h-32" style={{ color: surface.subtle }}>
-      <p className="text-[12px]">Need at least 2 assessments to show trend</p>
-    </div>
-  );
-
-  const labels = sorted.map(a => fmtDate(a.$createdAt));
-  const dData  = sorted.map(a => RISK_ORDER[a.diabetesLevel] ?? 1);
-  const hData  = sorted.map(a => RISK_ORDER[a.hypertensionLevel] ?? 1);
-  const gridClr = surface.border;
-  const tickClr = surface.muted;
-
-  const data = {
-    labels,
-    datasets: [
-      {
-        label: "Diabetes",
-        data: dData,
-        borderColor: "#0d9488",
-        backgroundColor: "rgba(13,148,136,0.08)",
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: "#0d9488",
-        pointBorderColor: surface.surface,
-        pointBorderWidth: 2,
-        borderWidth: 2,
-      },
-      {
-        label: "Hypertension",
-        data: hData,
-        borderColor: "#6366f1",
-        backgroundColor: "rgba(99,102,241,0.06)",
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
-        pointBackgroundColor: "#6366f1",
-        pointBorderColor: surface.surface,
-        pointBorderWidth: 2,
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "top" as const,
-        labels: {
-          color: tickClr,
-          font: { size: 11, weight: 600 },
-          boxWidth: 10,
-          boxHeight: 3,
-          padding: 16,
-          usePointStyle: true,
-        },
-      },
-      tooltip: {
-        backgroundColor: surface.surfaceAlt,
-        titleColor: surface.text,
-        bodyColor: surface.muted,
-        borderColor: surface.border,
-        borderWidth: 1,
-        padding: 10,
-        cornerRadius: 2,
-        callbacks: {
-          label: (ctx: any) => {
-            const lvls = ["", "Low", "Slightly Elevated", "Moderate", "High", "Very High"];
-            return ` ${ctx.dataset.label}: ${lvls[ctx.raw] || ctx.raw}`;
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: { color: gridClr },
-        ticks: { color: tickClr, font: { size: 10 }, maxRotation: 30 },
-        border: { display: false },
-      },
-      y: {
-        min: 0, max: 6,
-        grid: { color: gridClr },
-        ticks: {
-          color: tickClr,
-          font: { size: 10 },
-          stepSize: 1,
-          callback: (v: any) => ["", "Low", "S.Elev.", "Moderate", "High", "V.High"][v] || "",
-        },
-        border: { display: false },
-      },
-    },
-  };
-
-  return (
-    <div style={{ height: 200 }}>
-      <Line data={data} options={options} />
-    </div>
-  );
-}
-
-// ─── DOUGHNUT CHART ───────────────────────────────────────────────────────────
-function RiskDonut({ level, label, isDark }: { level: string; label: string; isDark: boolean }) {
-  const pct = (RISK_ORDER[level] ?? 1) / 5 * 100;
-  const color = RISK_COLOR[level] ?? "#22c55e";
-  const trackColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-
-  const data = {
-    datasets: [{
-      data: [pct, 100 - pct],
-      backgroundColor: [color, trackColor],
-      borderWidth: 0,
-      circumference: 240,
-      rotation: -120,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { enabled: false },
-    },
-    cutout: "72%",
-  };
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: 100, height: 100 }}>
-      <Doughnut data={data} options={options} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center mt-2">
-        <span className="text-[15px] font-black leading-none" style={{ color }}>{Math.round(pct)}%</span>
-        <span className="text-[9px] font-bold uppercase tracking-wide mt-0.5" style={{ color: isDark ? "#3d4f63" : "#94a3b8" }}>{label}</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── HERO GREETING CARD ───────────────────────────────────────────────────────
-function HeroCard({ user, latest }: { user: any; latest: StoredAssessment | null; isDark: boolean }) {
-  const { accentColor } = useTheme();
-  const tod = getTimeOfDay();
-  const imgUrl = HERO_IMAGES[tod];
-  const { greeting, sub, Icon } = getGreeting(user?.name || "");
-  const { ref, vis } = useInView();
-
-  return (
-    <div
-      ref={ref}
-      className="relative overflow-hidden col-span-full"
-      style={{
-        borderRadius: 2,
-        minHeight: 200,
-        opacity: vis ? 1 : 0,
-        transform: vis ? "translateY(0)" : "translateY(-12px)",
-        transition: "opacity 0.8s ease, transform 0.8s ease",
-      }}
-    >
-      <div className="absolute inset-0 bg-center bg-cover" style={{ backgroundImage: `url(${imgUrl})` }} />
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(120deg, rgba(8,12,22,0.92) 0%, rgba(8,12,22,0.75) 50%, rgba(8,12,22,0.4) 100%)",
-        }}
-      />
-      <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Icon size={14} style={{ color: accentColor }} />
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: accentColor }}>
-              {tod.charAt(0).toUpperCase() + tod.slice(1)}
-            </p>
-          </div>
-          <h1
-            className="text-[clamp(1.4rem,4vw,2rem)] font-black leading-tight tracking-tight text-white mb-1.5"
-            style={{ letterSpacing: "-0.03em" }}
-          >
-            {greeting}
-          </h1>
-          <p className="text-[13px] text-white/60 max-w-[40ch]">{sub}</p>
-        </div>
-
-        {latest ? (
-          <div
-            className="flex items-center gap-5 px-5 py-4 shrink-0"
-            style={{ background: "rgba(255,255,255,0.08)", borderRadius: 2, backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.12)" }}
-          >
-            <div className="text-center">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1">Diabetes</p>
-              <p className="text-[13px] font-bold" style={{ color: RISK_COLOR[latest.diabetesLevel] ?? "#22c55e" }}>
-                {RISK_LABEL[latest.diabetesLevel] ?? "Low"}
-              </p>
-            </div>
-            <div className="w-px h-8" style={{ background: "rgba(255,255,255,0.12)" }} />
-            <div className="text-center">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1">Hypertension</p>
-              <p className="text-[13px] font-bold" style={{ color: RISK_COLOR[latest.hypertensionLevel] ?? "#22c55e" }}>
-                {RISK_LABEL[latest.hypertensionLevel] ?? "Low"}
-              </p>
-            </div>
-            <div className="w-px h-8" style={{ background: "rgba(255,255,255,0.12)" }} />
-            <div className="text-center">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1">Last Check</p>
-              <p className="text-[13px] font-bold text-white/80">{timeAgo(latest.$createdAt)}</p>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="px-5 py-4 shrink-0"
-            style={{ background: "rgba(13,148,136,0.2)", borderRadius: 2, border: "1px solid rgba(13,148,136,0.4)" }}
-          >
-            <p className="text-[12px] font-semibold text-teal-300 mb-2">No assessments yet</p>
-            <p className="text-[11px] text-white/50">Take your first screening to see your risk profile.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── ASSESSMENT SELECTOR DROPDOWN ─────────────────────────────────────────────
-function AssessmentSelector({
-  history,
-  selected,
-  onSelect,
+// ─── GREETING HERO CARD ───────────────────────────────────────────────────────
+function GreetingCard({
+  userName, companyName, activeCount, pendingCount, accentColor, isDark,
 }: {
-  history: StoredAssessment[];
-  selected: StoredAssessment | null;
-  onSelect: (a: StoredAssessment) => void;
-  isDark: boolean;
+  userName: string; companyName: string;
+  activeCount: number; pendingCount: number;
+  accentColor: string; isDark: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const { surface, accentColor, accentFaint } = useTheme();
+  const tod      = timeOfDay();
+  const imgUrl   = HERO_IMAGES[tod];
+  const first    = userName?.split(" ")[0] || "there";
+  const greeting = { morning: `Good morning, ${first}`, afternoon: `Good afternoon, ${first}`, evening: `Good evening, ${first}` }[tod];
+  const subtitle = { morning: "Here's your workforce health overview to start the day.", afternoon: "Here's how your team is doing right now.", evening: "Here's a summary of your workforce health today." }[tod];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+      style={{ position: "relative", borderRadius: 2, overflow: "hidden", marginBottom: 28, minHeight: 176 }}
+    >
+      <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${imgUrl})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+      <div style={{ position: "absolute", inset: 0, background: isDark ? "linear-gradient(120deg,rgba(0,0,0,.80) 0%,rgba(0,0,0,.52) 60%,rgba(0,0,0,.28) 100%)" : "linear-gradient(120deg,rgba(8,18,28,.74) 0%,rgba(8,18,40,.50) 60%,rgba(8,18,60,.18) 100%)" }} />
+      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: accentColor }} />
+
+      <div style={{ position: "relative", zIndex: 1, padding: "26px 28px 22px 32px", display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: accentColor, letterSpacing: "0.10em", textTransform: "uppercase" }}>
+            {companyName}
+          </motion.p>
+          <motion.h2 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            style={{ margin: "0 0 6px", fontSize: 24, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em", lineHeight: 1.2 }}>
+            {greeting}
+          </motion.h2>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+            style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,.70)" }}>
+            {subtitle}
+          </motion.p>
+        </div>
+
+        <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ padding: "8px 14px", background: "rgba(16,185,129,.22)", borderRadius: 2, border: "1px solid rgba(16,185,129,.35)" }}>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{activeCount}</p>
+            <p style={{ margin: "3px 0 0", fontSize: 10, color: "rgba(255,255,255,.70)", fontWeight: 600 }}>Active</p>
+          </div>
+          <div style={{ padding: "8px 14px", background: "rgba(245,158,11,.20)", borderRadius: 2, border: "1px solid rgba(245,158,11,.32)" }}>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{pendingCount}</p>
+            <p style={{ margin: "3px 0 0", fontSize: 10, color: "rgba(255,255,255,.70)", fontWeight: 600 }}>Pending</p>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── DONUT CHART ─────────────────────────────────────────────────────────────
+function DonutChart({ low, medium, high, noData, label, icon, surface }: {
+  low: number; medium: number; high: number; noData: number;
+  label: string; icon: React.ReactNode; surface: any;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef  = useRef<any>(null);
+  const total = low + medium + high + noData;
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    if (open) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+    let alive = true;
+    getChart().then((Chart) => {
+      if (!alive || !canvasRef.current) return;
+      chartRef.current?.destroy();
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "doughnut",
+        data: {
+          labels: ["Low Risk", "Medium Risk", "High Risk", "No Data"],
+          datasets: [{
+            data:            [low, medium, high, noData],
+            backgroundColor: ["#10B981", "#F59E0B", "#EF4444", "rgba(148,163,184,0.22)"],
+            borderColor:     ["#10B981", "#F59E0B", "#EF4444", "rgba(148,163,184,0.12)"],
+            borderWidth: 2, hoverOffset: 4,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true, cutout: "70%",
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx: any) => ` ${ctx.label}: ${ctx.raw}` } },
+          },
+          animation: { animateRotate: true, duration: 700 },
+        },
+      });
+    });
+    return () => { alive = false; chartRef.current?.destroy(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [low, medium, high, noData]);
 
-  if (history.length === 0) return null;
-
-  const bg     = surface.surface;
-  const border = surface.border;
-  const txt    = surface.text;
-  const muted  = surface.muted;
-  const hover  = surface.surfaceAlt;
-  const activeBg = accentFaint;
+  const highPct = total > 0 ? Math.round((high / total) * 100) : 0;
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 px-3 py-2 text-[12px] font-semibold transition-all duration-150 hover:opacity-80"
-        style={{
-          background: surface.surfaceAlt,
-          border: `1px solid ${open ? accentColor : border}`,
-          borderRadius: 2,
-          color: txt,
-          minWidth: 220,
-          justifyContent: "space-between",
-        }}
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <History size={12} strokeWidth={2} style={{ color: accentColor }} />
-          <span className="truncate">
-            {selected
-              ? `#${selected.assessmentNumber ?? "?"} — ${fmtDate(selected.$createdAt)}`
-              : "Select assessment"}
-          </span>
-          {selected?.assessmentNumber === history[0]?.assessmentNumber && (
-            <span
-              className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 shrink-0"
-              style={{ background: accentFaint, color: accentColor, borderRadius: 2 }}
-            >
-              Latest
-            </span>
-          )}
-        </span>
-        <ChevronDown
-          size={12}
-          strokeWidth={2}
-          style={{
-            color: muted,
-            transition: "transform 0.15s ease",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            flexShrink: 0,
-          }}
-        />
-      </button>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start" }}>
+        <span style={{ color: surface.muted }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: surface.text }}>{label}</span>
+      </div>
 
-      {open && (
-        <div
-          className="absolute left-0 top-full mt-1.5 z-50 py-1.5 w-full min-w-[260px]"
-          style={{
-            background: bg,
-            border: `1px solid ${border}`,
-            borderRadius: 2,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-            maxHeight: 280,
-            overflowY: "auto",
-            animation: "dropdownIn 0.12s ease",
-          }}
-        >
-          <p
-            className="px-3 pt-1 pb-2 text-[9px] font-bold uppercase tracking-[0.15em]"
-            style={{ color: muted, borderBottom: `1px solid ${border}` }}
-          >
-            {history.length} assessment{history.length !== 1 ? "s" : ""} — newest first
-          </p>
-          {history.map((a, i) => {
-            const isSelected = selected?.$id === a.$id;
-            return (
-              <button
-                key={a.$id}
-                onClick={() => { onSelect(a); setOpen(false); }}
-                className="flex items-center gap-3 w-full px-3 py-2.5 text-left transition-colors duration-100"
-                style={{ background: isSelected ? activeBg : "transparent" }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = hover; }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
-              >
-                {/* Assessment number badge */}
-                <div
-                  className="flex items-center justify-center text-[10px] font-black shrink-0"
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 2,
-                    background: isSelected ? accentFaint : surface.surfaceAlt,
-                    color: isSelected ? accentColor : muted,
-                  }}
-                >
-                  {a.assessmentNumber ?? i + 1}
-                </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[12px] font-semibold" style={{ color: txt }}>{fmtDate(a.$createdAt)}</p>
-                    {i === 0 && (
-                      <span
-                        className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5"
-                        style={{ background: accentFaint, color: accentColor, borderRadius: 2 }}
-                      >
-                        Latest
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px]" style={{ color: RISK_COLOR[a.diabetesLevel] ?? "#22c55e" }}>
-                      D: {RISK_LABEL[a.diabetesLevel] ?? "Low"}
-                    </span>
-                    <span className="text-[10px]" style={{ color: muted }}>·</span>
-                    <span className="text-[10px]" style={{ color: RISK_COLOR[a.hypertensionLevel] ?? "#22c55e" }}>
-                      BP: {RISK_LABEL[a.hypertensionLevel] ?? "Low"}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-[10px] shrink-0" style={{ color: muted }}>{timeAgo(a.$createdAt)}</p>
-              </button>
-            );
-          })}
+      <div style={{ position: "relative", width: 130, height: 130 }}>
+        <canvas ref={canvasRef} width={130} height={130} />
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+          <span style={{ fontSize: 22, fontWeight: 800, color: surface.text, lineHeight: 1 }}>{total}</span>
+          <span style={{ fontSize: 10, color: surface.muted, fontWeight: 600 }}>total</span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 5, width: "100%" }}>
+        {([["#10B981", "Low", low], ["#F59E0B", "Medium", medium], ["#EF4444", "High", high], ["rgba(148,163,184,0.5)", "No data", noData]] as [string, string, number][])
+          .map(([color, lbl, val]) => (
+            <div key={lbl} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                <span style={{ color: surface.muted }}>{lbl}</span>
+              </div>
+              <span style={{ fontWeight: 700, color: surface.text }}>{val}</span>
+            </div>
+          ))}
+      </div>
+
+      {high > 0 && (
+        <div style={{ width: "100%", padding: "6px 10px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 2, display: "flex", alignItems: "center", gap: 6 }}>
+          <AlertCircle size={11} color="#EF4444" />
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#EF4444" }}>{high} need{high === 1 ? "s" : ""} attention ({highPct}%)</span>
         </div>
       )}
     </div>
   );
 }
 
-// ─── XP PROGRESS CARD ─────────────────────────────────────────────────────────
-function XpProgressCard({ xpRecord, delay = 0 }: { xpRecord: UserXpRecord | null; isDark: boolean; delay?: number }) {
-  const { ref, vis } = useInView();
-  const router = useRouter();
-  const { isDark, surface, accentColor, accentFaint } = useTheme();
+// ─── BAR CHART ────────────────────────────────────────────────────────────────
+function ScoreBarChart({ members, field, label, surface }: {
+  members: MemberRisk[];
+  field: "diabetesScore" | "hypertensionScore";
+  label: string;
+  surface: any;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartRef  = useRef<any>(null);
 
-  const totalXp   = xpRecord?.totalXp ?? 0;
-  const redeemed  = xpRecord?.redeemedXp ?? 0;
-  const available = totalXp - redeemed;
-  const pct       = Math.min((available / XP_CONSULTATION_THRESHOLD) * 100, 100);
-  const unlocked  = available >= XP_CONSULTATION_THRESHOLD;
-  const remaining = Math.max(XP_CONSULTATION_THRESHOLD - available, 0);
-  const taken     = xpRecord?.assessmentsTaken ?? 0;
+  const withData = members
+    .filter((m) => m.hasAssessment && m[field] !== null)
+    .sort((a, b) => ((b[field] as number) ?? 0) - ((a[field] as number) ?? 0))
+    .slice(0, 8);
 
-  const bg     = surface.surface;
-  const border = surface.border;
-  const txt    = surface.text;
-  const muted  = surface.muted;
-  const sub    = surface.subtle;
-  const trackBg = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
+  useEffect(() => {
+    if (!canvasRef.current || withData.length === 0) return;
+    let alive = true;
+    getChart().then((Chart) => {
+      if (!alive || !canvasRef.current) return;
+      chartRef.current?.destroy();
+      const labels = withData.map((m) => m.fullName?.split(" ")[0] || m.email.split("@")[0]);
+      const data   = withData.map((m) => Math.round((m[field] as number) ?? 0));
+      const colors = withData.map((m) => riskColor(field === "diabetesScore" ? m.diabetesLevel : m.hypertensionLevel));
+      chartRef.current = new Chart(canvasRef.current, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data,
+            backgroundColor: colors.map((c) => c + "BB"),
+            borderColor:     colors,
+            borderWidth: 1.5,
+            borderRadius: 2,
+          }],
+        },
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ` Score: ${ctx.raw}` } } },
+          scales: {
+            x: { max: 100, grid: { color: surface.border + "33" }, ticks: { color: surface.muted, font: { size: 10 } } },
+            y: { grid: { display: false },                          ticks: { color: surface.text,  font: { size: 11 } } },
+          },
+          animation: { duration: 600 },
+        },
+      });
+    });
+    return () => { alive = false; chartRef.current?.destroy(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withData.length, surface]);
 
-  const animatedXp = useCountUp(available, vis);
+  if (withData.length === 0) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 100, gap: 8 }}>
+        <Activity size={20} style={{ color: surface.muted, opacity: 0.35 }} />
+        <p style={{ margin: 0, fontSize: 11, color: surface.muted }}>No assessment data yet</p>
+      </div>
+    );
+  }
 
   return (
-    <div
-      ref={ref}
-      className="flex flex-col gap-3 p-5 transition-all duration-700"
-      style={{
-        background: bg,
-        border: `1px solid ${unlocked ? accentColor : border}`,
-        borderRadius: 2,
-        opacity: vis ? 1 : 0,
-        transform: vis ? "translateY(0)" : "translateY(16px)",
-        transitionDelay: `${delay}ms`,
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: muted }}>Health XP</p>
-        <div
-          className="w-8 h-8 flex items-center justify-center"
-          style={{ borderRadius: 2, background: unlocked ? accentFaint : "rgba(139,92,246,0.1)", color: unlocked ? accentColor : "#8b5cf6" }}
-        >
-          <Zap size={15} strokeWidth={1.8} fill={unlocked ? accentColor : "none"} />
-        </div>
-      </div>
-
-      {/* XP value */}
-      <div>
-        <div className="flex items-end gap-2">
-          <div className="text-[1.65rem] font-black leading-none" style={{ color: unlocked ? accentColor : txt, letterSpacing: "-0.03em" }}>
-            {animatedXp.toLocaleString()}
-          </div>
-          <span className="text-[13px] font-bold pb-0.5" style={{ color: muted }}>XP</span>
-        </div>
-        <p className="mt-1.5 text-[11.5px]" style={{ color: muted }}>
-          {taken} assessment{taken !== 1 ? "s" : ""} completed
-        </p>
-      </div>
-
-      {/* Progress bar */}
-      <div>
-        <div className="flex justify-between items-center mb-1.5">
-          <p className="text-[10px] font-semibold" style={{ color: sub }}>Free consultation</p>
-          <p className="text-[10px] font-bold" style={{ color: unlocked ? accentColor : txt }}>
-            {available} / {XP_CONSULTATION_THRESHOLD}
-          </p>
-        </div>
-        <div className="w-full h-1.5 overflow-hidden" style={{ background: trackBg, borderRadius: 2 }}>
-          <div
-            className="h-full transition-all duration-1000"
-            style={{
-              width: `${pct}%`,
-              background: unlocked
-                ? `linear-gradient(90deg,${accentColor},${accentColor}dd)`
-                : "linear-gradient(90deg,#6366f1,#8b5cf6)",
-              borderRadius: 2,
-            }}
-          />
-        </div>
-      </div>
-
-      {/* CTA */}
-      <div
-        className="flex items-center gap-2 pt-2"
-        style={{ borderTop: `1px solid ${border}` }}
-      >
-        {unlocked ? (
-          <button
-            onClick={() => window.open("https://wa.me/250789399765", "_blank")}
-            className="flex items-center gap-1.5 text-[11px] font-bold transition-opacity hover:opacity-70"
-            style={{ color: accentColor }}
-          >
-            <span>🎉 Redeem free consultation</span>
-            <ArrowRight size={11} strokeWidth={2.5} />
-          </button>
-        ) : (
-          <p className="text-[11px]" style={{ color: sub }}>
-            Earn <strong style={{ color: txt }}>{remaining} more XP</strong> for a free consultation
-          </p>
-        )}
-      </div>
+    <div style={{ width: "100%", height: Math.max(withData.length * 38 + 16, 80) }}>
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
 }
 
-// ─── MAIN DASHBOARD PAGE ──────────────────────────────────────────────────────
-export default function DashboardPage() {
-  const auth = useRequireAuth();
-  const router = useRouter();
-  const { isDark, surface, accentColor, accentFaint } = useTheme();
-
-  const [latest, setLatest]           = useState<StoredAssessment | null>(null);
-  const [selected, setSelected]       = useState<StoredAssessment | null>(null);
-  const [history, setHistory]         = useState<StoredAssessment[]>([]);
-  const [xpRecord, setXpRecord]       = useState<UserXpRecord | null>(null);
-  const [loadingLatest, setLoadingLatest]   = useState(true);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [error, setError]             = useState<string | null>(null);
-  const [refreshing, setRefreshing]   = useState(false);
-
-  const cardBg  = surface.surface;
-  const border  = surface.border;
-  const textH   = surface.text;
-  const textM   = surface.muted;
-  const textS   = surface.subtle;
-
-  const totalCount = useCountUp(history.length, !loadingHistory);
-
-  const loadData = useCallback(async (uid: string) => {
-    try {
-      const [lat, hist, xp] = await Promise.all([
-        fetchLatestAssessment(uid),
-        fetchUserAssessments(uid),
-        fetchUserXp(uid),
-      ]);
-      setLatest(lat);
-      // Default selected to latest
-      setSelected(lat);
-      setHistory(hist);
-      setXpRecord(xp);
-      setError(null);
-    } catch {
-      setError("Could not load your data. Check your connection and refresh.");
-    } finally {
-      setLoadingLatest(false);
-      setLoadingHistory(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (auth.user) loadData(auth.user.id);
-  }, [auth.user, loadData]);
-
-  const handleRefresh = async () => {
-    if (!auth.user || refreshing) return;
-    setRefreshing(true);
-    await loadData(auth.user.id);
-    setRefreshing(false);
-  };
-
-  if (auth.loading) return null;
-
-  // Use selected assessment for display (falls back to latest)
-  const display = selected ?? latest;
-
-  // Risk trend comparison — compare display against the one before it in history
-  const displayIdx = history.findIndex(a => a.$id === display?.$id);
-  const prev = displayIdx >= 0 ? history[displayIdx + 1] ?? null : null;
-
-  const dTrend: "up" | "down" | "flat" = !prev ? "flat"
-    : (RISK_ORDER[display?.diabetesLevel ?? "low"] ?? 1) > (RISK_ORDER[prev.diabetesLevel ?? "low"] ?? 1) ? "up"
-    : (RISK_ORDER[display?.diabetesLevel ?? "low"] ?? 1) < (RISK_ORDER[prev.diabetesLevel ?? "low"] ?? 1) ? "down"
-    : "flat";
-  const hTrend: "up" | "down" | "flat" = !prev ? "flat"
-    : (RISK_ORDER[display?.hypertensionLevel ?? "low"] ?? 1) > (RISK_ORDER[prev.hypertensionLevel ?? "low"] ?? 1) ? "up"
-    : (RISK_ORDER[display?.hypertensionLevel ?? "low"] ?? 1) < (RISK_ORDER[prev.hypertensionLevel ?? "low"] ?? 1) ? "down"
-    : "flat";
-
-  const isHighRisk = display && (
-    display.diabetesLevel === "high" || display.diabetesLevel === "very-high" ||
-    display.hypertensionLevel === "high" || display.hypertensionLevel === "very-high"
-  );
-
-  const keyFindings: string[]    = display ? (() => { try { return JSON.parse(display.keyFindings || "[]"); } catch { return []; } })() : [];
-  const recommendations: string[] = display ? (() => { try { return JSON.parse(display.recommendations || "[]"); } catch { return []; } })() : [];
-  const urgentActions: string[]  = display ? (() => { try { return JSON.parse(display.urgentActions || "[]"); } catch { return []; } })() : [];
+// ─── RISK TABLE ROW ───────────────────────────────────────────────────────────
+function RiskRow({ m, idx, c }: { m: MemberRisk; idx: number; c: any }) {
+  const name = m.fullName || m.email.split("@")[0];
 
   return (
-    <DashboardLayout>
-      <div style={{ minHeight: "100%" }}>
-
-        {/* ── TOP ACTION BAR ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5" style={{ color: accentColor }}>
-              Health Dashboard
-            </p>
-            <p className="text-[12px]" style={{ color: textS }}>
-              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Assessment selector */}
-            {!loadingHistory && history.length > 0 && (
-              <AssessmentSelector
-                history={history}
-                selected={selected}
-                onSelect={setSelected}
-                isDark={isDark}
-              />
-            )}
-            <button
-              onClick={handleRefresh}
-              className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold transition-all duration-150 hover:opacity-80 active:scale-95"
-              style={{ background: surface.surfaceAlt, borderRadius: 2, color: textM, border: `1px solid ${border}` }}
-            >
-              <RefreshCw size={12} strokeWidth={2} className={refreshing ? "animate-spin" : ""} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            <button
-              onClick={() => router.push("/dashboard/assessment")}
-              className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-95"
-              style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2, boxShadow: `0 4px 14px ${accentColor}40` }}
-            >
-              <Plus size={13} strokeWidth={2.5} />
-              New Assessment
-            </button>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
+      style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 90px", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: `1px solid ${c.border}`, fontSize: 12 }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <MemberAvatar
+          name={name}
+          avatar={m.avatar}
+          diabetesLevel={m.diabetesLevel}
+          hypertensionLevel={m.hypertensionLevel}
+          hasAssessment={m.hasAssessment}
+          size={28}
+        />
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 600, color: c.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
+          <p style={{ margin: 0, fontSize: 10, color: c.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</p>
         </div>
-
-        {/* Viewing non-latest banner */}
-        {display && latest && display.$id !== latest.$id && (
-          <div
-            className="flex items-center justify-between px-4 py-2.5 mb-4"
-            style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 2 }}
-          >
-            <div className="flex items-center gap-2">
-              <History size={13} strokeWidth={2} style={{ color: "#6366f1" }} />
-              <p className="text-[12px] font-semibold" style={{ color: "#6366f1" }}>
-                Viewing assessment #{display.assessmentNumber ?? "?"} from {fmtDate(display.$createdAt)}
-              </p>
-            </div>
-            <button
-              onClick={() => setSelected(latest)}
-              className="text-[11px] font-bold transition-opacity hover:opacity-70"
-              style={{ color: "#6366f1" }}
-            >
-              Back to latest →
-            </button>
-          </div>
-        )}
-
-        {/* ── ERROR BANNER ── */}
-        {error && (
-          <div className="flex items-center gap-3 px-4 py-3 mb-5" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 2 }}>
-            <AlertTriangle size={14} className="text-red-400 shrink-0" />
-            <p className="text-[12px] flex-1 text-red-400">{error}</p>
-            <button onClick={handleRefresh} className="text-[11px] font-bold text-red-400 hover:opacity-70">Retry</button>
-          </div>
-        )}
-
-        {/* ── URGENT ALERT ── */}
-        {isHighRisk && urgentActions.length > 0 && (
-          <div
-            className="flex items-start gap-3 px-4 py-3.5 mb-5"
-            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 2 }}
-          >
-            <AlertTriangle size={15} className="text-red-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-red-400 mb-1.5">Action Recommended</p>
-              {urgentActions.map((a, i) => (
-                <p key={i} className="text-[12.5px] text-red-300/80 leading-relaxed">{a}</p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── HERO CARD ── */}
-        {(loadingLatest || !auth.loading) && (
-          <div className="mb-5">
-            {loadingLatest ? (
-              <div className="w-full h-48 animate-pulse" style={{ background: surface.surfaceAlt, borderRadius: 2 }} />
-            ) : (
-              <HeroCard user={auth.user} latest={latest} isDark={isDark} />
-            )}
-          </div>
-        )}
-
-        {/* ── STAT CARDS ROW ── */}
-        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-5">
-          {loadingLatest ? (
-            [0,1,2,3,4].map(i => (
-              <div key={i} className="p-5" style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 2 }}>
-                <div className="space-y-3">
-                  <Skeleton h={11} w={80} />
-                  <Skeleton h={36} w={100} />
-                  <Skeleton h={11} w={120} />
-                </div>
-              </div>
-            ))
-          ) : (
-            <>
-              <StatCard
-                label="Diabetes Risk"
-                value={display ? <RiskBadge level={display.diabetesLevel} /> : <span style={{ color: textS }}>—</span>}
-                sub={display ? display.diabetesPct : "No assessment yet"}
-                icon={<Droplet size={15} strokeWidth={1.8} />}
-                accentColor={RISK_COLOR[display?.diabetesLevel ?? "low"] ?? "#22c55e"}
-                trend={dTrend}
-                trendLabel={dTrend === "flat" ? "No change vs prev" : dTrend === "up" ? "Risk increased" : "Risk improved"}
-                delay={0}
-              />
-              <StatCard
-                label="Hypertension Risk"
-                value={display ? <RiskBadge level={display.hypertensionLevel} /> : <span style={{ color: textS }}>—</span>}
-                sub={display ? display.hypertensionPct : "No assessment yet"}
-                icon={<Heart size={15} strokeWidth={1.8} />}
-                accentColor={RISK_COLOR[display?.hypertensionLevel ?? "low"] ?? "#22c55e"}
-                trend={hTrend}
-                trendLabel={hTrend === "flat" ? "No change vs prev" : hTrend === "up" ? "Risk increased" : "Risk improved"}
-                delay={60}
-              />
-              <StatCard
-                label="Total Assessments"
-                value={totalCount}
-                sub={history.length > 0 ? `First: ${fmtDate(history[history.length - 1]?.$createdAt ?? "")}` : "Get started below"}
-                icon={<BarChart2 size={15} strokeWidth={1.8} />}
-                accentColor="#6366f1"
-                delay={120}
-              />
-              <StatCard
-                label="Last Assessment"
-                value={latest ? timeAgo(latest.$createdAt) : "Never"}
-                sub={latest ? fmtDate(latest.$createdAt) : "Take your first screening"}
-                icon={<Clock size={15} strokeWidth={1.8} />}
-                accentColor="#f59e0b"
-                delay={180}
-              />
-              {/* XP stat card */}
-              <XpProgressCard xpRecord={xpRecord} isDark={isDark} delay={240} />
-            </>
-          )}
-        </div>
-
-        {/* ── MAIN GRID ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-
-          {/* Risk Trend Chart — 2 cols */}
-          <CardShell delay={100} className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <SectionLabel>Risk Trend Over Time</SectionLabel>
-              </div>
-              {history.length > 0 && (
-                <button
-                  onClick={() => router.push("/dashboard/history")}
-                  className="flex items-center gap-1 text-[11px] font-semibold transition-opacity hover:opacity-70"
-                  style={{ color: accentColor }}
-                >
-                  All history <ChevronRight size={12} />
-                </button>
-              )}
-            </div>
-            {loadingHistory ? (
-              <div className="space-y-2" style={{ height: 200 }}>
-                <Skeleton h={200} />
-              </div>
-            ) : history.length < 2 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <BarChart2 size={28} strokeWidth={1.2} style={{ color: textS }} />
-                <p className="text-[12px]" style={{ color: textM }}>Complete more assessments to see your trend chart.</p>
-                <button
-                  onClick={() => router.push("/dashboard/assessment")}
-                  className="px-4 py-2 text-[11px] font-bold text-white"
-                  style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2 }}
-                >
-                  Take Assessment
-                </button>
-              </div>
-            ) : (
-              <RiskTrendChart assessments={history} isDark={isDark} />
-            )}
-          </CardShell>
-
-          {/* Risk Gauges — 1 col */}
-          <CardShell delay={200}>
-            <SectionLabel>
-              {display && display.$id !== latest?.$id
-                ? `Risk Profile — Assessment #${display.assessmentNumber ?? "?"}`
-                : "Current Risk Profile"}
-            </SectionLabel>
-            {loadingLatest ? (
-              <div className="flex justify-around py-4">
-                <Skeleton h={100} w={100} r={2} />
-                <Skeleton h={100} w={100} r={2} />
-              </div>
-            ) : display ? (
-              <>
-                <div className="flex justify-around py-3">
-                  <RiskDonut level={display.diabetesLevel} label="Diabetes" isDark={isDark} />
-                  <RiskDonut level={display.hypertensionLevel} label="BP" isDark={isDark} />
-                </div>
-                <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${border}` }}>
-                  <p className="text-[11.5px] leading-relaxed" style={{ color: textM }}>
-                    {display.summary.replace(/^[⚠️🟢]\s*/, "").slice(0, 120)}…
-                  </p>
-                  <button
-                    onClick={() => router.push("/dashboard/review")}
-                    className="flex items-center gap-1.5 mt-3 text-[11px] font-bold"
-                    style={{ color: accentColor }}
-                  >
-                    Full report <ArrowRight size={11} strokeWidth={2.5} />
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <Target size={24} strokeWidth={1.2} style={{ color: textS }} />
-                <p className="text-[12px] text-center" style={{ color: textM }}>No risk data yet. Take your first assessment.</p>
-              </div>
-            )}
-          </CardShell>
-        </div>
-
-        {/* ── SECOND GRID: Findings + Recommendations ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
-
-          {/* Key Findings */}
-          <CardShell delay={150}>
-            <SectionLabel>Key Findings</SectionLabel>
-            {loadingLatest ? (
-              <div className="space-y-3">
-                {[1,2,3].map(i => <Skeleton key={i} h={13} w={`${60 + i * 10}%`} />)}
-              </div>
-            ) : keyFindings.length > 0 ? (
-              <div className="space-y-3">
-                {keyFindings.map((f, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <Shield size={14} strokeWidth={1.8} className="shrink-0 mt-0.5" style={{ color: "#6366f1" }} />
-                    <p className="text-[12.5px] leading-relaxed" style={{ color: textM }}>{f}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[12px] py-6 text-center" style={{ color: textS }}>
-                Complete an assessment to see personalised findings.
-              </p>
-            )}
-          </CardShell>
-
-          {/* Recommendations */}
-          <CardShell delay={200}>
-            <SectionLabel>Recommendations</SectionLabel>
-            {loadingLatest ? (
-              <div className="space-y-3">
-                {[1,2,3].map(i => <Skeleton key={i} h={13} w={`${70 + i * 5}%`} />)}
-              </div>
-            ) : recommendations.length > 0 ? (
-              <div className="space-y-3">
-                {recommendations.slice(0, 5).map((r, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <CheckCircle size={14} strokeWidth={1.8} className="shrink-0 mt-0.5" style={{ color: "#22c55e" }} />
-                    <p className="text-[12.5px] leading-relaxed" style={{ color: textM }}>{r}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[12px] py-6 text-center" style={{ color: textS }}>
-                Recommendations will appear after your first assessment.
-              </p>
-            )}
-          </CardShell>
-        </div>
-
-        {/* ── HISTORY TABLE ── */}
-        <CardShell delay={250}>
-          <div className="flex items-center justify-between mb-4">
-            <SectionLabel>Assessment History</SectionLabel>
-            {history.length > 5 && (
-              <button
-                onClick={() => router.push("/dashboard/history")}
-                className="flex items-center gap-1 text-[11px] font-semibold"
-                style={{ color: accentColor }}
-              >
-                View all <ChevronRight size={12} />
-              </button>
-            )}
-          </div>
-
-          {loadingHistory ? (
-            <div className="space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="flex gap-4">
-                  <Skeleton h={13} w={90} />
-                  <Skeleton h={13} w={70} />
-                  <Skeleton h={13} w={70} />
-                  <Skeleton h={13} w={60} />
-                </div>
-              ))}
-            </div>
-          ) : history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <History size={28} strokeWidth={1.2} style={{ color: textS }} />
-              <p className="text-[13px] font-semibold" style={{ color: textH }}>No assessments recorded yet</p>
-              <p className="text-[12px]" style={{ color: textM }}>Take your first risk screening to start tracking your health over time.</p>
-              <button
-                onClick={() => router.push("/dashboard/assessment")}
-                className="mt-2 flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-bold text-white"
-                style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}dd)`, borderRadius: 2, boxShadow: `0 4px 14px ${accentColor}40` }}
-              >
-                <Plus size={13} strokeWidth={2.5} /> Take First Assessment
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto -mx-5 px-5">
-              <table className="w-full min-w-[480px]">
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${border}` }}>
-                    {["#", "Date", "Diabetes", "Hypertension", "BMI Category", "Profile"].map(col => (
-                      <th key={col} className="px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: textS }}>
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.slice(0, 8).map((a, i) => {
-                    const isActive = selected?.$id === a.$id;
-                    return (
-                      <tr
-                        key={a.$id}
-                        className="transition-colors duration-100 cursor-pointer"
-                        style={{
-                          borderBottom: `1px solid ${border}`,
-                          background: isActive
-                            ? accentFaint
-                            : "transparent",
-                        }}
-                        onMouseEnter={e => {
-                          if (!isActive) e.currentTarget.style.background = surface.surfaceAlt;
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = isActive
-                            ? accentFaint
-                            : "transparent";
-                        }}
-                        onClick={() => setSelected(a)}
-                      >
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="text-[10px] font-black"
-                              style={{
-                                color: isActive ? accentColor : textS,
-                                background: isActive ? accentFaint : surface.surfaceAlt,
-                                padding: "2px 5px",
-                                borderRadius: 2,
-                              }}
-                            >
-                              #{a.assessmentNumber ?? i + 1}
-                            </span>
-                            {i === 0 && (
-                              <span className="text-[8px] font-bold uppercase tracking-wide px-1 py-0.5" style={{ background: accentFaint, color: accentColor, borderRadius: 2 }}>
-                                latest
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <p className="text-[12px] font-semibold" style={{ color: textH }}>{fmtDate(a.$createdAt)}</p>
-                          <p className="text-[10px]" style={{ color: textS }}>{timeAgo(a.$createdAt)}</p>
-                        </td>
-                        <td className="px-3 py-3"><RiskBadge level={a.diabetesLevel || "low"} /></td>
-                        <td className="px-3 py-3"><RiskBadge level={a.hypertensionLevel || "low"} /></td>
-                        <td className="px-3 py-3">
-                          <span className="text-[11.5px]" style={{ color: textM }}>{capitalize(a.profileBmi || "—")}</span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className="text-[11.5px]" style={{ color: textM }}>{capitalize(a.profileAge || "—")}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardShell>
-
-        {/* ── AI DETAILED ANALYSIS ── */}
-        {display && display.detailedAnalysis && (
-          <CardShell delay={300} className="mt-4">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-7 h-7 flex items-center justify-center" style={{ background: "rgba(139,92,246,0.12)", borderRadius: 2 }}>
-                <Zap size={14} strokeWidth={1.8} style={{ color: "#8b5cf6" }} />
-              </div>
-              <SectionLabel>AI Detailed Analysis</SectionLabel>
-            </div>
-            <div className="space-y-3">
-              {display.detailedAnalysis.split("\n").map((para, i) =>
-                para.trim() ? (
-                  <p key={i} className="text-[12.5px] leading-[1.85]" style={{ color: textM }}>{para}</p>
-                ) : null
-              )}
-            </div>
-          </CardShell>
-        )}
-
-        {/* ── QUICK ACTION STRIP ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-          {[
-            { icon: Activity,         label: "New Assessment",   sub: "Retake to track progress",     action: () => router.push("/dashboard/assessment") },
-            { icon: Award,            label: "View Full Report", sub: "Your last detailed results",   action: () => router.push("/dashboard/review") },
-            { icon: MessageCircleIcon, label: "Talk to a Doctor", sub: "WhatsApp consultation",        action: () => window.open("https://wa.me/250789399765","_blank") },
-          ].map(({ icon: Icon, label, sub, action }, i) => (
-            <button
-              key={i}
-              onClick={action}
-              className="flex items-center gap-4 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98] group"
-              style={{ background: cardBg, border: `1px solid ${border}`, borderRadius: 2 }}
-            >
-              <div className="w-10 h-10 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110" style={{ background: accentFaint, borderRadius: 2, color: accentColor }}>
-                <Icon size={18} strokeWidth={1.8} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold" style={{ color: textH }}>{label}</p>
-                <p className="text-[11px]" style={{ color: textM }}>{sub}</p>
-              </div>
-              <ChevronRight size={14} style={{ color: textS, marginLeft: "auto" }} className="group-hover:translate-x-0.5 transition-transform duration-150" />
-            </button>
-          ))}
-        </div>
-        <ThemeToggle />
-
-        {/* Disclaimer */}
-        <p className="text-center text-[11px] mt-8 pb-4" style={{ color: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.2)" }}>
-          This dashboard is for educational screening purposes only — not a medical diagnosis. Always consult a qualified healthcare professional.
-        </p>
       </div>
-    </DashboardLayout>
-    
+
+      <div>
+        {m.hasAssessment && m.diabetesLevel ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(m.diabetesLevel), color: riskColor(m.diabetesLevel), fontWeight: 700, fontSize: 10 }}>
+            {riskIcon(m.diabetesLevel)}{m.diabetesLevel.charAt(0).toUpperCase() + m.diabetesLevel.slice(1)}
+          </span>
+        ) : <span style={{ fontSize: 10, color: c.muted }}>—</span>}
+      </div>
+
+      <div>
+        {m.hasAssessment && m.hypertensionLevel ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(m.hypertensionLevel), color: riskColor(m.hypertensionLevel), fontWeight: 700, fontSize: 10 }}>
+            {riskIcon(m.hypertensionLevel)}{m.hypertensionLevel.charAt(0).toUpperCase() + m.hypertensionLevel.slice(1)}
+          </span>
+        ) : <span style={{ fontSize: 10, color: c.muted }}>—</span>}
+      </div>
+
+      <div style={{ textAlign: "right", fontSize: 10, color: c.muted }}>
+        {m.lastAssessment
+          ? new Date(m.lastAssessment).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+          : "No data"}
+      </div>
+    </motion.div>
   );
 }
 
-// Small inline icon to avoid import issue
-function MessageCircleIcon({ size = 18, strokeWidth = 1.8, style }: { size?: number; strokeWidth?: number; style?: React.CSSProperties }) {
+// ─── PAGE ─────────────────────────────────────────────────────────────────────
+export default function EmployerDashboardPage() {
+  const { user } = useAuth();
+  const { isDark, surface, accentColor } = useTheme();
+  const router = useRouter();
+
+  const [company,        setCompany]        = useState<Company | null>(null);
+  const [members,        setMembers]        = useState<EmployeeDashboardRow[]>([]);
+  const [memberRisks,    setMemberRisks]    = useState<MemberRisk[]>([]);
+  const [loadingCompany, setLoadingCompany] = useState(true);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [loadingRisks,   setLoadingRisks]   = useState(false);
+  const [lastRefreshed,  setLastRefreshed]  = useState<Date | null>(null);
+
+  const c = { text: surface.text, muted: surface.muted, border: surface.border, surface: surface.surface, primary: accentColor };
+
+  const loadData = async (uid: string) => {
+    setLoadingCompany(true);
+    try {
+      let co = await getCompanyByOwner(uid).catch(() => null);
+      if (!co) {
+        const { getUserProfile } = await import("@/services/userService");
+        const profile = await getUserProfile(uid).catch(() => null);
+        if (profile?.companyName) {
+          co = { $id: profile.companyId || uid, $createdAt: "", name: profile.companyName, ownerId: uid, size: profile.companySize || "", industry: profile.industry || "", inviteCount: 0 } as Company;
+        }
+      }
+      setCompany(co);
+
+      if (co) {
+        setLoadingMembers(true);
+        const rows = await getCompanyMembers(co.$id).catch(() => []);
+        setMembers(rows);
+        setLoadingMembers(false);
+
+        const activeRows = rows.filter((m) => m.status === "active" && m.userId);
+        if (activeRows.length > 0) {
+          setLoadingRisks(true);
+          const risks = await Promise.all(
+            activeRows.map(async (m): Promise<MemberRisk> => {
+              const base: MemberRisk = { memberId: m.$id, userId: m.userId!, email: m.email, fullName: m.fullName, avatar: m.avatar, status: m.status, diabetesLevel: null, diabetesScore: null, hypertensionLevel: null, hypertensionScore: null, lastAssessment: null, hasAssessment: false };
+              try {
+                const a = await fetchLatestAssessment(m.userId!);
+                if (!a) return base;
+                return { ...base, diabetesLevel: a.diabetesLevel?.toLowerCase() || null, diabetesScore: Number(a.diabetesScore) || null, hypertensionLevel: a.hypertensionLevel?.toLowerCase() || null, hypertensionScore: Number(a.hypertensionScore) || null, lastAssessment: a.$createdAt, hasAssessment: true };
+              } catch { return base; }
+            })
+          );
+          setMemberRisks(risks);
+          setLoadingRisks(false);
+        }
+      }
+    } catch (e) {
+      console.error("[Dashboard] load error:", e);
+    } finally {
+      setLoadingCompany(false);
+      setLastRefreshed(new Date());
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    loadData(user.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const activeCount   = members.filter((m) => m.status === "active").length;
+  const pendingCount  = members.filter((m) => m.status === "pending").length;
+  const totalCount    = members.length;
+  const assessedCount = memberRisks.filter((m) => m.hasAssessment).length;
+
+  const diabLow  = memberRisks.filter((m) => m.hasAssessment && m.diabetesLevel === "low").length;
+  const diabMed  = memberRisks.filter((m) => m.hasAssessment && m.diabetesLevel === "medium").length;
+  const diabHigh = memberRisks.filter((m) => m.hasAssessment && m.diabetesLevel === "high").length;
+  const diabNo   = activeCount - diabLow - diabMed - diabHigh;
+
+  const hypLow  = memberRisks.filter((m) => m.hasAssessment && m.hypertensionLevel === "low").length;
+  const hypMed  = memberRisks.filter((m) => m.hasAssessment && m.hypertensionLevel === "medium").length;
+  const hypHigh = memberRisks.filter((m) => m.hasAssessment && m.hypertensionLevel === "high").length;
+  const hypNo   = activeCount - hypLow - hypMed - hypHigh;
+
+  const isLoading = loadingCompany || loadingMembers;
+  const goToEmployees = () => router.push("/dashboard/employer/employees");
+
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
+    <EmployerLayout>
+
+      {/* ── Greeting Hero ────────────────────────────────────────────────────── */}
+      {loadingCompany
+        ? <Skeleton style={{ width: "100%", height: 176, marginBottom: 28 }} />
+        : <GreetingCard
+            userName={user?.name || ""} companyName={company?.name || "Your Company"}
+            activeCount={activeCount} pendingCount={pendingCount}
+            accentColor={accentColor} isDark={isDark}
+          />
+      }
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 28 }}>
+        {loadingCompany ? (
+          <><Skeleton style={{ width: 240, height: 28, marginBottom: 8 }} /><Skeleton style={{ width: 160, height: 14 }} /></>
+        ) : (
+          <>
+            <SectionHeader title={company?.name || "Dashboard"} />
+            {company && (
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: c.muted, display: "flex", alignItems: "center", gap: 6 }}>
+                <Building2 size={13} />{company.industry || "Your organisation"}
+                {lastRefreshed && <span style={{ marginLeft: 8, fontSize: 10, opacity: 0.55 }}>· Updated {lastRefreshed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Stat Cards ──────────────────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: 16, marginBottom: 32 }}>
+        {isLoading ? (
+          [1,2,3,4].map((i) => (
+            <div key={i} style={{ padding: 20, background: c.surface, border: `1px solid ${c.border}` }}>
+              <Skeleton style={{ width: 32, height: 32, marginBottom: 12 }} />
+              <Skeleton style={{ width: "55%", height: 26, marginBottom: 8 }} />
+              <Skeleton style={{ width: "75%", height: 13 }} />
+            </div>
+          ))
+        ) : (
+          <>
+            <StatCard icon={<Users size={18} />}       value={totalCount}    label="Total Employees"      />
+            <StatCard icon={<CheckCircle size={18} />} value={activeCount}   label="Active Members"       />
+            <StatCard icon={<Clock size={18} />}       value={pendingCount}  label="Pending Invites"      />
+            <StatCard icon={<Activity size={18} />}    value={assessedCount} label="Assessments Complete" />
+          </>
+        )}
+      </div>
+
+      {/* ── Risk Charts ─────────────────────────────────────────────────────── */}
+      {!isLoading && activeCount > 0 && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <SectionHeader title="Risk Overview" />
+            {loadingRisks && (
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: c.muted }}>
+                <RefreshCw size={12} className="animate-spin" />Fetching…
+              </span>
+            )}
+          </div>
+
+          {loadingRisks ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
+              <Skeleton style={{ height: 260 }} /><Skeleton style={{ height: 260 }} />
+            </div>
+          ) : assessedCount === 0 ? (
+            <Card className="mb-8">
+              <div style={{ padding: "36px 24px", textAlign: "center" }}>
+                <Activity size={28} style={{ color: c.muted, opacity: 0.35, marginBottom: 10 }} />
+                <p style={{ margin: "0 0 6px", fontWeight: 700, fontSize: 14, color: c.text }}>No assessments yet</p>
+                <p style={{ margin: 0, fontSize: 12, color: c.muted, maxWidth: 300, marginInline: "auto" }}>
+                  Risk data appears here once employees complete their health assessments.
+                </p>
+              </div>
+            </Card>
+          ) : (
+            <>
+              {/* Donuts */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 16, marginBottom: 20 }}>
+                <Card className="custom-card">
+                  <DonutChart low={diabLow} medium={diabMed} high={diabHigh} noData={diabNo}
+                    label="Diabetes Risk" icon={<Activity size={14} />} surface={surface} />
+                </Card>
+                <Card className="custom-card">
+                  <DonutChart low={hypLow} medium={hypMed} high={hypHigh} noData={hypNo}
+                    label="Hypertension Risk" icon={<Heart size={14} />} surface={surface} />
+                </Card>
+              </div>
+
+              {/* Bars */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: 16, marginBottom: 32 }}>
+                <Card className="p-4">
+                  <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: c.text, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Activity size={13} style={{ color: c.primary }} />Diabetes Scores
+                  </p>
+                  <ScoreBarChart members={memberRisks} field="diabetesScore" label="Diabetes" surface={surface} />
+                </Card>
+                <Card className="custom-card">
+                  <p style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: c.text, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Heart size={13} style={{ color: "#EF4444" }} />Hypertension Scores
+                  </p>
+                  <ScoreBarChart members={memberRisks} field="hypertensionScore" label="Hypertension" surface={surface} />
+                </Card>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── Employees Card ──────────────────────────────────────────────────── */}
+      <SectionHeader title="Employees" />
+      <Card className="mt-3 mb-4">
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${c.border}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Users size={16} style={{ color: c.primary }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: c.text }}>Your Team</span>
+            {totalCount > 0 && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", background: `${c.primary}18`, color: c.primary, borderRadius: 2 }}>{totalCount}</span>}
+          </div>
+          <button onClick={goToEmployees} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: c.primary, background: "none", border: "none", cursor: "pointer" }}>
+            View all <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        {isLoading ? (
+          <div>
+            {[1,2,3].map((i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px" }}>
+                <Skeleton style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <Skeleton style={{ width: "40%", height: 13, marginBottom: 6 }} />
+                  <Skeleton style={{ width: "28%", height: 11 }} />
+                </div>
+                <Skeleton style={{ width: 60, height: 22 }} />
+              </div>
+            ))}
+          </div>
+        ) : members.length === 0 ? (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center", background: isDark ? "rgba(15,187,125,0.10)" : "rgba(15,187,125,0.08)", borderRadius: 2, marginBottom: 16 }}>
+              <Users size={26} style={{ color: c.primary }} />
+            </div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 6 }}>No employees yet</p>
+            <p style={{ margin: "0 0 20px", fontSize: 12, color: c.muted, lineHeight: 1.6, maxWidth: 260 }}>
+              Invite your team to join your health programme. Their individual data stays private.
+            </p>
+            <button onClick={goToEmployees} style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 20px", fontSize: 12, fontWeight: 700, background: `linear-gradient(135deg, ${c.primary}, #0FB6C8)`, color: "white", border: "none", borderRadius: 2, cursor: "pointer" }}>
+              <Plus size={14} /> Add Employees
+            </button>
+          </motion.div>
+        ) : (
+          <>
+            {/* Risk table header */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 90px", gap: 8, padding: "8px 16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)", borderBottom: `1px solid ${c.border}`, fontSize: 10, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <span>Employee</span><span>Diabetes</span><span>Hypertension</span><span style={{ textAlign: "right" }}>Assessment</span>
+            </div>
+
+            {members.slice(0, 5).map((m, idx) => {
+              const risk = memberRisks.find((r) => r.userId === m.userId);
+              const row: MemberRisk = risk || { memberId: m.$id, userId: m.userId || "", email: m.email, fullName: m.fullName, avatar: m.avatar, status: m.status, diabetesLevel: null, diabetesScore: null, hypertensionLevel: null, hypertensionScore: null, lastAssessment: null, hasAssessment: false };
+              return <RiskRow key={m.$id} m={row} idx={idx} c={c} />;
+            })}
+
+            {totalCount > 5 && (
+              <button onClick={goToEmployees} style={{ width: "100%", padding: "12px 20px", background: "transparent", border: "none", borderTop: `1px solid ${c.border}`, fontSize: 12, fontWeight: 600, color: c.primary, cursor: "pointer", textAlign: "center" }}>
+                See all {totalCount} employees →
+              </button>
+            )}
+          </>
+        )}
+      </Card>
+
+      {/* ── Insights teaser ─────────────────────────────────────────────────── */}
+      {!loadingCompany && company && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, background: isDark ? `${accentColor}0A` : `${accentColor}06`, border: `1px solid ${accentColor}20`, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: `${accentColor}18`, borderRadius: 2, flexShrink: 0 }}>
+              <BarChart3 size={16} style={{ color: accentColor }} />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: c.text }}>Team Health Insights</p>
+              <p style={{ margin: 0, fontSize: 11, color: c.muted }}>Anonymised workforce analytics — coming soon</p>
+            </div>
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: accentColor, flexShrink: 0 }}>Coming soon →</span>
+        </motion.div>
+      )}
+
+      <ThemeToggle />
+    </EmployerLayout>
   );
 }
