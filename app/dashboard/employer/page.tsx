@@ -90,7 +90,7 @@ export default function EmployerDashboardPage() {
           <><Skeleton style={{ width: 240, height: 28, marginBottom: 8 }} /><Skeleton style={{ width: 160, height: 14 }} /></>
         ) : (
           <>
-            <SectionHeader label="Employer Portal" title={company?.name || "Dashboard"} />
+            <SectionHeader title={company?.name || "Dashboard"} />
             {company && (
               <p style={{ margin: "4px 0 0", fontSize: 12, color: c.muted, display: "flex", alignItems: "center", gap: 6 }}>
                 <Building2 size={13} />{company.industry || "Your organisation"}
@@ -120,8 +120,8 @@ export default function EmployerDashboardPage() {
       </div>
 
       {/* Employees Preview Card */}
-      <SectionHeader label="Team" title="Employees" />
-      <Card style={{ marginTop: 12, marginBottom: 32 }}>
+      <SectionHeader title="Employees" />
+      <Card className="mt-3 mb-8">
 
         {/* Card header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: `1px solid ${c.border}` }}>

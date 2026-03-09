@@ -143,7 +143,7 @@ function InviteModal({ company, currentUserId, accentColor, isDark, surface, onC
             </div>
             <div>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: text }}>Invite Employee</p>
-              <p style={{ margin: 0, fontSize: 11, color: muted }}>They'll get a secure link to join {company.name}</p>
+              <p style={{ margin: 0, fontSize: 11, color: muted }}>They&apos;ll get a secure link to join {company.name}</p>
             </div>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: muted, background: "transparent", border: "none", cursor: "pointer", borderRadius: 2 }}>
@@ -466,7 +466,7 @@ export default function EmployerEmployeesPage() {
         <div>
           {loadingCompany
             ? <><Skeleton style={{ width: 200, height: 26, marginBottom: 8 }} /><Skeleton style={{ width: 140, height: 13 }} /></>
-            : <SectionHeader label="Employee Management" title="Employee Roster" />
+            : <SectionHeader title="Employee Roster" subtitle="Employee Management" />
           }
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -557,7 +557,7 @@ export default function EmployerEmployeesPage() {
         ) : filteredMembers.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 12 }}>
             <Search size={26} style={{ color: c.subtle }} />
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: c.muted }}>No results for "{searchQuery}"</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: c.muted }}>No results for &quot;{searchQuery}&quot;</p>
             <button onClick={() => setSearchQuery("")} style={{ fontSize: 12, fontWeight: 600, color: c.primary, background: "none", border: "none", cursor: "pointer" }}>Clear search</button>
           </div>
         ) : (
