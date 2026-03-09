@@ -100,14 +100,9 @@ const BUCKET_ID         = "profile_images";
 
 function buildAvatarUrl(avatar: string | null): string | null {
   if (!avatar) return null;
-  // Already a full URL
   if (avatar.startsWith("http")) return avatar;
-  // Reconstruct from file/profile doc ID stored in avatar field
+  // avatar field stores the profile document $id which is also the file id
   return `${APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${avatar}/view?project=${APPWRITE_PROJECT}&mode=admin`;
-}
-
-function dicebearUrl(seed: string): string {
-  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(seed)}`;
 }
 
 // ─── AVATAR COMPONENT ─────────────────────────────────────────────────────────
@@ -121,56 +116,53 @@ function MemberAvatar({
   hasAssessment: boolean;
   size?: number;
 }) {
-  const [imgError, setImgError] = useState(false);
+  // appwrite → real photo, dicebear → illustrated gender-neutral, initials → last resort
+  const [stage, setStage] = useState<"appwrite" | "dicebear" | "initials">(
+    avatar ? "appwrite" : "dicebear"
+  );
+
   const url = buildAvatarUrl(avatar);
 
   const initials = name
     .split(" ")
+    .filter(Boolean)
     .map((w) => w[0])
     .join("")
     .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "?";
 
   const fallbackGradient = hasAssessment
     ? `linear-gradient(135deg, ${riskColor(diabetesLevel)}, ${riskColor(hypertensionLevel)})`
     : "rgba(148,163,184,0.2)";
 
-  const sharedStyle: React.CSSProperties = {
-    width: size,
-    height: size,
-    borderRadius: "50%",
-    flexShrink: 0,
-    objectFit: "cover",
-  };
+  const circle: React.CSSProperties = { width: size, height: size, borderRadius: "50%", flexShrink: 0 };
 
-  // 1. Has a real profile image and it hasn't errored
-  if (url && !imgError) {
+  if (stage === "appwrite" && url) {
     return (
       <img
         src={url}
         alt={name}
-        style={sharedStyle}
-        onError={() => setImgError(true)}
+        style={{ ...circle, objectFit: "cover" }}
+        onError={() => setStage("dicebear")}
       />
     );
   }
 
-  // 2. No profile image — show DiceBear gender-neutral avatar
+  if (stage === "dicebear") {
+    return (
+      <img
+        src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(name || "user")}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&backgroundType=gradientLinear`}
+        alt={name}
+        style={{ ...circle, objectFit: "cover", background: "rgba(148,163,184,0.1)" }}
+        onError={() => setStage("initials")}
+      />
+    );
+  }
+
   return (
-    <img
-      src={dicebearUrl(name || "user")}
-      alt={name}
-      style={{ ...sharedStyle, background: fallbackGradient }}
-      onError={(e) => {
-        // 3. DiceBear also failed — last resort: initials div
-        const target = e.currentTarget as HTMLImageElement;
-        target.style.display = "none";
-        const parent = target.parentElement;
-        if (parent) {
-          parent.setAttribute("data-initials", initials);
-        }
-      }}
-    />
+    <div style={{ ...circle, background: fallbackGradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.36, fontWeight: 700, color: "white" }}>
+      {initials}
+    </div>
   );
 }
 
@@ -376,50 +368,76 @@ function ScoreBarChart({ members, field, label, surface }: {
   );
 }
 
+// ─── GLOBAL RESPONSIVE STYLES (injected once) ────────────────────────────────
+const RESPONSIVE_STYLES = `
+  .risk-row-desktop { display: grid !important; }
+  .risk-row-mobile  { display: none  !important; }
+  .risk-table-header { display: grid !important; }
+  @media (max-width: 600px) {
+    .risk-row-desktop  { display: none  !important; }
+    .risk-row-mobile   { display: block !important; }
+    .risk-table-header { display: none  !important; }
+  }
+`;
+
+// ─── RISK BADGE ───────────────────────────────────────────────────────────────
+function RiskBadge({ level, muted }: { level: string | null; muted: string }) {
+  if (!level) return <span style={{ fontSize: 10, color: muted }}>—</span>;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(level), color: riskColor(level), fontWeight: 700, fontSize: 10 }}>
+      {riskIcon(level)}{level.charAt(0).toUpperCase() + level.slice(1)}
+    </span>
+  );
+}
+
 // ─── RISK TABLE ROW ───────────────────────────────────────────────────────────
 function RiskRow({ m, idx, c }: { m: MemberRisk; idx: number; c: any }) {
   const name = m.fullName || m.email.split("@")[0];
+  const dateStr = m.lastAssessment
+    ? new Date(m.lastAssessment).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : "No data";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-      style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 90px", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: `1px solid ${c.border}`, fontSize: 12 }}
+      style={{ borderBottom: `1px solid ${c.border}` }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        <MemberAvatar
-          name={name}
-          avatar={m.avatar}
-          diabetesLevel={m.diabetesLevel}
-          hypertensionLevel={m.hypertensionLevel}
-          hasAssessment={m.hasAssessment}
-          size={28}
-        />
-        <div style={{ minWidth: 0 }}>
-          <p style={{ margin: 0, fontWeight: 600, color: c.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
-          <p style={{ margin: 0, fontSize: 10, color: c.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</p>
+      {/* ── Desktop row ── */}
+      <div className="risk-row-desktop" style={{ gridTemplateColumns: "1fr 90px 110px 80px", alignItems: "center", gap: 8, fontSize: 12, padding: "10px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <MemberAvatar name={name} avatar={m.avatar} diabetesLevel={m.diabetesLevel} hypertensionLevel={m.hypertensionLevel} hasAssessment={m.hasAssessment} size={28} />
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 600, color: c.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
+            <p style={{ margin: 0, fontSize: 10, color: c.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.email}</p>
+          </div>
         </div>
+        <div><RiskBadge level={m.hasAssessment ? m.diabetesLevel : null} muted={c.muted} /></div>
+        <div><RiskBadge level={m.hasAssessment ? m.hypertensionLevel : null} muted={c.muted} /></div>
+        <div style={{ textAlign: "right", fontSize: 10, color: c.muted }}>{dateStr}</div>
       </div>
 
-      <div>
-        {m.hasAssessment && m.diabetesLevel ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(m.diabetesLevel), color: riskColor(m.diabetesLevel), fontWeight: 700, fontSize: 10 }}>
-            {riskIcon(m.diabetesLevel)}{m.diabetesLevel.charAt(0).toUpperCase() + m.diabetesLevel.slice(1)}
-          </span>
-        ) : <span style={{ fontSize: 10, color: c.muted }}>—</span>}
-      </div>
-
-      <div>
-        {m.hasAssessment && m.hypertensionLevel ? (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 7px", borderRadius: 2, background: riskBg(m.hypertensionLevel), color: riskColor(m.hypertensionLevel), fontWeight: 700, fontSize: 10 }}>
-            {riskIcon(m.hypertensionLevel)}{m.hypertensionLevel.charAt(0).toUpperCase() + m.hypertensionLevel.slice(1)}
-          </span>
-        ) : <span style={{ fontSize: 10, color: c.muted }}>—</span>}
-      </div>
-
-      <div style={{ textAlign: "right", fontSize: 10, color: c.muted }}>
-        {m.lastAssessment
-          ? new Date(m.lastAssessment).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
-          : "No data"}
+      {/* ── Mobile card ── */}
+      <div className="risk-row-mobile" style={{ padding: "12px 14px" }}>
+        {/* Top: avatar + name + date */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <MemberAvatar name={name} avatar={m.avatar} diabetesLevel={m.diabetesLevel} hypertensionLevel={m.hypertensionLevel} hasAssessment={m.hasAssessment} size={38} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: c.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+            <p style={{ margin: "1px 0 0", fontSize: 10, color: c.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</p>
+          </div>
+          <span style={{ fontSize: 10, color: c.muted, flexShrink: 0, marginLeft: 4 }}>{dateStr}</span>
+        </div>
+        {/* Bottom: risk badges */}
+        <div style={{ display: "flex", gap: 10, marginTop: 8, paddingLeft: 48, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Diabetes</span>
+            <RiskBadge level={m.hasAssessment ? m.diabetesLevel : null} muted={c.muted} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>BP</span>
+            <RiskBadge level={m.hasAssessment ? m.hypertensionLevel : null} muted={c.muted} />
+          </div>
+        </div>
       </div>
     </motion.div>
   );
@@ -511,6 +529,7 @@ export default function EmployerDashboardPage() {
 
   return (
     <EmployerLayout>
+      <style>{RESPONSIVE_STYLES}</style>
 
       {/* ── Greeting Hero ────────────────────────────────────────────────────── */}
       {loadingCompany
@@ -664,8 +683,8 @@ export default function EmployerDashboardPage() {
           </motion.div>
         ) : (
           <>
-            {/* Risk table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 100px 90px", gap: 8, padding: "8px 16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)", borderBottom: `1px solid ${c.border}`, fontSize: 10, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            {/* Risk table header — hidden on mobile via RESPONSIVE_STYLES */}
+            <div className="risk-table-header" style={{ gridTemplateColumns: "1fr 90px 110px 80px", gap: 8, padding: "8px 16px", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.025)", borderBottom: `1px solid ${c.border}`, fontSize: 10, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
               <span>Employee</span><span>Diabetes</span><span>Hypertension</span><span style={{ textAlign: "right" }}>Assessment</span>
             </div>
 
