@@ -1,7 +1,7 @@
 import { account } from "@/lib/appwrite";
 import { ID, OAuthProvider, AppwriteException } from "appwrite";
 import { upsertUser, getUserProfile, updateUserProfile, getDashboardPath, type UserRole } from "./userService";
-import { createCompany, claimInvite } from "./companyService";
+import { createCompany } from "./companyService";
 
 export interface SignUpData {
   fullName:     string;
@@ -29,7 +29,8 @@ export const authService = {
   /**
    * Register a new user with email & password.
    * - Employer role: creates a company record and links it to the user profile.
-   * - Invite-link signup: claims the invite and auto-links to the company.
+   * - Invite-link signup: claims the invite via server API route (uses APPWRITE_API_KEY,
+   *   not the client SDK, so it works before the session is fully established).
    */
   async signUp({ fullName, email, password, role, inviteToken, companyName, companySize, industry }: SignUpData): Promise<AuthUser> {
     try {
@@ -59,10 +60,17 @@ export const authService = {
         }
       }
 
-      // 4b. Invite-link signup → claim the invite and auto-link to the company
+      // 4b. Invite-link signup → claim via server API route.
+      //     We use PATCH /api/invite-employee instead of the client-side claimInvite()
+      //     because the client SDK requires an active Appwrite session with write
+      //     permissions on company_members — which isn't guaranteed at this point.
+      //     The server route uses APPWRITE_API_KEY and works unconditionally.
       if (inviteToken) {
-        await claimInvite(inviteToken, user.$id)
-          .catch((e) => console.error("[AuthService] claimInvite failed:", e));
+        await fetch("/api/invite-employee", {
+          method:  "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ inviteToken, userId: user.$id }),
+        }).catch((e) => console.error("[AuthService] claimInvite fetch failed:", e));
       }
 
       return {
@@ -135,7 +143,7 @@ export const authService = {
   },
 
   /**
-   * Logout — deletes the current session
+   * Logout — deletes the current session.
    */
   async logout(): Promise<void> {
     try {

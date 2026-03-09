@@ -624,33 +624,45 @@ export default function SignUpPage() {
     return true;
   };
 
-  const handleSubmit = async () => {
-    if (!validate()) return;
-    try {
-      const result = await signUp({
-        fullName: formData.fullName.trim(),
-        email:    formData.email.trim(),
-        password: formData.password,
-        role,
-        // NEW: pass invite params so authService can call claimInvite
-        inviteToken:  inviteToken ?? undefined,
-        companyName:  (inviteCompanyName ?? formData.companyName.trim()) || undefined,
-        industry:     formData.industry.trim() || undefined,
-      });
+  
+const handleSubmit = async () => {
+  if (!validate()) return;
+  try {
+    const result = await signUp({
+      fullName:    formData.fullName.trim(),
+      email:       formData.email.trim(),
+      password:    formData.password,
+      role,
+      inviteToken: inviteToken ?? undefined,
+      companyName: (inviteCompanyName ?? formData.companyName.trim()) || undefined,
+      industry:    formData.industry.trim() || undefined,
+    });
 
-      // signUp succeeded — capture userId and role
-      const uid = (result as any)?.$id || (result as any)?.userId || (result as any)?.id;
-      if (uid) setNewUserId(uid);
+    const uid = (result as any)?.$id || (result as any)?.userId || (result as any)?.id;
+    if (uid) setNewUserId(uid);
 
-      setSignedUpRole(role); // lock in the role used at signup
-      setSignupSuccess(true);
-
-    } catch (err: any) {
-      // signUp threw (e.g. duplicate email) — show error toast, do NOT redirect
-      const msg = err?.message || "Something went wrong. Please try again.";
-      setToast({ message: msg, type: "error" });
+    // ── Safety-net claim: runs after session is fully established ─────────────
+    // authService already calls PATCH but can fail silently if session timing
+    // is off. This second call guarantees the member record is activated.
+    if (inviteToken && uid) {
+      fetch("/api/invite-employee", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ inviteToken, userId: uid }),
+      })
+        .then((r) => r.json())
+        .then((d) => console.log("[Register] claim result:", d))
+        .catch((e) => console.error("[Register] safety-net claim failed:", e));
     }
-  };
+
+    setSignedUpRole(role);
+    setSignupSuccess(true);
+
+  } catch (err: any) {
+    const msg = err?.message || "Something went wrong. Please try again.";
+    setToast({ message: msg, type: "error" });
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) handleSubmit();

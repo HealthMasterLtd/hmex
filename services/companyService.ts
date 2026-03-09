@@ -1,7 +1,5 @@
 /**
  * companyService.ts
- *
- * Handles all company + company_members Appwrite logic for the HMEX Employer Dashboard.
  */
 
 import { Client, Databases, Query, ID } from "appwrite";
@@ -12,6 +10,7 @@ const ENDPOINT   = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
 
 export const USERS_DB_ID                   = "hmex_db";
+export const USERS_COLLECTION_ID           = "users";           // ← needed for reconcile
 export const COMPANIES_COLLECTION_ID       = process.env.NEXT_PUBLIC_APPWRITE_COMPANIES_COLLECTION_ID!;
 export const COMPANY_MEMBERS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_COMPANY_MEMBERS_COLLECTION_ID!;
 
@@ -36,18 +35,18 @@ export interface Company {
 export type MemberStatus = "pending" | "active" | "declined" | "removed";
 
 export interface CompanyMember {
-  $id:          string;
-  $createdAt:   string;
-  companyId:    string;
-  companyName:  string;
-  email:        string;
-  userId:       string | null;
-  status:       MemberStatus;
-  inviteToken:  string;
-  invitedAt:    string;
-  acceptedAt:   string | null;
-  invitedBy:    string;
-  resendMsgId:  string | null;
+  $id:         string;
+  $createdAt:  string;
+  companyId:   string;
+  companyName: string;
+  email:       string;
+  userId:      string | null;
+  status:      MemberStatus;
+  inviteToken: string;
+  invitedAt:   string;
+  acceptedAt:  string | null;
+  invitedBy:   string;
+  resendMsgId: string | null;
 }
 
 export interface EmployeeDashboardRow extends CompanyMember {
@@ -90,15 +89,56 @@ function parseMember(doc: Record<string, unknown>): CompanyMember {
   };
 }
 
+// ─── RECONCILE PENDING MEMBERS ────────────────────────────────────────────────
+// Runs automatically inside getCompanyMembers on every refresh.
+// For each pending member, checks if their email now has an HMEX account.
+// If yes → activates the member and links their profile. Fully transparent.
+
+async function reconcilePendingMembers(pendingMembers: CompanyMember[]): Promise<void> {
+  if (pendingMembers.length === 0) return;
+
+  await Promise.all(
+    pendingMembers.map(async (m) => {
+      try {
+        const userRes = await db.listDocuments(USERS_DB_ID, USERS_COLLECTION_ID, [
+          Query.equal("email", m.email),
+          Query.limit(1),
+        ]);
+
+        if (userRes.documents.length === 0) return; // still hasn't signed up
+
+        const userDoc = userRes.documents[0];
+        const now     = new Date().toISOString();
+
+        console.log("[CompanyService] reconcile: activating", m.email, "→ member", m.$id);
+
+        // Activate member record
+        await db.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, m.$id, {
+          userId:     userDoc.$id,
+          status:     "active",
+          acceptedAt: now,
+        });
+
+        // Link user profile to company
+        await updateUserProfile(userDoc.$id, {
+          companyId:   m.companyId,
+          companyName: m.companyName,
+        } as never).catch((e) =>
+          console.error("[CompanyService] reconcile profile link failed:", e)
+        );
+      } catch (e) {
+        console.error("[CompanyService] reconcile error for", m.email, ":", e);
+      }
+    })
+  );
+}
+
 // ─── CREATE COMPANY ───────────────────────────────────────────────────────────
 
-/**
- * Called inside authService.signUp() for employer accounts.
- */
 export async function createCompany(data: {
-  name:    string;
-  ownerId: string;
-  size?:   string;
+  name:      string;
+  ownerId:   string;
+  size?:     string;
   industry?: string;
 }): Promise<Company | null> {
   try {
@@ -136,9 +176,6 @@ export async function getCompany(companyId: string): Promise<Company | null> {
 
 // ─── GET COMPANY BY OWNER ─────────────────────────────────────────────────────
 
-/**
- * Used on employer dashboard load to get the employer's company.
- */
 export async function getCompanyByOwner(userId: string): Promise<Company | null> {
   try {
     const res = await db.listDocuments(USERS_DB_ID, COMPANIES_COLLECTION_ID, [
@@ -153,12 +190,8 @@ export async function getCompanyByOwner(userId: string): Promise<Company | null>
   }
 }
 
-// ─── INVITE EMPLOYEE (new / external) ────────────────────────────────────────
+// ─── INVITE EMPLOYEE ──────────────────────────────────────────────────────────
 
-/**
- * Creates a pending company_members record and returns the inviteToken.
- * The API route calls this, then fires Resend.
- */
 export async function inviteEmployee(data: {
   companyId:   string;
   companyName: string;
@@ -185,7 +218,6 @@ export async function inviteEmployee(data: {
       }
     );
 
-    // Increment inviteCount on the company
     const company = await getCompany(data.companyId);
     if (company) {
       await db.updateDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, data.companyId, {
@@ -193,7 +225,6 @@ export async function inviteEmployee(data: {
       });
     }
 
-    console.log("[CompanyService] Invite created:", doc.$id, "token:", inviteToken);
     return { member: parseMember(doc), inviteToken };
   } catch (e) {
     console.error("[CompanyService] inviteEmployee error:", e);
@@ -203,10 +234,6 @@ export async function inviteEmployee(data: {
 
 // ─── ADD EXISTING EMPLOYEE ────────────────────────────────────────────────────
 
-/**
- * Used when employer searches by email and the user already has an HMEX account.
- * Creates an active member record immediately and links the user's profile.
- */
 export async function addExistingEmployee(data: {
   companyId:   string;
   companyName: string;
@@ -234,13 +261,11 @@ export async function addExistingEmployee(data: {
       }
     );
 
-    // Link the user's profile to this company
     await updateUserProfile(data.userId, {
       companyId:   data.companyId,
       companyName: data.companyName,
     } as never);
 
-    console.log("[CompanyService] Added existing employee:", data.userId);
     return parseMember(doc);
   } catch (e) {
     console.error("[CompanyService] addExistingEmployee error:", e);
@@ -248,50 +273,32 @@ export async function addExistingEmployee(data: {
   }
 }
 
-// ─── CLAIM INVITE ─────────────────────────────────────────────────────────────
+// ─── CLAIM INVITE (client-side, kept for reference — prefer server PATCH route) ─
 
-/**
- * Called post-signup when an employee registers via an invite link.
- * Validates the token, activates the member record, and links their profile.
- */
 export async function claimInvite(
   inviteToken: string,
   userId:      string
 ): Promise<CompanyMember | null> {
   try {
-    // Find the pending member record by token
     const res = await db.listDocuments(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, [
       Query.equal("inviteToken", inviteToken),
       Query.equal("status", "pending"),
       Query.limit(1),
     ]);
 
-    if (res.documents.length === 0) {
-      console.warn("[CompanyService] claimInvite: token not found or already used:", inviteToken);
-      return null;
-    }
+    if (res.documents.length === 0) return null;
 
-    const member = parseMember(res.documents[0]);
-
-    // Activate the member record
+    const member  = parseMember(res.documents[0]);
     const updated = await db.updateDocument(
-      USERS_DB_ID,
-      COMPANY_MEMBERS_COLLECTION_ID,
-      member.$id,
-      {
-        userId:     userId,
-        status:     "active",
-        acceptedAt: new Date().toISOString(),
-      }
+      USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, member.$id,
+      { userId, status: "active", acceptedAt: new Date().toISOString() }
     );
 
-    // Link the user's profile to the company
     await updateUserProfile(userId, {
       companyId:   member.companyId,
       companyName: member.companyName,
     } as never);
 
-    console.log("[CompanyService] Invite claimed by:", userId);
     return parseMember(updated);
   } catch (e) {
     console.error("[CompanyService] claimInvite error:", e);
@@ -301,9 +308,6 @@ export async function claimInvite(
 
 // ─── GET COMPANY MEMBER BY TOKEN ──────────────────────────────────────────────
 
-/**
- * Used on the register page to validate an invite token and show the company name.
- */
 export async function getCompanyMemberByToken(
   inviteToken: string
 ): Promise<CompanyMember | null> {
@@ -321,10 +325,9 @@ export async function getCompanyMemberByToken(
 }
 
 // ─── GET COMPANY MEMBERS ──────────────────────────────────────────────────────
+// Auto-reconciles any pending members whose email now has an HMEX account.
+// This means: refresh the list → pending members who signed up become active. ✓
 
-/**
- * Returns all non-removed members with user profile data merged in.
- */
 export async function getCompanyMembers(
   companyId: string
 ): Promise<EmployeeDashboardRow[]> {
@@ -338,7 +341,16 @@ export async function getCompanyMembers(
 
     const members = res.documents.map((d) => parseMember(d));
 
-    // Merge in user profile data for active members
+    // ── Auto-reconcile pending members ───────────────────────────────────────
+    const pending = members.filter((m) => m.status === "pending");
+    if (pending.length > 0) {
+      // Fire-and-forget — don't block the list render
+      reconcilePendingMembers(pending).then(async () => {
+        // No need to re-fetch here — next manual refresh will show updated status
+      }).catch(console.error);
+    }
+
+    // ── Merge in user profile data ────────────────────────────────────────────
     const rows: EmployeeDashboardRow[] = await Promise.all(
       members.map(async (m) => {
         if (m.userId) {
@@ -346,8 +358,8 @@ export async function getCompanyMembers(
           return {
             ...m,
             fullName:         profile?.fullName || null,
-            avatar:           profile?.avatar || null,
-            riskScore:        null, // extend when risk fields added to UserProfile
+            avatar:           profile?.avatar   || null,
+            riskScore:        null,
             diabetesRisk:     null,
             hypertensionRisk: null,
             lastAssessment:   null,
@@ -374,9 +386,6 @@ export async function getCompanyMembers(
 
 // ─── REMOVE EMPLOYEE ──────────────────────────────────────────────────────────
 
-/**
- * Sets member status to "removed" and clears companyId from user profile.
- */
 export async function removeEmployee(
   memberId: string,
   userId:   string | null
@@ -393,7 +402,6 @@ export async function removeEmployee(
       } as never);
     }
 
-    console.log("[CompanyService] Removed employee, memberId:", memberId);
     return true;
   } catch (e) {
     console.error("[CompanyService] removeEmployee error:", e);
