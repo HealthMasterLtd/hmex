@@ -7,15 +7,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { claimPendingAssessment, getPendingAssessment } from "@/services/AppwriteService";
 import { claimPendingRecommendations, getPendingRecommendations } from "@/services/RecommendationService";
 import OAuthCallbackHandler from "@/components/OAuthCallbackHandler";
 import { getDashboardPath, type UserRole } from "@/services/userService";
+import { getCompanyMemberByToken } from "@/services/companyService";
 import {
   Sun, Moon, Mail, Lock, User, Eye, EyeOff,
-  Check, AlertCircle, ArrowRight, Loader2, CheckCircle, Sparkles, Briefcase,
+  Check, AlertCircle, ArrowRight, Loader2, CheckCircle, Sparkles, Briefcase, Building2,
 } from "lucide-react";
 import ThemeToggle from "@/components/Themetoggle";
 
@@ -144,6 +145,43 @@ function HealthLottie() {
   );
 }
 
+// ─── Invite Banner ────────────────────────────────────────────────────────────
+// NEW: shown when arriving via ?invite=TOKEN&company=ID link
+interface InviteBannerProps {
+  companyName: string;
+  accentColor: string;
+  isDark: boolean;
+}
+
+function InviteBanner({ companyName, accentColor, isDark }: InviteBannerProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mb-6 p-4 flex items-start gap-3"
+      style={{
+        background: isDark ? `${accentColor}14` : `${accentColor}0F`,
+        border: `1px solid ${accentColor}35`,
+        borderRadius: 2,
+      }}
+    >
+      <div className="shrink-0 mt-0.5 w-8 h-8 flex items-center justify-center"
+        style={{ background: `${accentColor}20`, borderRadius: 2 }}>
+        <Building2 size={16} style={{ color: accentColor }} />
+      </div>
+      <div>
+        <p className="text-sm font-bold mb-0.5" style={{ color: accentColor }}>
+          You&apos;ve been invited to join {companyName}
+        </p>
+        <p className="text-xs" style={{ color: isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.5)" }}>
+          Create your account to get started. Your health data is always private — your employer only sees anonymised team insights.
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Role Toggle ──────────────────────────────────────────────────────────────
 interface RoleToggleProps {
   role: UserRole;
@@ -152,14 +190,20 @@ interface RoleToggleProps {
   surfaceBorder: string;
   surfaceMuted: string;
   isDark: boolean;
+  disabled?: boolean; // NEW: locked on invite links
 }
 
-function RoleToggle({ role, onChange, accent, surfaceBorder, surfaceMuted, isDark }: RoleToggleProps) {
+function RoleToggle({ role, onChange, accent, surfaceBorder, surfaceMuted, isDark, disabled }: RoleToggleProps) {
   const isEmployer = role === "employer";
   return (
     <div className="mb-6">
       <div className="relative flex items-center p-1"
-        style={{ background: isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.05)", border: `1px solid ${surfaceBorder}` }}>
+        style={{
+          background: isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.05)",
+          border: `1px solid ${surfaceBorder}`,
+          opacity: disabled ? 0.6 : 1,
+          pointerEvents: disabled ? "none" : "auto",
+        }}>
         <motion.div layout transition={{ type: "spring", stiffness: 400, damping: 35 }}
           style={{
             position: "absolute", top: 4, bottom: 4,
@@ -182,9 +226,11 @@ function RoleToggle({ role, onChange, accent, surfaceBorder, surfaceMuted, isDar
       <AnimatePresence mode="wait">
         <motion.p key={role} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
           transition={{ duration: 0.18 }} className="text-xs mt-2 text-center" style={{ color: surfaceMuted }}>
-          {isEmployer
-            ? "Create an employer account to manage your organisation's health programmes"
-            : "Create a personal account to track and improve your health"}
+          {disabled
+            ? "Role is set by your invitation"
+            : isEmployer
+              ? "Create an employer account to manage your organisation's health programmes"
+              : "Create a personal account to track and improve your health"}
         </motion.p>
       </AnimatePresence>
     </div>
@@ -240,6 +286,8 @@ interface Colors {
 // At module level — prevents cursor-jumping remount bug
 interface FormBodyProps {
   compact: boolean; role: UserRole; onRoleChange: (r: UserRole) => void;
+  roleDisabled: boolean;       // NEW
+  inviteCompanyName: string | null; // NEW
   formData: { fullName: string; email: string; password: string; confirmPassword: string; companyName: string; industry: string };
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyPress: (e: React.KeyboardEvent) => void;
@@ -253,7 +301,8 @@ interface FormBodyProps {
 }
 
 function FormBody({
-  compact, role, onRoleChange, formData, onChange, onKeyPress, onSubmit, onGoogleLogin,
+  compact, role, onRoleChange, roleDisabled, inviteCompanyName,
+  formData, onChange, onKeyPress, onSubmit, onGoogleLogin,
   loading, showPassword, onTogglePassword, showConfirmPassword, onToggleConfirmPassword,
   focusedField, onFocus, onBlur, passwordStrength, strengthColor, strengthText,
   agreedToTerms, termsError, onToggleTerms, colors, isDark,
@@ -271,8 +320,14 @@ function FormBody({
 
   return (
     <div className="space-y-4">
+      {/* Invite banner — shown when arriving via invite link */}
+      {inviteCompanyName && (
+        <InviteBanner companyName={inviteCompanyName} accentColor={colors.primary} isDark={isDark} />
+      )}
+
       <RoleToggle role={role} onChange={onRoleChange} accent={colors.primary}
-        surfaceBorder={colors.border} surfaceMuted={colors.muted} isDark={isDark} />
+        surfaceBorder={colors.border} surfaceMuted={colors.muted} isDark={isDark}
+        disabled={roleDisabled} />
 
       {/* Full Name */}
       <div>
@@ -289,9 +344,9 @@ function FormBody({
         </div>
       </div>
 
-      {/* Company Name — employer only */}
+      {/* Company Name — employer only, hidden on invite links */}
       <AnimatePresence>
-        {isEmployer && (
+        {isEmployer && !inviteCompanyName && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}>
             <label className="block text-xs font-semibold mb-2" style={{ color: colors.text }}>Company Name</label>
@@ -394,33 +449,39 @@ function FormBody({
           <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Creating...</span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            {isEmployer ? "Create Employer Account" : "Create Account"}<ArrowRight size={compact ? 16 : 18} />
+            {inviteCompanyName
+              ? `Join ${inviteCompanyName}`
+              : isEmployer ? "Create Employer Account" : "Create Account"}
+            <ArrowRight size={compact ? 16 : 18} />
           </span>
         )}
       </button>
 
-      {/* Divider */}
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t" style={{ borderColor: colors.border }} />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2" style={{ background: colors.surface, color: colors.muted }}>or continue with</span>
-        </div>
-      </div>
+      {/* Divider + Google — hidden on invite links (OAuth can't claim the token) */}
+      {!inviteCompanyName && (
+        <>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t" style={{ borderColor: colors.border }} />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2" style={{ background: colors.surface, color: colors.muted }}>or continue with</span>
+            </div>
+          </div>
 
-      {/* Google */}
-      <button onClick={onGoogleLogin} disabled={loading}
-        className="w-full py-2.5 px-4 text-sm font-medium border flex items-center justify-center gap-2"
-        style={{ background: colors.surface, borderColor: colors.border, color: colors.text, borderRadius: 2, cursor: "pointer" }}>
-        <svg width={compact ? 16 : 20} height={compact ? 16 : 20} viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-        </svg>
-        Continue with Google
-      </button>
+          <button onClick={onGoogleLogin} disabled={loading}
+            className="w-full py-2.5 px-4 text-sm font-medium border flex items-center justify-center gap-2"
+            style={{ background: colors.surface, borderColor: colors.border, color: colors.text, borderRadius: 2, cursor: "pointer" }}>
+            <svg width={compact ? 16 : 20} height={compact ? 16 : 20} viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            Continue with Google
+          </button>
+        </>
+      )}
 
       <p className="text-center text-sm mt-4" style={{ color: colors.muted }}>
         Already have an account?{" "}
@@ -432,8 +493,8 @@ function FormBody({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function SignUpPage() {
-  const router       = useRouter();
-  const searchParams = useSearchParams();
+  const router = useRouter();
+  // useSearchParams removed — causes Vercel prerender error. window.location.search used instead.
   const { signUp, loginWithGoogle, loading, clearError } = useAuth();
   const { isDark, toggleTheme, surface, accentColor } = useTheme();
 
@@ -467,16 +528,44 @@ export default function SignUpPage() {
   // The role that was used at signup — used for the loading gate + success screen
   const [signedUpRole, setSignedUpRole] = useState<UserRole>("user");
 
+  // NEW: invite link state
+  const [inviteToken,       setInviteToken]       = useState<string | null>(null);
+  const [inviteCompanyName, setInviteCompanyName] = useState<string | null>(null);
+  const [inviteLoading,     setInviteLoading]     = useState(false);
+
   const savedAssessmentIdRef = useRef<string | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
 
+  // CHANGED: was useSearchParams — now reads window.location.search directly (no Suspense needed)
   useEffect(() => {
     setMounted(true);
-    const qRole = searchParams.get("role");
-    if (qRole === "employer") setRole("employer");
     setHasPendingAssessment(!!getPendingAssessment());
     setHasPendingReco(!!getPendingRecommendations());
-  }, [searchParams]);
+
+    const params   = new URLSearchParams(window.location.search);
+    const qRole    = params.get("role");
+    const qInvite  = params.get("invite");
+    const qCompany = params.get("company");
+
+    if (qRole === "employer") setRole("employer");
+
+    // NEW: validate invite token and lock UI to that company
+    if (qInvite && qCompany) {
+      setInviteToken(qInvite);
+      setInviteLoading(true);
+      getCompanyMemberByToken(qInvite)
+        .then((member) => {
+          if (!member || member.status !== "pending") {
+            setToast({ message: "This invite link is invalid or has already been used.", type: "error" });
+          } else {
+            setInviteCompanyName(member.companyName);
+            setRole("user"); // employees are always regular users
+          }
+        })
+        .catch(() => setToast({ message: "Could not validate invite link. Please try again.", type: "error" }))
+        .finally(() => setInviteLoading(false));
+    }
+  }, []); // empty deps — runs once on mount
 
   useEffect(() => {
     let strength = 0;
@@ -526,12 +615,12 @@ export default function SignUpPage() {
   };
 
   const validate = () => {
-    if (!agreedToTerms)                                      { setTermsError(true); setValidationError("Please agree to the Terms of Service to continue."); return false; }
-    if (!formData.fullName.trim())                           { setValidationError("Please enter your full name"); return false; }
-    if (role === "employer" && !formData.companyName.trim()) { setValidationError("Please enter your company name"); return false; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { setValidationError("Please enter a valid email"); return false; }
-    if (formData.password.length < 8)                        { setValidationError("Password must be at least 8 characters"); return false; }
-    if (formData.password !== formData.confirmPassword)       { setValidationError("Passwords don't match"); return false; }
+    if (!agreedToTerms)                                                               { setTermsError(true); setValidationError("Please agree to the Terms of Service to continue."); return false; }
+    if (!formData.fullName.trim())                                                     { setValidationError("Please enter your full name"); return false; }
+    if (role === "employer" && !inviteCompanyName && !formData.companyName.trim())    { setValidationError("Please enter your company name"); return false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))                           { setValidationError("Please enter a valid email"); return false; }
+    if (formData.password.length < 8)                                                  { setValidationError("Password must be at least 8 characters"); return false; }
+    if (formData.password !== formData.confirmPassword)                                { setValidationError("Passwords don't match"); return false; }
     return true;
   };
 
@@ -543,6 +632,10 @@ export default function SignUpPage() {
         email:    formData.email.trim(),
         password: formData.password,
         role,
+        // NEW: pass invite params so authService can call claimInvite
+        inviteToken:  inviteToken ?? undefined,
+        companyName:  (inviteCompanyName ?? formData.companyName.trim()) || undefined,
+        industry:     formData.industry.trim() || undefined,
       });
 
       // signUp succeeded — capture userId and role
@@ -586,18 +679,37 @@ export default function SignUpPage() {
 
   if (!mounted) return null;
 
+  // NEW: show spinner while validating invite token
+  if (inviteLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: surface.bg }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 animate-spin"
+            style={{ borderColor: accentColor, borderTopColor: "transparent" }} />
+          <p className="text-sm font-medium" style={{ color: surface.muted }}>Validating your invite…</p>
+        </div>
+      </div>
+    );
+  }
+
   const colors: Colors = {
     bg: surface.bg, surface: surface.surface, border: surface.border,
     text: surface.text, muted: surface.muted, subtle: surface.subtle,
     primary: accentColor, secondary: "#0FB6C8",
   };
 
-  const benefits = isEmployer
-    ? ["Set up your organisation's health programme", "Access aggregated workforce health insights", "No per-employee cost to get started", "Employee data stays private — always"]
-    : ["Your health insights are always safe and ready for you", "Free health assessments", "No credit card required", "Your data stays private and secure"];
+  // NEW: benefits list adapts for invite links
+  const benefits = inviteCompanyName
+    ? [`You've been invited to join ${inviteCompanyName}`, "Free health assessments included", "Your individual data is always private", "Your employer only sees anonymised team stats"]
+    : isEmployer
+      ? ["Set up your organisation's health programme", "Access aggregated workforce health insights", "No per-employee cost to get started", "Employee data stays private — always"]
+      : ["Your health insights are always safe and ready for you", "Free health assessments", "No credit card required", "Your data stays private and secure"];
 
   const formBodyProps: Omit<FormBodyProps, "compact"> = {
-    role, onRoleChange: setRole, formData,
+    role, onRoleChange: setRole,
+    roleDisabled: !!inviteCompanyName, // NEW
+    inviteCompanyName,                 // NEW
+    formData,
     onChange: handleChange, onKeyPress: handleKeyPress,
     onSubmit: handleSubmit, onGoogleLogin: loginWithGoogle,
     loading, showPassword, onTogglePassword: () => setShowPassword(v => !v),
@@ -621,16 +733,22 @@ export default function SignUpPage() {
 
       <motion.h2 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
         className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-        {signedUpRole === "employer"
-          ? `Welcome, ${formData.companyName || formData.fullName.split(" ")[0]}!`
-          : `Welcome, ${formData.fullName.split(" ")[0] || "there"}!`}
+        {/* NEW: invite-specific success message */}
+        {inviteCompanyName
+          ? `You're now part of ${inviteCompanyName}!`
+          : signedUpRole === "employer"
+            ? `Welcome, ${formData.companyName || formData.fullName.split(" ")[0]}!`
+            : `Welcome, ${formData.fullName.split(" ")[0] || "there"}!`}
       </motion.h2>
 
       <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
         className="text-sm mb-6" style={{ color: colors.muted }}>
-        {signedUpRole === "employer"
-          ? "Your employer account is ready. Set up your organisation's health programme."
-          : "Your account has been created successfully."}
+        {/* NEW: invite-specific sub-message */}
+        {inviteCompanyName
+          ? "Your account is linked to your company. Your health data is private — your employer only sees anonymised team insights."
+          : signedUpRole === "employer"
+            ? "Your employer account is ready. Set up your organisation's health programme."
+            : "Your account has been created successfully."}
       </motion.p>
 
       {signedUpRole !== "employer" && hasPendingAssessment && (
@@ -739,11 +857,15 @@ export default function SignUpPage() {
             <span className="text-xl font-bold text-white">HMEX</span>
           </div>
           <div className="mt-6">
-            <p className="text-xs font-medium text-white/80 mb-1">{isEmployer ? "Employer Portal" : "For Your Health"}</p>
+            {/* NEW: invite-aware hero label */}
+            <p className="text-xs font-medium text-white/80 mb-1">
+              {inviteCompanyName ? `Invited by ${inviteCompanyName}` : isEmployer ? "Employer Portal" : "For Your Health"}
+            </p>
             <AnimatePresence mode="wait">
               <motion.h1 key={`mob-hero-${role}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
                 className="text-2xl font-bold text-white">
-                {isEmployer ? "Workforce Health Management" : "Smart Health Monitoring"}
+                {/* NEW: invite-aware hero heading */}
+                {inviteCompanyName ? `Join ${inviteCompanyName} on HMEX` : isEmployer ? "Workforce Health Management" : "Smart Health Monitoring"}
               </motion.h1>
             </AnimatePresence>
           </div>
@@ -759,10 +881,11 @@ export default function SignUpPage() {
                     <AnimatePresence mode="wait">
                       <motion.div key={`mob-head-${role}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                         <h2 className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-                          {isEmployer ? "Create employer account" : "Create account"}
+                          {/* NEW: invite-aware form heading */}
+                          {inviteCompanyName ? "Create your account" : isEmployer ? "Create employer account" : "Create account"}
                         </h2>
                         <p className="text-sm mb-6" style={{ color: colors.muted }}>
-                          {isEmployer ? "Set up your organisation's health programme" : "Start your health journey today"}
+                          {inviteCompanyName ? `You're joining ${inviteCompanyName}` : isEmployer ? "Set up your organisation's health programme" : "Start your health journey today"}
                         </p>
                       </motion.div>
                     </AnimatePresence>
@@ -795,16 +918,22 @@ export default function SignUpPage() {
                   <span className="text-2xl font-bold" style={{ color: colors.text }}>HMEX</span>
                 </Link>
                 <AnimatePresence mode="wait">
-                  <motion.div key={`desk-left-${role}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-3">
+                  {/* NEW: key includes inviteCompanyName so it transitions when invite is detected */}
+                  <motion.div key={`desk-left-${role}-${inviteCompanyName}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-3">
                     <h1 className="text-5xl font-black leading-tight" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-                      {isEmployer
-                        ? <>Empower your<br /><span style={{ color: colors.primary }}>team&apos;s health.</span></>
-                        : <>Take control of<br />your health.{" "}<span style={{ color: colors.primary }}>Start free.</span></>}
+                      {/* NEW: invite-aware hero h1 */}
+                      {inviteCompanyName
+                        ? <>Join <span style={{ color: colors.primary }}>{inviteCompanyName}</span>.</>
+                        : isEmployer
+                          ? <>Empower your<br /><span style={{ color: colors.primary }}>team&apos;s health.</span></>
+                          : <>Take control of<br />your health.{" "}<span style={{ color: colors.primary }}>Start free.</span></>}
                     </h1>
                     <p className="text-base leading-relaxed max-w-md" style={{ color: colors.muted }}>
-                      {isEmployer
-                        ? "Launch your organisation's health programme and support your workforce with data-driven insights."
-                        : "Join thousands preventing chronic conditions with personalised health insights and AI-powered risk detection."}
+                      {inviteCompanyName
+                        ? `${inviteCompanyName} has invited you to join their health programme on HMEX. Your individual health data is always private.`
+                        : isEmployer
+                          ? "Launch your organisation's health programme and support your workforce with data-driven insights."
+                          : "Join thousands preventing chronic conditions with personalised health insights and AI-powered risk detection."}
                     </p>
                   </motion.div>
                 </AnimatePresence>
@@ -838,10 +967,10 @@ export default function SignUpPage() {
                         <AnimatePresence mode="wait">
                           <motion.div key={`desk-form-head-${role}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="mb-6">
                             <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-                              {isEmployer ? "Create employer account" : "Create account"}
+                              {inviteCompanyName ? "Create your account" : isEmployer ? "Create employer account" : "Create account"}
                             </h2>
                             <p className="text-sm mt-1" style={{ color: colors.muted }}>
-                              {isEmployer ? "No per-employee cost to get started." : "Free health assessments. No credit card required."}
+                              {inviteCompanyName ? `You're joining ${inviteCompanyName} on HMEX` : isEmployer ? "No per-employee cost to get started." : "Free health assessments. No credit card required."}
                             </p>
                           </motion.div>
                         </AnimatePresence>
