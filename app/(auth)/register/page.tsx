@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,8 +21,97 @@ import ThemeToggle from "@/components/Themetoggle";
 
 export const dynamic = "force-dynamic";
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+interface ToastProps {
+  message: string;
+  type: "success" | "error";
+  onDone: () => void;
+}
+
+function Toast({ message, type, onDone }: ToastProps) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 4000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  const isSuccess = type === "success";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -16, scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      className="fixed top-6 left-1/2 z-[9999] flex items-center gap-3 px-5 py-3 shadow-2xl"
+      style={{
+        transform: "translateX(-50%)",
+        borderRadius: 0,
+        background: isSuccess ? "#0FBB7D" : "#EF4444",
+        color: "#fff",
+        minWidth: 280,
+        maxWidth: 440,
+        boxShadow: `0 8px 32px ${isSuccess ? "#0FBB7D44" : "#EF444444"}`,
+      }}
+    >
+      {isSuccess
+        ? <CheckCircle size={18} className="flex-shrink-0" />
+        : <AlertCircle size={18} className="flex-shrink-0" />}
+      <span className="text-sm font-semibold">{message}</span>
+      <motion.div
+        initial={{ scaleX: 1 }} animate={{ scaleX: 0 }}
+        transition={{ duration: 4, ease: "linear" }}
+        style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 2,
+          background: "rgba(255,255,255,0.45)", transformOrigin: "left",
+        }}
+      />
+    </motion.div>
+  );
+}
+
+// ─── Full-screen Loading Gate ─────────────────────────────────────────────────
+interface LoadingGateProps {
+  accentColor: string;
+  isDark: boolean;
+  surfaceBg: string;
+  isEmployer: boolean;
+}
+
+function LoadingGate({ accentColor, isDark, surfaceBg, isEmployer }: LoadingGateProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[9998] flex flex-col items-center justify-center gap-6"
+      style={{ background: isDark ? "#0a0a0a" : surfaceBg }}
+    >
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+        className="flex flex-col items-center gap-4"
+      >
+        <div className="relative w-14 h-14">
+          <div className="absolute inset-0 rounded-full border-2" style={{ borderColor: `${accentColor}22` }} />
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="absolute inset-0 rounded-full border-2 border-transparent"
+            style={{ borderTopColor: accentColor }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            {isEmployer ? <Briefcase size={18} style={{ color: accentColor }} /> : <CheckCircle size={20} style={{ color: accentColor }} />}
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold" style={{ color: accentColor }}>
+            {isEmployer ? "Setting up your employer portal…" : "Setting up your dashboard…"}
+          </p>
+          <p className="text-xs mt-1" style={{ color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)" }}>
+            Just a moment
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── Lottie ───────────────────────────────────────────────────────────────────
-// Defined at module level — never remounts
 function HealthLottie() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -56,10 +145,9 @@ function HealthLottie() {
 }
 
 // ─── Role Toggle ──────────────────────────────────────────────────────────────
-// Defined at module level — never remounts
 interface RoleToggleProps {
   role: UserRole;
-  onChange: (role: UserRole) => void;
+  onChange: (r: UserRole) => void;
   accent: string;
   surfaceBorder: string;
   surfaceMuted: string;
@@ -70,33 +158,24 @@ function RoleToggle({ role, onChange, accent, surfaceBorder, surfaceMuted, isDar
   const isEmployer = role === "employer";
   return (
     <div className="mb-6">
-      <div
-        className="relative flex items-center p-1"
-        style={{ background: isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.05)", border: `1px solid ${surfaceBorder}` }}
-      >
-        <motion.div
-          layout
-          transition={{ type: "spring", stiffness: 400, damping: 35 }}
+      <div className="relative flex items-center p-1"
+        style={{ background: isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.05)", border: `1px solid ${surfaceBorder}` }}>
+        <motion.div layout transition={{ type: "spring", stiffness: 400, damping: 35 }}
           style={{
             position: "absolute", top: 4, bottom: 4,
             left: isEmployer ? "calc(50% + 4px)" : 4,
             width: "calc(50% - 8px)",
             background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
             boxShadow: `0 1px 8px ${accent}44`,
-          }}
-        />
-        <button
-          onClick={() => onChange("user")}
+          }} />
+        <button onClick={() => onChange("user")}
           className="relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold transition-colors duration-200"
-          style={{ color: !isEmployer ? "#fff" : surfaceMuted }}
-        >
+          style={{ color: !isEmployer ? "#fff" : surfaceMuted }}>
           <User size={14} /><span>Member</span>
         </button>
-        <button
-          onClick={() => onChange("employer")}
+        <button onClick={() => onChange("employer")}
           className="relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold transition-colors duration-200"
-          style={{ color: isEmployer ? "#fff" : surfaceMuted }}
-        >
+          style={{ color: isEmployer ? "#fff" : surfaceMuted }}>
           <Briefcase size={14} /><span>Employer</span>
         </button>
       </div>
@@ -113,29 +192,20 @@ function RoleToggle({ role, onChange, accent, surfaceBorder, surfaceMuted, isDar
 }
 
 // ─── Terms Checkbox ───────────────────────────────────────────────────────────
-// Defined at module level — stable, receives everything as props
 interface TermsCheckboxProps {
-  agreed: boolean;
-  hasError: boolean;
-  isEmployer: boolean;
-  primaryColor: string;
-  borderColor: string;
-  mutedColor: string;
-  isDark: boolean;
-  onToggle: () => void;
+  agreed: boolean; hasError: boolean; isEmployer: boolean;
+  primaryColor: string; borderColor: string; mutedColor: string;
+  isDark: boolean; onToggle: () => void;
 }
 
 function TermsCheckbox({ agreed, hasError, isEmployer, primaryColor, borderColor, mutedColor, isDark, onToggle }: TermsCheckboxProps) {
   return (
-    <div
-      onClick={onToggle}
-      style={{
-        display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
-        background: hasError ? "rgba(239,68,68,0.07)" : agreed ? `${primaryColor}0D` : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
-        border: `1px solid ${hasError ? "rgba(239,68,68,0.3)" : agreed ? `${primaryColor}35` : borderColor}`,
-        cursor: "pointer", userSelect: "none" as const, transition: "all 0.15s", borderRadius: 2,
-      }}
-    >
+    <div onClick={onToggle} style={{
+      display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
+      background: hasError ? "rgba(239,68,68,0.07)" : agreed ? `${primaryColor}0D` : isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)",
+      border: `1px solid ${hasError ? "rgba(239,68,68,0.3)" : agreed ? `${primaryColor}35` : borderColor}`,
+      cursor: "pointer", userSelect: "none" as const, transition: "all 0.15s", borderRadius: 2,
+    }}>
       <div style={{
         width: 18, height: 18, flexShrink: 0, marginTop: 1,
         border: `2px solid ${hasError ? "#ef4444" : agreed ? primaryColor : borderColor}`,
@@ -167,34 +237,19 @@ interface Colors {
 }
 
 // ─── Form Body ────────────────────────────────────────────────────────────────
-// DEFINED AT MODULE LEVEL — this is the fix. When this was defined INSIDE the
-// page component, React saw a new component type on every render and unmounted
-// all inputs, blasting the cursor position.
+// At module level — prevents cursor-jumping remount bug
 interface FormBodyProps {
-  compact: boolean;
-  role: UserRole;
-  onRoleChange: (r: UserRole) => void;
+  compact: boolean; role: UserRole; onRoleChange: (r: UserRole) => void;
   formData: { fullName: string; email: string; password: string; confirmPassword: string; companyName: string; industry: string };
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyPress: (e: React.KeyboardEvent) => void;
-  onSubmit: () => void;
-  onGoogleLogin: () => void;
-  loading: boolean;
-  showPassword: boolean;
-  onTogglePassword: () => void;
-  showConfirmPassword: boolean;
-  onToggleConfirmPassword: () => void;
-  focusedField: string | null;
-  onFocus: (f: string) => void;
-  onBlur: () => void;
-  passwordStrength: number;
-  strengthColor: string;
-  strengthText: string;
-  agreedToTerms: boolean;
-  termsError: boolean;
-  onToggleTerms: () => void;
-  colors: Colors;
-  isDark: boolean;
+  onSubmit: () => void; onGoogleLogin: () => void; loading: boolean;
+  showPassword: boolean; onTogglePassword: () => void;
+  showConfirmPassword: boolean; onToggleConfirmPassword: () => void;
+  focusedField: string | null; onFocus: (f: string) => void; onBlur: () => void;
+  passwordStrength: number; strengthColor: string; strengthText: string;
+  agreedToTerms: boolean; termsError: boolean; onToggleTerms: () => void;
+  colors: Colors; isDark: boolean;
 }
 
 function FormBody({
@@ -209,19 +264,15 @@ function FormBody({
   const pxIcon     = compact ? "pl-10 pr-10 py-2.5" : "pl-11 pr-11 py-3";
 
   const inputStyle = (field: string): React.CSSProperties => ({
-    background:  isDark ? "rgba(0,0,0,0.2)" : colors.surface,
+    background: isDark ? "rgba(0,0,0,0.2)" : colors.surface,
     borderColor: focusedField === field ? colors.primary : colors.border,
-    color:       colors.text,
-    outline:     "none",
-    borderRadius: 2,
+    color: colors.text, outline: "none", borderRadius: 2,
   });
 
   return (
     <div className="space-y-4">
-      <RoleToggle
-        role={role} onChange={onRoleChange} accent={colors.primary}
-        surfaceBorder={colors.border} surfaceMuted={colors.muted} isDark={isDark}
-      />
+      <RoleToggle role={role} onChange={onRoleChange} accent={colors.primary}
+        surfaceBorder={colors.border} surfaceMuted={colors.muted} isDark={isDark} />
 
       {/* Full Name */}
       <div>
@@ -234,8 +285,7 @@ function FormBody({
             onChange={onChange} onKeyPress={onKeyPress}
             onFocus={() => onFocus("name")} onBlur={onBlur}
             placeholder="John Doe" disabled={loading}
-            className={`w-full ${px} text-sm border transition-all`}
-            style={inputStyle("name")} />
+            className={`w-full ${px} text-sm border transition-all`} style={inputStyle("name")} />
         </div>
       </div>
 
@@ -251,8 +301,7 @@ function FormBody({
                 onChange={onChange} onKeyPress={onKeyPress}
                 onFocus={() => onFocus("company")} onBlur={onBlur}
                 placeholder="Acme Health Co." disabled={loading}
-                className={`w-full ${px} text-sm border transition-all`}
-                style={inputStyle("company")} />
+                className={`w-full ${px} text-sm border transition-all`} style={inputStyle("company")} />
             </div>
           </motion.div>
         )}
@@ -269,8 +318,7 @@ function FormBody({
             onChange={onChange} onKeyPress={onKeyPress}
             onFocus={() => onFocus("email")} onBlur={onBlur}
             placeholder={isEmployer ? "you@company.com" : "you@example.com"} disabled={loading}
-            className={`w-full ${px} text-sm border transition-all`}
-            style={inputStyle("email")} />
+            className={`w-full ${px} text-sm border transition-all`} style={inputStyle("email")} />
         </div>
       </div>
 
@@ -283,8 +331,7 @@ function FormBody({
             onChange={onChange} onKeyPress={onKeyPress}
             onFocus={() => onFocus("password")} onBlur={onBlur}
             placeholder="••••••••" disabled={loading}
-            className={`w-full ${pxIcon} text-sm border transition-all`}
-            style={inputStyle("password")} />
+            className={`w-full ${pxIcon} text-sm border transition-all`} style={inputStyle("password")} />
           <button type="button" onClick={onTogglePassword}
             className="absolute right-3 top-1/2 -translate-y-1/2"
             style={{ color: colors.muted, background: "none", border: "none", cursor: "pointer" }}>
@@ -313,8 +360,7 @@ function FormBody({
             onChange={onChange} onKeyPress={onKeyPress}
             onFocus={() => onFocus("confirm")} onBlur={onBlur}
             placeholder="••••••••" disabled={loading}
-            className={`w-full ${pxIcon} text-sm border transition-all`}
-            style={inputStyle("confirm")} />
+            className={`w-full ${pxIcon} text-sm border transition-all`} style={inputStyle("confirm")} />
           <button type="button" onClick={onToggleConfirmPassword}
             className="absolute right-3 top-1/2 -translate-y-1/2"
             style={{ color: colors.muted, background: "none", border: "none", cursor: "pointer" }}>
@@ -332,11 +378,9 @@ function FormBody({
         )}
       </div>
 
-      <TermsCheckbox
-        agreed={agreedToTerms} hasError={termsError} isEmployer={isEmployer}
+      <TermsCheckbox agreed={agreedToTerms} hasError={termsError} isEmployer={isEmployer}
         primaryColor={colors.primary} borderColor={colors.border} mutedColor={colors.muted}
-        isDark={isDark} onToggle={onToggleTerms}
-      />
+        isDark={isDark} onToggle={onToggleTerms} />
 
       {/* Submit */}
       <button onClick={onSubmit} disabled={loading}
@@ -347,13 +391,10 @@ function FormBody({
           border: "none", cursor: loading ? "not-allowed" : "pointer",
         }}>
         {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />Creating...
-          </span>
+          <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Creating...</span>
         ) : (
           <span className="flex items-center justify-center gap-2">
-            {isEmployer ? "Create Employer Account" : "Create Account"}
-            <ArrowRight size={compact ? 16 : 18} />
+            {isEmployer ? "Create Employer Account" : "Create Account"}<ArrowRight size={compact ? 16 : 18} />
           </span>
         )}
       </button>
@@ -383,9 +424,7 @@ function FormBody({
 
       <p className="text-center text-sm mt-4" style={{ color: colors.muted }}>
         Already have an account?{" "}
-        <Link href={isEmployer ? "/login?role=employer" : "/login"} className="font-semibold" style={{ color: colors.primary }}>
-          Sign in
-        </Link>
+        <Link href={isEmployer ? "/login?role=employer" : "/login"} className="font-semibold" style={{ color: colors.primary }}>Sign in</Link>
       </p>
     </div>
   );
@@ -395,14 +434,13 @@ function FormBody({
 export default function SignUpPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
-  const { signUp, loginWithGoogle, loading, error, clearError, user } = useAuth();
+  const { signUp, loginWithGoogle, loading, clearError } = useAuth();
   const { isDark, toggleTheme, surface, accentColor } = useTheme();
 
   const [mounted,               setMounted]               = useState(false);
   const [role,                  setRole]                  = useState<UserRole>("user");
   const [formData,              setFormData]              = useState({
-    fullName: "", email: "", password: "", confirmPassword: "",
-    companyName: "", industry: "",
+    fullName: "", email: "", password: "", confirmPassword: "", companyName: "", industry: "",
   });
   const [validationError,       setValidationError]       = useState<string | null>(null);
   const [showPassword,          setShowPassword]          = useState(false);
@@ -419,7 +457,18 @@ export default function SignUpPage() {
   const [hasPendingReco,        setHasPendingReco]        = useState(false);
   const [agreedToTerms,         setAgreedToTerms]         = useState(false);
   const [termsError,            setTermsError]            = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  // Loading gate — shown while we resolve role and redirect
+  const [redirecting, setRedirecting] = useState(false);
+
+  // The role that was used at signup — used for the loading gate + success screen
+  const [signedUpRole, setSignedUpRole] = useState<UserRole>("user");
+
   const savedAssessmentIdRef = useRef<string | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   useEffect(() => {
     setMounted(true);
@@ -428,10 +477,6 @@ export default function SignUpPage() {
     setHasPendingAssessment(!!getPendingAssessment());
     setHasPendingReco(!!getPendingRecommendations());
   }, [searchParams]);
-
-  useEffect(() => {
-    if (user && !signupSuccess) router.push(getDashboardPath("user"));
-  }, [user, router, signupSuccess]);
 
   useEffect(() => {
     let strength = 0;
@@ -443,24 +488,18 @@ export default function SignUpPage() {
     setPasswordStrength(strength);
   }, [formData.password]);
 
+  // Claim pending assessment for new regular users
   useEffect(() => {
-    if (signupSuccess && user && !newUserId) {
-      const uid = (user as any).$id || (user as any).uid || (user as any).id;
-      if (uid) setNewUserId(uid);
-    }
-  }, [user, signupSuccess, newUserId]);
-
-  useEffect(() => {
-    if (!newUserId || !hasPendingAssessment || role === "employer") return;
+    if (!newUserId || !hasPendingAssessment || signedUpRole === "employer") return;
     setSavingAssessment(true);
     claimPendingAssessment(newUserId)
       .then((saved) => { if (saved) { savedAssessmentIdRef.current = saved.$id; setAssessmentSaved(true); } })
       .catch((err) => console.error("Failed to claim assessment:", err))
       .finally(() => setSavingAssessment(false));
-  }, [newUserId, hasPendingAssessment, role]);
+  }, [newUserId, hasPendingAssessment, signedUpRole]);
 
   useEffect(() => {
-    if (!assessmentSaved || !newUserId || !hasPendingReco || role === "employer") return;
+    if (!assessmentSaved || !newUserId || !hasPendingReco || signedUpRole === "employer") return;
     const assessmentId = savedAssessmentIdRef.current;
     if (!assessmentId) return;
     setSavingRecommendations(true);
@@ -468,22 +507,21 @@ export default function SignUpPage() {
       .then((saved) => { if (saved) setRecommendationsSaved(true); })
       .catch((err) => console.error("Failed to claim recommendations:", err))
       .finally(() => setSavingRecommendations(false));
-  }, [assessmentSaved, newUserId, hasPendingReco, role]);
+  }, [assessmentSaved, newUserId, hasPendingReco, signedUpRole]);
 
   useEffect(() => {
-    if (!newUserId || hasPendingAssessment || !hasPendingReco || role === "employer") return;
+    if (!newUserId || hasPendingAssessment || !hasPendingReco || signedUpRole === "employer") return;
     setSavingRecommendations(true);
     claimPendingRecommendations(newUserId, "unlinked")
       .then((saved) => { if (saved) setRecommendationsSaved(true); })
       .catch(console.error)
       .finally(() => setSavingRecommendations(false));
-  }, [newUserId, hasPendingAssessment, hasPendingReco, role]);
+  }, [newUserId, hasPendingAssessment, hasPendingReco, signedUpRole]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     clearError();
     setValidationError(null);
     setTermsError(false);
-    // Use functional update to avoid stale closure
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -499,21 +537,35 @@ export default function SignUpPage() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    const result = await signUp({
-      fullName: formData.fullName.trim(),
-      email:    formData.email.trim(),
-      password: formData.password,
-      role,
-    });
-    if (result !== undefined) {
-      const uid = (result as any).$id || (result as any).userId || (result as any).id;
+    try {
+      const result = await signUp({
+        fullName: formData.fullName.trim(),
+        email:    formData.email.trim(),
+        password: formData.password,
+        role,
+      });
+
+      // signUp succeeded — capture userId and role
+      const uid = (result as any)?.$id || (result as any)?.userId || (result as any)?.id;
       if (uid) setNewUserId(uid);
+
+      setSignedUpRole(role); // lock in the role used at signup
+      setSignupSuccess(true);
+
+    } catch (err: any) {
+      // signUp threw (e.g. duplicate email) — show error toast, do NOT redirect
+      const msg = err?.message || "Something went wrong. Please try again.";
+      setToast({ message: msg, type: "error" });
     }
-    if (!error) setSignupSuccess(true);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !loading) handleSubmit();
+  };
+
+  const handleGoToDashboard = () => {
+    setRedirecting(true);
+    router.push(getDashboardPath(signedUpRole));
   };
 
   const getStrengthColor = () => {
@@ -530,7 +582,7 @@ export default function SignUpPage() {
   };
 
   const isSaving   = savingAssessment || savingRecommendations;
-  const isEmployer = role === "employer";
+  const isEmployer = role === "employer"; // current toggle value (for form display)
 
   if (!mounted) return null;
 
@@ -544,31 +596,17 @@ export default function SignUpPage() {
     ? ["Set up your organisation's health programme", "Access aggregated workforce health insights", "No per-employee cost to get started", "Employee data stays private — always"]
     : ["Your health insights are always safe and ready for you", "Free health assessments", "No credit card required", "Your data stays private and secure"];
 
-  // All props for FormBody — stable object built once per render
   const formBodyProps: Omit<FormBodyProps, "compact"> = {
-    role,
-    onRoleChange: setRole,
-    formData,
-    onChange:     handleChange,
-    onKeyPress:   handleKeyPress,
-    onSubmit:     handleSubmit,
-    onGoogleLogin: loginWithGoogle,
-    loading,
-    showPassword,
-    onTogglePassword:       () => setShowPassword(v => !v),
-    showConfirmPassword,
-    onToggleConfirmPassword: () => setShowConfirmPassword(v => !v),
-    focusedField,
-    onFocus: setFocusedField,
-    onBlur:  () => setFocusedField(null),
-    passwordStrength,
-    strengthColor: getStrengthColor(),
-    strengthText:  getStrengthText(),
-    agreedToTerms,
-    termsError,
+    role, onRoleChange: setRole, formData,
+    onChange: handleChange, onKeyPress: handleKeyPress,
+    onSubmit: handleSubmit, onGoogleLogin: loginWithGoogle,
+    loading, showPassword, onTogglePassword: () => setShowPassword(v => !v),
+    showConfirmPassword, onToggleConfirmPassword: () => setShowConfirmPassword(v => !v),
+    focusedField, onFocus: setFocusedField, onBlur: () => setFocusedField(null),
+    passwordStrength, strengthColor: getStrengthColor(), strengthText: getStrengthText(),
+    agreedToTerms, termsError,
     onToggleTerms: () => { setAgreedToTerms(v => !v); setTermsError(false); setValidationError(null); },
-    colors,
-    isDark,
+    colors, isDark,
   };
 
   const SuccessContent = (
@@ -576,22 +614,29 @@ export default function SignUpPage() {
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
         className="flex items-center justify-center mx-auto mb-5 w-16 h-16"
         style={{ background: `color-mix(in srgb, ${colors.primary} 15%, transparent)`, borderRadius: 2 }}>
-        {isEmployer ? <Briefcase className="w-8 h-8" style={{ color: colors.primary }} /> : <CheckCircle className="w-8 h-8" style={{ color: colors.primary }} />}
+        {signedUpRole === "employer"
+          ? <Briefcase className="w-8 h-8" style={{ color: colors.primary }} />
+          : <CheckCircle className="w-8 h-8" style={{ color: colors.primary }} />}
       </motion.div>
 
       <motion.h2 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
         className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: colors.text }}>
-        {isEmployer ? `Welcome, ${formData.companyName || formData.fullName.split(" ")[0]}!` : `Welcome, ${formData.fullName.split(" ")[0] || "there"}!`}
+        {signedUpRole === "employer"
+          ? `Welcome, ${formData.companyName || formData.fullName.split(" ")[0]}!`
+          : `Welcome, ${formData.fullName.split(" ")[0] || "there"}!`}
       </motion.h2>
 
       <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
         className="text-sm mb-6" style={{ color: colors.muted }}>
-        {isEmployer ? "Your employer account is ready. Set up your organisation's health programme." : "Your account has been created successfully."}
+        {signedUpRole === "employer"
+          ? "Your employer account is ready. Set up your organisation's health programme."
+          : "Your account has been created successfully."}
       </motion.p>
 
-      {!isEmployer && hasPendingAssessment && (
+      {signedUpRole !== "employer" && hasPendingAssessment && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-          className="mb-4 p-4 text-left" style={{ background: isDark ? `${colors.primary}14` : `${colors.primary}0F`, border: `1px solid ${colors.primary}30`, borderRadius: 2 }}>
+          className="mb-4 p-4 text-left"
+          style={{ background: isDark ? `${colors.primary}14` : `${colors.primary}0F`, border: `1px solid ${colors.primary}30`, borderRadius: 2 }}>
           <div className="flex items-start gap-3">
             <div className="shrink-0 mt-0.5">
               {savingAssessment ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
@@ -610,9 +655,10 @@ export default function SignUpPage() {
         </motion.div>
       )}
 
-      {!isEmployer && hasPendingReco && (
+      {signedUpRole !== "employer" && hasPendingReco && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.44 }}
-          className="mb-6 p-4 text-left" style={{ background: isDark ? `${colors.primary}14` : `${colors.primary}0F`, border: `1px solid ${colors.primary}30`, borderRadius: 2 }}>
+          className="mb-6 p-4 text-left"
+          style={{ background: isDark ? `${colors.primary}14` : `${colors.primary}0F`, border: `1px solid ${colors.primary}30`, borderRadius: 2 }}>
           <div className="flex items-start gap-3">
             <div className="shrink-0 mt-0.5">
               {savingRecommendations ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: colors.primary }} />
@@ -632,18 +678,23 @@ export default function SignUpPage() {
       )}
 
       <motion.button initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48 }}
-        onClick={() => router.push(getDashboardPath(role))} disabled={isSaving}
+        onClick={handleGoToDashboard} disabled={isSaving}
         className="w-full py-3 px-4 text-sm font-semibold transition-all group"
-        style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`, color: "white", opacity: isSaving ? 0.7 : 1, borderRadius: 2, border: "none", cursor: isSaving ? "not-allowed" : "pointer" }}>
+        style={{
+          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+          color: "white", opacity: isSaving ? 0.7 : 1, borderRadius: 2,
+          border: "none", cursor: isSaving ? "not-allowed" : "pointer",
+        }}>
         <span className="flex items-center justify-center gap-2">
-          {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Please wait...</>
-            : <>{isEmployer ? "Go to Employer Dashboard" : "Go to Dashboard"}<ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>}
+          {isSaving
+            ? <><Loader2 className="w-4 h-4 animate-spin" />Please wait...</>
+            : <>{signedUpRole === "employer" ? "Go to Employer Dashboard" : "Go to Dashboard"}<ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" /></>}
         </span>
       </motion.button>
 
       <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
         className="text-xs mt-4" style={{ color: colors.muted }}>
-        {isEmployer ? "Your organisation's data is encrypted and protected." : "Your health data is encrypted and private."}
+        {signedUpRole === "employer" ? "Your organisation's data is encrypted and protected." : "Your health data is encrypted and private."}
       </motion.p>
     </motion.div>
   );
@@ -651,6 +702,19 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen relative" style={{ background: colors.bg }}>
       <OAuthCallbackHandler />
+
+      {/* ── Toast ── */}
+      <AnimatePresence>
+        {toast && <Toast key="toast" message={toast.message} type={toast.type} onDone={dismissToast} />}
+      </AnimatePresence>
+
+      {/* ── Loading gate ── */}
+      <AnimatePresence>
+        {redirecting && (
+          <LoadingGate key="gate" accentColor={accentColor} isDark={isDark}
+            surfaceBg={surface.bg} isEmployer={signedUpRole === "employer"} />
+        )}
+      </AnimatePresence>
 
       <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={toggleTheme} whileTap={{ scale: 0.9 }}
         className="fixed top-6 right-6 z-50 px-3 py-2 text-xs font-semibold flex items-center gap-2"
@@ -667,7 +731,6 @@ export default function SignUpPage() {
           <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80" alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.5)" }} />
         </div>
-
         <div className="relative z-10 px-5 py-6">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 flex items-center justify-center shadow-sm" style={{ borderRadius: 2 }}>
@@ -685,15 +748,12 @@ export default function SignUpPage() {
             </AnimatePresence>
           </div>
         </div>
-
         <div className="flex-1 relative z-10 flex flex-col justify-end pb-8">
           <div className="mx-5">
             <div className="p-6" style={{ background: colors.surface, borderRadius: 2 }}>
               <AnimatePresence mode="wait">
                 {signupSuccess ? (
-                  <motion.div key="mob-success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    {SuccessContent}
-                  </motion.div>
+                  <motion.div key="mob-success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>{SuccessContent}</motion.div>
                 ) : (
                   <motion.div key="mob-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                     <AnimatePresence mode="wait">
@@ -706,15 +766,13 @@ export default function SignUpPage() {
                         </p>
                       </motion.div>
                     </AnimatePresence>
-
-                    {(validationError || error) && (
+                    {validationError && (
                       <div className="mb-4 p-3 flex items-start gap-2"
                         style={{ background: isDark ? "rgba(239,68,68,0.1)" : "#FEF2F2", border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#FEE2E2"}`, borderRadius: 2 }}>
                         <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
-                        <p className="text-xs" style={{ color: "#EF4444" }}>{validationError || error}</p>
+                        <p className="text-xs" style={{ color: "#EF4444" }}>{validationError}</p>
                       </div>
                     )}
-
                     <FormBody {...formBodyProps} compact={true} />
                   </motion.div>
                 )}
@@ -729,8 +787,6 @@ export default function SignUpPage() {
         <div className="min-h-screen flex items-center justify-center p-6">
           <div className="w-full max-w-7xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
-
-              {/* LEFT */}
               <div className="space-y-8">
                 <Link href="/" className="inline-flex items-center gap-3 group">
                   <div className="w-10 h-10 flex items-center justify-center shadow-sm" style={{ borderRadius: 2 }}>
@@ -738,7 +794,6 @@ export default function SignUpPage() {
                   </div>
                   <span className="text-2xl font-bold" style={{ color: colors.text }}>HMEX</span>
                 </Link>
-
                 <AnimatePresence mode="wait">
                   <motion.div key={`desk-left-${role}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-3">
                     <h1 className="text-5xl font-black leading-tight" style={{ letterSpacing: "-0.04em", color: colors.text }}>
@@ -753,9 +808,7 @@ export default function SignUpPage() {
                     </p>
                   </motion.div>
                 </AnimatePresence>
-
                 <div style={{ height: 360, width: "100%" }}><HealthLottie /></div>
-
                 <AnimatePresence mode="wait">
                   <motion.div key={`desk-benefits-${role}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-2.5">
                     {benefits.map((benefit) => (
@@ -792,18 +845,15 @@ export default function SignUpPage() {
                             </p>
                           </motion.div>
                         </AnimatePresence>
-
-                        {(validationError || error) && (
+                        {validationError && (
                           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                             className="mb-6 p-3 flex items-start gap-2"
                             style={{ background: isDark ? "rgba(239,68,68,0.1)" : "#FEF2F2", border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#FEE2E2"}`, borderRadius: 2 }}>
                             <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
-                            <p className="text-sm" style={{ color: "#EF4444" }}>{validationError || error}</p>
+                            <p className="text-sm" style={{ color: "#EF4444" }}>{validationError}</p>
                           </motion.div>
                         )}
-
                         <FormBody {...formBodyProps} compact={false} />
-
                         <div className="text-center mt-4">
                           <Link href="/" className="text-xs hover:underline underline-offset-4" style={{ color: colors.subtle }}>← Back to home</Link>
                         </div>
@@ -812,7 +862,6 @@ export default function SignUpPage() {
                   )}
                 </AnimatePresence>
               </div>
-
             </div>
           </div>
         </div>

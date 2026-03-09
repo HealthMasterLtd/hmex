@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/chart.js": "^2.9.41",
     "appwrite": "^22.4.1",
+    "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
     "framer-motion": "^12.23.26",
     "lottie-web": "^5.13.0",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/nodemailer": "^7.0.4",
     "@types/react": "^19",
