@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/static-components */
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -32,10 +31,7 @@ function HealthLottie() {
     import("lottie-web").then((lottie) => {
       if (cancelled || !containerRef.current) return;
       anim = lottie.default.loadAnimation({
-        container: containerRef.current,
-        renderer: "svg",
-        loop: true,
-        autoplay: true,
+        container: containerRef.current, renderer: "svg", loop: true, autoplay: true,
         path: "/animations/health-animation.json",
       });
       anim.addEventListener("DOMLoaded", () => { if (!cancelled) setLoaded(true); });
@@ -71,78 +67,251 @@ function GoogleIcon({ size = 16 }: { size?: number }) {
 
 // ─── Role Toggle ──────────────────────────────────────────────────────────────
 interface RoleToggleProps {
-  role:     UserRole;
+  role: UserRole;
   onChange: (role: UserRole) => void;
-  accent:   string;
-  surface:  any;
-  isDark:   boolean;
+  accent: string;
+  surfaceBorder: string;
+  surfaceMuted: string;
+  isDark: boolean;
 }
 
-function RoleToggle({ role, onChange, accent, surface, isDark }: RoleToggleProps) {
+function RoleToggle({ role, onChange, accent, surfaceBorder, surfaceMuted, isDark }: RoleToggleProps) {
   const isEmployer = role === "employer";
-
   return (
     <div className="mb-6">
       <div
-        className="relative flex items-center p-1 gap-0"
-        style={{
-          background: isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.05)",
-          border:     `1px solid ${surface.border}`,
-          // No border radius — sharp corners as requested
-        }}
+        className="relative flex items-center p-1"
+        style={{ background: isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.05)", border: `1px solid ${surfaceBorder}` }}
       >
-        {/* Sliding indicator */}
         <motion.div
           layout
           transition={{ type: "spring", stiffness: 400, damping: 35 }}
           style={{
-            position:   "absolute",
-            top:        4,
-            bottom:     4,
-            left:       isEmployer ? "calc(50% + 4px)" : 4,
-            width:      "calc(50% - 8px)",
+            position: "absolute", top: 4, bottom: 4,
+            left: isEmployer ? "calc(50% + 4px)" : 4,
+            width: "calc(50% - 8px)",
             background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-            boxShadow:  `0 1px 8px ${accent}44`,
+            boxShadow: `0 1px 8px ${accent}44`,
           }}
         />
-
-        {/* User tab */}
         <button
           onClick={() => onChange("user")}
           className="relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold transition-colors duration-200"
-          style={{ color: !isEmployer ? "#fff" : surface.muted }}
+          style={{ color: !isEmployer ? "#fff" : surfaceMuted }}
         >
-          <User size={14} />
-          <span>Member</span>
+          <User size={14} /><span>Member</span>
         </button>
-
-        {/* Employer tab */}
         <button
           onClick={() => onChange("employer")}
           className="relative z-10 flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold transition-colors duration-200"
-          style={{ color: isEmployer ? "#fff" : surface.muted }}
+          style={{ color: isEmployer ? "#fff" : surfaceMuted }}
         >
-          <Briefcase size={14} />
-          <span>Employer</span>
+          <Briefcase size={14} /><span>Employer</span>
         </button>
       </div>
-
-      {/* Contextual hint */}
       <AnimatePresence mode="wait">
-        <motion.p
-          key={role}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 4 }}
-          transition={{ duration: 0.18 }}
-          className="text-xs mt-2 text-center"
-          style={{ color: surface.muted }}
-        >
+        <motion.p key={role} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.18 }} className="text-xs mt-2 text-center" style={{ color: surfaceMuted }}>
           {isEmployer
             ? "Sign in to your employer portal & manage your workforce health"
             : "Sign in to your personal health dashboard"}
         </motion.p>
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Error Banner ─────────────────────────────────────────────────────────────
+interface ErrorBannerProps {
+  message: string | null;
+  isDark: boolean;
+}
+
+function ErrorBanner({ message, isDark }: ErrorBannerProps) {
+  return (
+    <AnimatePresence>
+      {message && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mb-4 p-3 flex items-start gap-2"
+          style={{
+            borderRadius: 0,
+            background: isDark ? "rgba(239,68,68,0.10)" : "#FEF2F2",
+            border: `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#FEE2E2"}`,
+          }}
+        >
+          <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
+          <p className="text-xs" style={{ color: "#EF4444" }}>{message}</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Form Fields ──────────────────────────────────────────────────────────────
+// DEFINED AT MODULE LEVEL — the fix. If this lives inside LoginPage, React
+// creates a brand-new component type on every render and unmounts all inputs,
+// which is what was killing the cursor position.
+interface FormFieldsProps {
+  compact: boolean;
+  role: UserRole;
+  onRoleChange: (r: UserRole) => void;
+  formData: { email: string; password: string };
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyPress: (e: React.KeyboardEvent) => void;
+  onSubmit: () => void;
+  onGoogleLogin: () => void;
+  loading: boolean;
+  showPassword: boolean;
+  onTogglePassword: () => void;
+  focusedField: string | null;
+  onFocus: (f: string) => void;
+  onBlur: () => void;
+  accentColor: string;
+  accentSecondary: string;
+  surfaceBorder: string;
+  surfaceText: string;
+  surfaceMuted: string;
+  surfaceSurface: string;
+  surfaceBg: string;
+  surfaceSubtle: string;
+  isDark: boolean;
+}
+
+function FormFields({
+  compact, role, onRoleChange, formData, onChange, onKeyPress, onSubmit, onGoogleLogin,
+  loading, showPassword, onTogglePassword, focusedField, onFocus, onBlur,
+  accentColor, accentSecondary, surfaceBorder, surfaceText, surfaceMuted,
+  surfaceSurface, surfaceBg, isDark,
+}: FormFieldsProps) {
+  const isEmployer = role === "employer";
+  const iconSize   = compact ? 16 : 18;
+  const px         = compact ? "pl-10 pr-3 py-2.5" : "pl-11 pr-4 py-3";
+  const pxIcon     = compact ? "pl-10 pr-10 py-2.5" : "pl-11 pr-11 py-3";
+
+  const inputStyle = (field: string): React.CSSProperties => ({
+    width: "100%",
+    borderRadius: 0,
+    border: `1px solid ${focusedField === field ? accentColor : surfaceBorder}`,
+    background: isDark ? "rgba(0,0,0,0.2)" : surfaceBg,
+    color: surfaceText,
+    outline: "none",
+    transition: "border-color 0.15s",
+  });
+
+  const ctaBtn: React.CSSProperties = {
+    borderRadius: 0, border: "none",
+    background: `linear-gradient(135deg, ${accentColor}, ${accentSecondary})`,
+    color: "#fff", cursor: "pointer", transition: "opacity 0.15s",
+  };
+
+  const secondaryBtn: React.CSSProperties = {
+    borderRadius: 0, background: surfaceSurface,
+    border: `1px solid ${surfaceBorder}`, color: surfaceText, cursor: "pointer",
+  };
+
+  return (
+    <div className="space-y-4">
+      <RoleToggle
+        role={role} onChange={onRoleChange} accent={accentColor}
+        surfaceBorder={surfaceBorder} surfaceMuted={surfaceMuted} isDark={isDark}
+      />
+
+      {/* Email */}
+      <div>
+        <label className="block text-xs font-semibold mb-2" style={{ color: surfaceText }}>
+          Email Address
+        </label>
+        <div className="relative">
+          <Mail size={iconSize} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: surfaceMuted }} />
+          <input
+            type="email" name="email" value={formData.email}
+            onChange={onChange} onKeyPress={onKeyPress}
+            onFocus={() => onFocus("email")} onBlur={onBlur}
+            placeholder={isEmployer ? "you@company.com" : "you@example.com"}
+            disabled={loading}
+            className={`w-full ${px} text-sm`}
+            style={inputStyle("email")}
+          />
+        </div>
+      </div>
+
+      {/* Password */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-xs font-semibold" style={{ color: surfaceText }}>Password</label>
+          <Link href="/forgot-password" className="text-xs font-medium" style={{ color: accentColor }}>
+            Forgot password?
+          </Link>
+        </div>
+        <div className="relative">
+          <Lock size={iconSize} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: surfaceMuted }} />
+          <input
+            type={showPassword ? "text" : "password"} name="password" value={formData.password}
+            onChange={onChange} onKeyPress={onKeyPress}
+            onFocus={() => onFocus("password")} onBlur={onBlur}
+            placeholder="••••••••" disabled={loading}
+            className={`w-full ${pxIcon} text-sm`}
+            style={inputStyle("password")}
+          />
+          <button type="button" onClick={onTogglePassword}
+            className="absolute right-3 top-1/2 -translate-y-1/2"
+            style={{ color: surfaceMuted, background: "none", border: "none", cursor: "pointer" }}>
+            {showPassword ? <EyeOff size={iconSize} /> : <Eye size={iconSize} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Submit */}
+      <button onClick={onSubmit} disabled={loading}
+        className="w-full py-3 px-4 text-sm font-semibold mt-2 group"
+        style={{ ...ctaBtn, opacity: loading ? 0.7 : 1 }}>
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Signing in...
+          </span>
+        ) : (
+          <span className="flex items-center justify-center gap-2">
+            {isEmployer ? "Sign In to Portal" : "Sign In"}
+            <ArrowRight size={iconSize} className="group-hover:translate-x-1 transition-transform" />
+          </span>
+        )}
+      </button>
+
+      {/* Divider */}
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t" style={{ borderColor: surfaceBorder }} />
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="px-2" style={{ background: surfaceSurface, color: surfaceMuted }}>
+            or continue with
+          </span>
+        </div>
+      </div>
+
+      {/* Google */}
+      <button onClick={onGoogleLogin} disabled={loading}
+        className="w-full py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2"
+        style={secondaryBtn}>
+        <GoogleIcon size={compact ? 16 : 20} />
+        Continue with Google
+      </button>
+
+      <p className="text-center text-sm mt-4" style={{ color: surfaceMuted }}>
+        Don&apos;t have an account?{" "}
+        <Link href={isEmployer ? "/register?role=employer" : "/register"}
+          className="font-semibold" style={{ color: accentColor }}>
+          Sign up
+        </Link>
+      </p>
+
+      <p className="text-center text-xs mt-1" style={{ color: surfaceMuted }}>
+        By signing in, you agree to our{" "}
+        <Link href="/terms" style={{ color: accentColor, fontWeight: 600 }}>Terms of Service</Link>
+      </p>
     </div>
   );
 }
@@ -162,7 +331,6 @@ export default function LoginPage() {
 
   useEffect(() => setMounted(true), []);
 
-  // Redirect logged-in users to the correct dashboard based on their role
   useEffect(() => {
     if (!user) return;
     const redirect = async () => {
@@ -175,7 +343,7 @@ export default function LoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     clearError();
     setValidationError(null);
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const validate = () => {
@@ -190,7 +358,6 @@ export default function LoginPage() {
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    // login resolves role from DB — the useEffect above handles redirect
     await login(formData.email.trim(), formData.password);
   };
 
@@ -200,10 +367,9 @@ export default function LoginPage() {
 
   if (!mounted) return null;
 
-  // ── Contextual copy based on role ──
-  const isEmployer   = role === "employer";
-  const headingText  = isEmployer ? "Employer Portal" : "Welcome back";
-  const subText      = isEmployer
+  const isEmployer  = role === "employer";
+  const headingText = isEmployer ? "Employer Portal" : "Welcome back";
+  const subText     = isEmployer
     ? "Manage your team's health programmes and insights"
     : "Continue your health journey";
 
@@ -221,167 +387,33 @@ export default function LoginPage() {
         "Continue your prevention journey with personalized guidance",
       ];
 
-  const inputStyle = (field: string): React.CSSProperties => ({
-    width:       "100%",
-    borderRadius: 0,
-    border:      `1px solid ${focusedField === field ? accentColor : surface.border}`,
-    background:  isDark ? "rgba(0,0,0,0.2)" : surface.bg,
-    color:       surface.text,
-    outline:     "none",
-    transition:  "border-color 0.15s",
-  });
-
-  const ctaBtn: React.CSSProperties = {
-    borderRadius: 0,
-    border:      "none",
-    background:  `linear-gradient(135deg, ${accentColor}, ${accentSecondary})`,
-    color:       "#fff",
-    cursor:      "pointer",
-    transition:  "opacity 0.15s",
+  // Shared props object passed to both mobile and desktop FormFields instances
+  const formFieldsProps: Omit<FormFieldsProps, "compact"> = {
+    role,
+    onRoleChange:     setRole,
+    formData,
+    onChange:         handleChange,
+    onKeyPress:       handleKeyPress,
+    onSubmit:         handleSubmit,
+    onGoogleLogin:    loginWithGoogle,
+    loading,
+    showPassword,
+    onTogglePassword: () => setShowPassword(v => !v),
+    focusedField,
+    onFocus:          setFocusedField,
+    onBlur:           () => setFocusedField(null),
+    accentColor,
+    accentSecondary:  accentSecondary ?? accentColor,
+    surfaceBorder:    surface.border,
+    surfaceText:      surface.text,
+    surfaceMuted:     surface.muted,
+    surfaceSurface:   surface.surface,
+    surfaceBg:        surface.bg,
+    surfaceSubtle:    surface.subtle,
+    isDark,
   };
 
-  const secondaryBtn: React.CSSProperties = {
-    borderRadius: 0,
-    background:  surface.surface,
-    border:      `1px solid ${surface.border}`,
-    color:       surface.text,
-    cursor:      "pointer",
-  };
-
-  const ErrorBanner = () => (
-    <AnimatePresence>
-      {(validationError || error) && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          className="mb-4 p-3 flex items-start gap-2"
-          style={{
-            borderRadius: 0,
-            background:   isDark ? "rgba(239,68,68,0.10)" : "#FEF2F2",
-            border:       `1px solid ${isDark ? "rgba(239,68,68,0.2)" : "#FEE2E2"}`,
-          }}
-        >
-          <AlertCircle size={16} color="#EF4444" className="flex-shrink-0 mt-0.5" />
-          <p className="text-xs" style={{ color: "#EF4444" }}>{validationError || error}</p>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
-  const FormFields = ({ compact = false }) => (
-    <div className="space-y-4">
-      <RoleToggle
-        role={role}
-        onChange={setRole}
-        accent={accentColor}
-        surface={surface}
-        isDark={isDark}
-      />
-
-      {/* Email */}
-      <div>
-        <label className="block text-xs font-semibold mb-2" style={{ color: surface.text }}>
-          Email Address
-        </label>
-        <div className="relative">
-          <Mail size={compact ? 16 : 18} className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: surface.muted }} />
-          <input type="email" name="email" value={formData.email}
-            onChange={handleChange} onKeyPress={handleKeyPress}
-            onFocus={() => setFocusedField("email")} onBlur={() => setFocusedField(null)}
-            placeholder={isEmployer ? "you@company.com" : "you@example.com"}
-            disabled={loading}
-            className={`w-full ${compact ? "pl-10 pr-3 py-2.5" : "pl-11 pr-4 py-3"} text-sm`}
-            style={inputStyle("email")}
-          />
-        </div>
-      </div>
-
-      {/* Password */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-xs font-semibold" style={{ color: surface.text }}>
-            Password
-          </label>
-          <Link href="/forgot-password" className="text-xs font-medium" style={{ color: accentColor }}>
-            Forgot password?
-          </Link>
-        </div>
-        <div className="relative">
-          <Lock size={compact ? 16 : 18} className="absolute left-3 top-1/2 -translate-y-1/2"
-            style={{ color: surface.muted }} />
-          <input
-            type={showPassword ? "text" : "password"} name="password" value={formData.password}
-            onChange={handleChange} onKeyPress={handleKeyPress}
-            onFocus={() => setFocusedField("password")} onBlur={() => setFocusedField(null)}
-            placeholder="••••••••" disabled={loading}
-            className={`w-full ${compact ? "pl-10 pr-10 py-2.5" : "pl-11 pr-11 py-3"} text-sm`}
-            style={inputStyle("password")}
-          />
-          <button type="button" onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2"
-            style={{ color: surface.muted, background: "none", border: "none", cursor: "pointer" }}>
-            {showPassword ? <EyeOff size={compact ? 16 : 18} /> : <Eye size={compact ? 16 : 18} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Submit */}
-      <button onClick={handleSubmit} disabled={loading}
-        className="w-full py-3 px-4 text-sm font-semibold mt-2 group"
-        style={{ ...ctaBtn, opacity: loading ? 0.7 : 1 }}>
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Signing in...
-          </span>
-        ) : (
-          <span className="flex items-center justify-center gap-2">
-            {isEmployer ? "Sign In to Portal" : "Sign In"}
-            <ArrowRight size={compact ? 16 : 18} className="group-hover:translate-x-1 transition-transform" />
-          </span>
-        )}
-      </button>
-
-      {/* Divider */}
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t" style={{ borderColor: surface.border }} />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2" style={{ background: surface.surface, color: surface.muted }}>
-            or continue with
-          </span>
-        </div>
-      </div>
-
-      {/* Google */}
-      <button onClick={loginWithGoogle} disabled={loading}
-        className="w-full py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-2"
-        style={secondaryBtn}>
-        <GoogleIcon size={compact ? 16 : 20} />
-        Continue with Google
-      </button>
-
-      <p className="text-center text-sm mt-4" style={{ color: surface.muted }}>
-        Don&apos;t have an account?{" "}
-        <Link
-          href={isEmployer ? `/register?role=employer` : "/register"}
-          className="font-semibold"
-          style={{ color: accentColor }}
-        >
-          Sign up
-        </Link>
-      </p>
-
-      <p className="text-center text-xs mt-1" style={{ color: surface.muted }}>
-        By signing in, you agree to our{" "}
-        <Link href="/terms" style={{ color: accentColor, fontWeight: 600 }}>
-          Terms of Service
-        </Link>
-      </p>
-    </div>
-  );
+  const errorMessage = validationError || error || null;
 
   return (
     <div className="min-h-screen relative" style={{ background: surface.bg }}>
@@ -402,10 +434,8 @@ export default function LoginPage() {
       {/* ── MOBILE ── */}
       <div className="lg:hidden min-h-screen flex flex-col relative">
         <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80"
-            alt="Health background" className="w-full h-full object-cover"
-          />
+          <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80"
+            alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.5)" }} />
         </div>
 
@@ -420,9 +450,12 @@ export default function LoginPage() {
             <p className="text-xs font-medium text-white/80 mb-1">
               {isEmployer ? "Employer Portal" : "For Your Health"}
             </p>
-            <h1 className="text-2xl font-bold text-white">
-              {isEmployer ? "Workforce Health Management" : "Smart Health Monitoring"}
-            </h1>
+            <AnimatePresence mode="wait">
+              <motion.h1 key={`mob-hero-${role}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+                className="text-2xl font-bold text-white">
+                {isEmployer ? "Workforce Health Management" : "Smart Health Monitoring"}
+              </motion.h1>
+            </AnimatePresence>
           </div>
         </div>
 
@@ -430,7 +463,7 @@ export default function LoginPage() {
           <div className="mx-5">
             <div className="p-6" style={{ background: surface.surface, borderRadius: 0 }}>
               <AnimatePresence mode="wait">
-                <motion.div key={role} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
+                <motion.div key={`mob-head-${role}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
                   <h2 className="text-2xl font-black mb-1" style={{ letterSpacing: "-0.04em", color: surface.text }}>
                     {headingText}
                   </h2>
@@ -438,8 +471,8 @@ export default function LoginPage() {
                 </motion.div>
               </AnimatePresence>
 
-              <ErrorBanner />
-              <FormFields compact />
+              <ErrorBanner message={errorMessage} isDark={isDark} />
+              <FormFields {...formFieldsProps} compact={true} />
             </div>
           </div>
         </div>
@@ -461,13 +494,11 @@ export default function LoginPage() {
                 </Link>
 
                 <AnimatePresence mode="wait">
-                  <motion.div key={role} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-3">
+                  <motion.div key={`desk-left-${role}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }} className="space-y-3">
                     <h1 className="text-5xl font-black leading-tight" style={{ letterSpacing: "-0.04em", color: surface.text }}>
-                      {isEmployer ? (
-                        <>Welcome back to<br /><span style={{ color: accentColor }}>your employer hub.</span></>
-                      ) : (
-                        <>Welcome back to<br /><span style={{ color: accentColor }}>your health journey.</span></>
-                      )}
+                      {isEmployer
+                        ? <>Welcome back to<br /><span style={{ color: accentColor }}>your employer hub.</span></>
+                        : <>Welcome back to<br /><span style={{ color: accentColor }}>your health journey.</span></>}
                     </h1>
                     <p className="text-base leading-relaxed max-w-md" style={{ color: surface.muted }}>
                       {isEmployer
@@ -482,7 +513,7 @@ export default function LoginPage() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                  <motion.div key={`benefits-${role}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-2.5">
+                  <motion.div key={`desk-benefits-${role}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-col gap-2.5">
                     {benefits.map((b) => (
                       <div key={b} className="flex items-center gap-3">
                         <div className="w-5 h-5 flex items-center justify-center flex-shrink-0"
@@ -500,7 +531,7 @@ export default function LoginPage() {
               <div className="w-full max-w-md mx-auto lg:mx-0">
                 <div className="p-8" style={{ background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 0 }}>
                   <AnimatePresence mode="wait">
-                    <motion.div key={`heading-${role}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="mb-6">
+                    <motion.div key={`desk-head-${role}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="mb-6">
                       <h2 className="text-2xl font-black" style={{ letterSpacing: "-0.04em", color: surface.text }}>
                         {headingText}
                       </h2>
@@ -508,8 +539,14 @@ export default function LoginPage() {
                     </motion.div>
                   </AnimatePresence>
 
-                  <ErrorBanner />
-                  <FormFields />
+                  <ErrorBanner message={errorMessage} isDark={isDark} />
+                  <FormFields {...formFieldsProps} compact={false} />
+
+                  <div className="text-center mt-4">
+                    <Link href="/" className="text-xs hover:underline underline-offset-4" style={{ color: surface.subtle }}>
+                      ← Back to home
+                    </Link>
+                  </div>
                 </div>
               </div>
 
