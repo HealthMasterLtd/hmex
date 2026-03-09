@@ -15,9 +15,11 @@ import {
   type Company,
   type EmployeeDashboardRow,
 } from "@/services/companyService";
+import BulkInviteModal from "@/components/dashboard/BulkInviteModal";
 import {
   UserPlus, X, Mail, Send, Shield, Loader2, AlertCircle,
   CheckCircle, Clock, Trash2, Search, RefreshCw, Users, Download,
+  Upload,
 } from "lucide-react";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -319,6 +321,7 @@ export default function EmployerEmployeesPage() {
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [showModal,      setShowModal]      = useState(false);
+  const [showBulkModal,  setShowBulkModal]  = useState(false);
   const [removingId,     setRemovingId]     = useState<string | null>(null);
   const [searchQuery,    setSearchQuery]    = useState("");
   const [toast,          setToast]          = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -406,6 +409,25 @@ export default function EmployerEmployeesPage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showBulkModal && company && user && (
+          <AnimatePresence>
+            <BulkInviteModal
+              company={company}
+              currentUserId={user.id}
+              accentColor={accentColor}
+              isDark={isDark}
+              surface={surface}
+              onClose={() => setShowBulkModal(false)}
+              onSuccess={(msg) => {
+                setToast({ message: msg, type: "success" });
+                setShowBulkModal(false);
+                if (company) loadMembers(company.$id);
+              }}
+              onError={(msg) => setToast({ message: msg, type: "error" })}
+            />
+          </AnimatePresence>
+        )}
+
         {showModal && (
           company && user ? (
             <InviteModal key="modal" company={company} currentUserId={user.id} accentColor={accentColor}
@@ -450,6 +472,10 @@ export default function EmployerEmployeesPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "transparent", border: `1px solid ${c.border}`, color: c.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", borderRadius: 2 }}>
             <Download size={13} /> Export
+          </button>
+          <button onClick={() => setShowBulkModal(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "transparent", border: `1px solid ${accentColor}`, color: accentColor, fontSize: 12, fontWeight: 700, cursor: "pointer", borderRadius: 2 }}>
+            <Upload size={13} /> Bulk Upload
           </button>
           <button onClick={() => setShowModal(true)}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 20px", background: `linear-gradient(135deg, ${accentColor}, #0FB6C8)`, border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", borderRadius: 2 }}>
