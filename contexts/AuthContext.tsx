@@ -1,4 +1,3 @@
-// contexts/AuthContext.tsx
 "use client";
 
 import {
@@ -17,7 +16,7 @@ export interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
-  signUp: (data: SignUpData) => Promise<void>;
+  signUp: (data: SignUpData) => Promise<AuthUser>;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => void;
   logout: () => Promise<void>;
@@ -43,42 +42,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  /**
+   * signUp — returns the new AuthUser so the register page can read the $id.
+   * Throws on failure so the page can catch and show a toast.
+   * Does NOT redirect here — the register page handles its own success screen + redirect.
+   */
   const signUp = useCallback(
-    async (data: SignUpData) => {
+    async (data: SignUpData): Promise<AuthUser> => {
       setLoading(true);
       setError(null);
       try {
         const newUser = await authService.signUp(data);
         setUser(newUser);
-        router.push("/dashboard");
+        return newUser;
       } catch (err) {
-        setError((err as Error).message);
+        const msg = (err as Error).message;
+        setError(msg);
+        throw err; // re-throw so register page can catch and show toast
       } finally {
         setLoading(false);
       }
     },
-    [router]
+    []
   );
 
+  /**
+   * login — sets user state, then throws on failure so the login page
+   * can catch and show a toast instead of relying on the context error state.
+   * Does NOT redirect here — the login page handles role-based redirect.
+   */
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<void> => {
       setLoading(true);
       setError(null);
       try {
         const loggedInUser = await authService.login(email, password);
         setUser(loggedInUser);
-        router.push("/dashboard");
+        // No router.push here — the login page watches `user` and redirects
+        // based on the resolved role from the users collection.
       } catch (err) {
-        setError((err as Error).message);
+        const msg = (err as Error).message;
+        setError(msg);
+        throw err; // re-throw so login page can catch and show toast
       } finally {
         setLoading(false);
       }
     },
-    [router]
+    []
   );
 
+  /**
+   * loginWithGoogle — kicks off OAuth flow.
+   * authService.loginWithGoogle() takes no arguments; it always redirects
+   * to /auth/callback where OAuthCallbackHandler resolves the correct dashboard.
+   */
   const loginWithGoogle = useCallback(() => {
-    authService.loginWithGoogle("/dashboard");
+    authService.loginWithGoogle();
   }, []);
 
   const logout = useCallback(async () => {

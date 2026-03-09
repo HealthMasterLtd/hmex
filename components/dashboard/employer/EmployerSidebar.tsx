@@ -357,13 +357,14 @@ export default function EmployerSidebar({
             height: 36,
             overflow: "hidden",
             flexShrink: 0,
-            background: accentColor,
+            borderRadius:"100%",
+            background: "#cccccc",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <Image src="/white logo.png" alt="HMEX" width={24} height={24} />
+          <Image src="/white logo.png" alt="HMEX" width={54} height={24} />
         </div>
         {!collapsed && (
           <div>
