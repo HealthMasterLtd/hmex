@@ -1,376 +1,532 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Bell, CheckCheck, Trash2, AlertTriangle,
-  Calendar, Users, FileText, Shield,
-  Settings, Clock, Filter,
+  Bell, CheckCheck, Trash2,
+  AlertTriangle, Users, Activity, Shield, Settings,
+  Clock, Filter, UserPlus, UserMinus, Sparkles,
+  TrendingUp, BarChart3, RefreshCw, Zap, Info,
+  ChevronDown, Building2,
 } from "lucide-react";
 import EmployerLayout from "@/components/dashboard/employer/EmployerLayout";
-import { Card } from "@/components/dashboard/Dashboardwidgets";
+import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggle from "@/components/Themetoggle";
+import { useAuth } from "@/hooks/useAuth";
+import { useEmployerNotifications } from "@/hooks/useEmployerNotifications";
+import {
+  clearReadEmployerNotifications,
+  getEmployerNotifColor,
+  type EmployerNotification,
+  type EmployerNotificationCategory,
+} from "@/services/employerNotificationsService";
+import { getCompanyByOwner } from "@/services/companyService";
+import { useEffect, useRef } from "react";
 
-const COLORS = {
-  navy: "#0f172a",
-  white: "#ffffff",
-  blue: "#2563eb",
-  teal: "#0d9488",
-  low: "#22c55e",
-  moderate: "#f97316",
-  high: "#ef4444",
-  border: "#e2e8f0",
-  muted: "#64748b",
-  subtle: "#94a3b8",
-  hover: "#f8fafc",
-};
+// ─── ICON MAP ─────────────────────────────────────────────────────────────────
+function CategoryIcon({
+  category,
+  type,
+  color,
+  size = 16,
+}: {
+  category: EmployerNotificationCategory;
+  type: string;
+  color: string;
+  size?: number;
+}) {
+  const props = { size, strokeWidth: 1.8, color };
+  if (type === "employee_joined" || type === "invite_accepted") return <UserPlus {...props} />;
+  if (type === "employee_removed")   return <UserMinus {...props} />;
+  if (type === "invite_sent")        return <Users {...props} />;
+  if (type === "programs_generated" || type === "programs_refreshed") return <Sparkles {...props} />;
+  if (type === "welcome")            return <Building2 {...props} />;
+  switch (category) {
+    case "risk_alert":         return <AlertTriangle {...props} />;
+    case "employee_activity":  return <Users {...props} />;
+    case "programs":           return <Sparkles {...props} />;
+    case "assessment_rate":    return <TrendingUp {...props} />;
+    case "workforce_summary":  return <BarChart3 {...props} />;
+    case "compliance":         return <Shield {...props} />;
+    default:                   return <Info {...props} />;
+  }
+}
 
-// ─── MOCK NOTIFICATIONS ───────────────────────────────────────────────────
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "alert",
-    title: "High Risk Employees Detected",
-    message: "8 employees have been identified as high risk. Review recommended.",
-    timestamp: "2026-03-07T09:30:00",
-    read: false,
-    icon: AlertTriangle,
-    color: COLORS.high,
-  },
-  {
-    id: 2,
-    type: "info",
-    title: "New Assessment Completed",
-    message: "24 employees completed their health assessments this week.",
-    timestamp: "2026-03-06T14:15:00",
-    read: false,
-    icon: Users,
-    color: COLORS.blue,
-  },
-  {
-    id: 3,
-    type: "success",
-    title: "Compliance Report Ready",
-    message: "Q1 2026 compliance report is now available for download.",
-    timestamp: "2026-03-05T11:00:00",
-    read: true,
-    icon: Shield,
-    color: COLORS.low,
-  },
-  {
-    id: 4,
-    type: "reminder",
-    title: "Upcoming Health Program",
-    message: "Blood Pressure Screening starts in 3 days.",
-    timestamp: "2026-03-04T10:00:00",
-    read: true,
-    icon: Calendar,
-    color: COLORS.moderate,
-  },
-  {
-    id: 5,
-    type: "update",
-    title: "Privacy Policy Updated",
-    message: "Terms of service and privacy policy have been updated.",
-    timestamp: "2026-03-03T16:20:00",
-    read: true,
-    icon: FileText,
-    color: COLORS.teal,
-  },
-];
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "Yesterday";
+  if (d < 7) return `${d} days ago`;
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
 
-// ─── NOTIFICATION ITEM ─────────────────────────────────────────────────────
-function NotificationItem({ 
+function priorityLabel(p: string): { label: string; color: string; bg: string } {
+  switch (p) {
+    case "urgent": return { label: "Urgent",  color: "#EF4444", bg: "rgba(239,68,68,0.1)" };
+    case "high":   return { label: "High",    color: "#F97316", bg: "rgba(249,115,22,0.1)" };
+    case "medium": return { label: "Medium",  color: "#F59E0B", bg: "rgba(245,158,11,0.1)" };
+    default:       return { label: "Low",     color: "#64748B", bg: "rgba(100,116,139,0.08)" };
+  }
+}
+
+function categoryLabel(cat: EmployerNotificationCategory): string {
+  switch (cat) {
+    case "risk_alert":         return "Risk Alert";
+    case "employee_activity":  return "Team";
+    case "programs":           return "Programs";
+    case "assessment_rate":    return "Assessments";
+    case "workforce_summary":  return "Summary";
+    case "compliance":         return "Compliance";
+    default:                   return "System";
+  }
+}
+
+// ─── NOTIFICATION ITEM ────────────────────────────────────────────────────────
+function NotificationItem({
   notification,
+  c,
+  accentColor,
+  isDark,
   onMarkRead,
   onDelete,
-}: { 
-  notification: typeof MOCK_NOTIFICATIONS[0];
-  onMarkRead: (id: number) => void;
-  onDelete: (id: number) => void;
+}: {
+  notification: EmployerNotification;
+  c: any;
+  accentColor: string;
+  isDark: boolean;
+  onMarkRead: (id: string) => void;
+  onDelete:   (id: string) => void;
 }) {
-  const Icon = notification.icon;
-  const [showDelete, setShowDelete] = useState(false);
-  
+  const [hovered, setHovered] = useState(false);
+  const color   = getEmployerNotifColor(notification);
+  const pLabel  = priorityLabel(notification.priority);
+
   return (
-    <div 
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.2 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        padding: "16px 20px",
-        background: notification.read ? COLORS.white : `${notification.color}05`,
-        borderBottom: `1px solid ${COLORS.border}`,
         display: "flex",
         alignItems: "flex-start",
-        gap: 12,
+        gap: 14,
+        padding: "16px 20px",
+        background: notification.isRead
+          ? "transparent"
+          : isDark ? `${color}07` : `${color}05`,
+        borderLeft: notification.isRead ? `3px solid transparent` : `3px solid ${color}`,
+        transition: "background 0.15s",
         position: "relative",
+        cursor: "default",
       }}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
     >
+      {/* Icon */}
       <div style={{
-        width: 40,
-        height: 40,
-        background: `${notification.color}10`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
+        width: 40, height: 40, borderRadius: 2, flexShrink: 0,
+        background: `${color}15`,
+        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <Icon size={18} color={notification.color} />
+        <CategoryIcon
+          category={notification.category}
+          type={notification.type}
+          color={color}
+          size={17}
+        />
       </div>
-      
-      <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: COLORS.navy, margin: 0 }}>
-            {notification.title}
-          </p>
-          {!notification.read && (
-            <span style={{
-              width: 8,
-              height: 8,
-              background: notification.color,
-            }} />
-          )}
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1 }}>
+            <p style={{
+              margin: 0, fontSize: 13,
+              fontWeight: notification.isRead ? 600 : 800,
+              color: c.text, lineHeight: 1.3,
+            }}>
+              {notification.title}
+            </p>
+            {!notification.isRead && (
+              <span style={{
+                width: 7, height: 7, borderRadius: "50%",
+                background: color, flexShrink: 0,
+              }} />
+            )}
+          </div>
+          <span style={{ fontSize: 11, color: c.muted, flexShrink: 0, marginTop: 1 }}>
+            {timeAgo(notification.$createdAt)}
+          </span>
         </div>
-        
-        <p style={{ fontSize: 13, color: COLORS.muted, margin: "0 0 8px" }}>
+
+        <p style={{
+          margin: "0 0 10px", fontSize: 12, color: c.muted, lineHeight: 1.65,
+        }}>
           {notification.message}
         </p>
-        
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <Clock size={12} color={COLORS.subtle} />
-            <span style={{ fontSize: 11, color: COLORS.subtle }}>
-              {new Date(notification.timestamp).toLocaleString()}
-            </span>
-          </div>
-          
-          {!notification.read && (
-            <button
-              onClick={() => onMarkRead(notification.id)}
+
+        {/* Meta row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {/* Category tag */}
+          <span style={{
+            padding: "2px 8px", borderRadius: 2,
+            background: `${color}12`, color,
+            fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+          }}>
+            {categoryLabel(notification.category)}
+          </span>
+
+          {/* Priority tag */}
+          <span style={{
+            padding: "2px 8px", borderRadius: 2,
+            background: pLabel.bg, color: pLabel.color,
+            fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
+          }}>
+            {pLabel.label}
+          </span>
+
+          {/* Action link */}
+          {notification.actionUrl && notification.actionLabel && (
+            <a
+              href={notification.actionUrl}
+              onClick={() => { if (!notification.isRead) onMarkRead(notification.$id); }}
               style={{
-                fontSize: 11,
-                color: COLORS.blue,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 4,
+                fontSize: 11, fontWeight: 700, color: accentColor,
+                textDecoration: "none",
               }}
             >
-              Mark as read
-            </button>
+              {notification.actionLabel}
+              <Activity size={9} />
+            </a>
           )}
         </div>
       </div>
-      
-      {showDelete && (
-        <button
-          onClick={() => onDelete(notification.id)}
-          style={{
-            padding: 6,
-            background: "transparent",
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.muted,
-            cursor: "pointer",
-            position: "absolute",
-            right: 16,
-            top: 16,
-          }}
-        >
-          <Trash2 size={14} />
-        </button>
-      )}
-    </div>
+
+      {/* Action buttons on hover */}
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: "absolute", top: 12, right: 16,
+              display: "flex", gap: 6,
+            }}
+          >
+            {!notification.isRead && (
+              <button
+                onClick={() => onMarkRead(notification.$id)}
+                title="Mark as read"
+                style={{
+                  width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  border: `1px solid ${c.border}`, borderRadius: 2, cursor: "pointer", color: accentColor,
+                }}
+              >
+                <CheckCheck size={12} strokeWidth={2.2} />
+              </button>
+            )}
+            <button
+              onClick={() => onDelete(notification.$id)}
+              title="Delete"
+              style={{
+                width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                background: isDark ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.06)",
+                border: "1px solid rgba(239,68,68,0.2)", borderRadius: 2, cursor: "pointer", color: "#EF4444",
+              }}
+            >
+              <Trash2 size={12} strokeWidth={2} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function EmployerNotificationsPage() {
-  const [filter, setFilter] = useState("all");
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
-  
-  const unreadCount = notifications.filter(n => !n.read).length;
-  
-  const handleMarkAllRead = () => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, read: true }))
-    );
+  const { user }                         = useAuth();
+  const { isDark, surface: c, accentColor } = useTheme();
+
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [filter,    setFilter]    = useState<"all" | "unread" | EmployerNotificationCategory>("all");
+  const [clearing,  setClearing]  = useState(false);
+
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markRead,
+    markAllRead,
+    remove,
+    refresh,
+  } = useEmployerNotifications(user?.id);
+
+  // Resolve companyId for clearing read
+  useEffect(() => {
+    if (!user) return;
+    getCompanyByOwner(user.id)
+      .then((co) => { if (co) setCompanyId(co.$id); })
+      .catch(() => {});
+  }, [user]);
+
+  const handleClearRead = async () => {
+    if (!user) return;
+    setClearing(true);
+    await clearReadEmployerNotifications(user.id).catch(() => {});
+    await refresh();
+    setClearing(false);
   };
-  
-  const handleMarkRead = (id: number) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
-  };
-  
-  const handleDelete = (id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-  
-  const filteredNotifications = filter === "all" 
-    ? notifications 
-    : filter === "unread" 
-      ? notifications.filter(n => !n.read)
-      : notifications;
-  
+
+  // Filter options
+  const FILTER_OPTIONS: { key: typeof filter; label: string }[] = [
+    { key: "all",              label: `All (${notifications.length})` },
+    { key: "unread",           label: `Unread (${unreadCount})` },
+    { key: "risk_alert",       label: "Risk Alerts" },
+    { key: "employee_activity",label: "Team Activity" },
+    { key: "programs",         label: "Programs" },
+    { key: "assessment_rate",  label: "Assessments" },
+    { key: "system",           label: "System" },
+  ];
+
+  const filtered = notifications.filter((n) => {
+    if (filter === "all")    return true;
+    if (filter === "unread") return !n.isRead;
+    return n.category === filter;
+  });
+
+  // Group by date
+  const grouped: { label: string; items: EmployerNotification[] }[] = [];
+  const today     = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+
+  for (const n of filtered) {
+    const d = new Date(n.$createdAt); d.setHours(0,0,0,0);
+    const label =
+      d.getTime() === today.getTime()     ? "Today" :
+      d.getTime() === yesterday.getTime() ? "Yesterday" :
+      d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    const existing = grouped.find((g) => g.label === label);
+    if (existing) existing.items.push(n);
+    else grouped.push({ label, items: [n] });
+  }
+
   return (
     <EmployerLayout>
-      <div style={{ paddingBottom: 48 }}>
-        
-        {/* Page Header */}
-        <div style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 16,
-          marginBottom: 28,
-        }}>
+      <div style={{ maxWidth: 780, paddingBottom: 80 }}>
+
+        {/* ── Page Header ─────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          style={{
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+            flexWrap: "wrap", gap: 16, marginBottom: 28,
+          }}
+        >
           <div>
-            <p style={{
-              margin: 0,
-              marginBottom: 5,
-              fontSize: 10.5,
-              fontWeight: 800,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: COLORS.blue,
-            }}>
+            <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 800, color: accentColor, letterSpacing: "0.12em", textTransform: "uppercase" }}>
               Alerts
             </p>
-            <h1 style={{
-              margin: 0,
-              fontSize: "clamp(1.4rem, 3vw, 1.75rem)",
-              fontWeight: 900,
-              color: COLORS.navy,
-              letterSpacing: "-0.025em",
-              lineHeight: 1.15,
-            }}>
+            <h1 style={{ margin: 0, fontSize: "clamp(1.35rem,3vw,1.7rem)", fontWeight: 900, color: c.text, letterSpacing: "-0.03em", lineHeight: 1.15 }}>
               Notifications
             </h1>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: COLORS.muted }}>
-              Stay updated with important alerts and announcements
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: c.muted }}>
+              Stay updated on workforce activity, risk alerts, and program updates
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {unreadCount > 0 && (
               <button
-                onClick={handleMarkAllRead}
+                onClick={markAllRead}
                 style={{
-                  padding: "8px 16px",
-                  background: "transparent",
-                  border: `1px solid ${COLORS.border}`,
-                  color: COLORS.muted,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
+                  padding: "8px 14px", background: "transparent",
+                  border: `1px solid ${c.border}`, color: c.muted,
+                  borderRadius: 2, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 12, fontWeight: 600,
                 }}
               >
                 <CheckCheck size={13} />
-                Mark all as read
+                Mark all read
               </button>
             )}
-            <button style={{
-              padding: "8px 16px",
-              background: COLORS.blue,
-              border: "none",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}>
-              <Settings size={13} />
-              Preferences
-            </button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 20,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
-              onClick={() => setFilter("all")}
+              onClick={refresh}
+              disabled={loading}
               style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                background: filter === "all" ? COLORS.blue : "transparent",
-                color: filter === "all" ? "#fff" : COLORS.muted,
-                border: `1px solid ${filter === "all" ? COLORS.blue : COLORS.border}`,
-                cursor: "pointer",
+                padding: "8px 14px", background: "transparent",
+                border: `1px solid ${c.border}`, color: c.muted,
+                borderRadius: 2, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 12, fontWeight: 600,
               }}
             >
-              All ({notifications.length})
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+              Refresh
             </button>
-            <button
-              onClick={() => setFilter("unread")}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                background: filter === "unread" ? COLORS.blue : "transparent",
-                color: filter === "unread" ? "#fff" : COLORS.muted,
-                border: `1px solid ${filter === "unread" ? COLORS.blue : COLORS.border}`,
-                cursor: "pointer",
-              }}
-            >
-              Unread ({unreadCount})
-            </button>
+            {notifications.some((n) => n.isRead) && (
+              <button
+                onClick={handleClearRead}
+                disabled={clearing}
+                style={{
+                  padding: "8px 14px", background: "transparent",
+                  border: `1px solid ${c.border}`, color: c.muted,
+                  borderRadius: 2, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 12, fontWeight: 600, opacity: clearing ? 0.5 : 1,
+                }}
+              >
+                <Trash2 size={13} />
+                Clear read
+              </button>
+            )}
           </div>
+        </motion.div>
 
-          <button style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "6px 12px",
-            fontSize: 12,
-            background: "transparent",
-            border: `1px solid ${COLORS.border}`,
-            color: COLORS.muted,
-            cursor: "pointer",
-          }}>
-            <Filter size={12} />
-            Filter
-          </button>
-        </div>
-
-        {/* Notifications List - Using Card without style prop */}
-        <Card>
-          {filteredNotifications.length > 0 ? (
-            <div>
-              {filteredNotifications.map(notification => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onMarkRead={handleMarkRead}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          ) : (
-            <div style={{
-              padding: "60px 24px",
-              textAlign: "center",
-            }}>
-              <Bell size={40} style={{ color: COLORS.subtle, marginBottom: 16 }} />
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: COLORS.navy, margin: 0 }}>
-                No notifications
-              </h3>
-              <p style={{ fontSize: 13, color: COLORS.muted, margin: "8px 0 0" }}>
-                You&lsquo;re all caught up! Check back later for updates.
+        {/* ── Stats strip ─────────────────────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, marginBottom: 24 }}>
+          {[
+            { label: "Total",      value: notifications.length,                                    color: accentColor },
+            { label: "Unread",     value: unreadCount,                                              color: "#EF4444" },
+            { label: "Risk Alerts",value: notifications.filter((n) => n.category === "risk_alert").length, color: "#F97316" },
+            { label: "Programs",   value: notifications.filter((n) => n.category === "programs").length,   color: "#8B5CF6" },
+          ].map((s, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              style={{ padding: "12px 16px", background: c.surface, border: `1px solid ${c.border}`, borderRadius: 2 }}
+            >
+              <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                {s.label}
               </p>
+              <p style={{ margin: 0, fontSize: 24, fontWeight: 900, color: s.color, lineHeight: 1, letterSpacing: "-0.04em" }}>
+                {s.value}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* ── Filter tabs ─────────────────────────────────────────────── */}
+        <div style={{
+          display: "flex", gap: 4, flexWrap: "wrap",
+          marginBottom: 20, borderBottom: `1px solid ${c.border}`, paddingBottom: 0,
+        }}>
+          {FILTER_OPTIONS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              style={{
+                padding: "7px 14px", background: "none", border: "none",
+                borderBottom: filter === f.key ? `2px solid ${accentColor}` : "2px solid transparent",
+                marginBottom: -1, cursor: "pointer",
+                fontSize: 12, fontWeight: filter === f.key ? 800 : 500,
+                color: filter === f.key ? accentColor : c.muted,
+                transition: "color 0.15s",
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── List ────────────────────────────────────────────────────── */}
+        {loading && notifications.length === 0 ? (
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 2, overflow: "hidden" }}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} style={{ padding: "16px 20px", borderBottom: `1px solid ${c.border}`, display: "flex", gap: 14 }}>
+                <div className="animate-pulse" style={{ width: 40, height: 40, borderRadius: 2, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }} />
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div className="animate-pulse" style={{ height: 13, width: "55%", borderRadius: 2, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }} />
+                  <div className="animate-pulse" style={{ height: 11, width: "80%", borderRadius: 2, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            style={{
+              padding: "64px 24px", textAlign: "center",
+              background: c.surface, border: `1px solid ${c.border}`, borderRadius: 2,
+            }}
+          >
+            <div style={{
+              width: 56, height: 56, borderRadius: 2,
+              background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 16px",
+            }}>
+              <Bell size={24} strokeWidth={1.2} color={c.muted} />
             </div>
-          )}
-        </Card>
+            <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 800, color: c.text }}>
+              {filter === "all" ? "No notifications yet" : `No ${filter.replace("_", " ")} notifications`}
+            </p>
+            <p style={{ margin: 0, fontSize: 12, color: c.muted, lineHeight: 1.6 }}>
+              {filter === "all"
+                ? "Notifications will appear here as your workforce becomes active — invite employees, run assessments, and generate AI programs."
+                : "Try switching to 'All' to see everything."}
+            </p>
+          </motion.div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <AnimatePresence mode="popLayout">
+              {grouped.map((group) => (
+                <motion.div
+                  key={group.label}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 2, overflow: "hidden" }}
+                >
+                  {/* Group header */}
+                  <div style={{
+                    padding: "10px 20px",
+                    borderBottom: `1px solid ${c.border}`,
+                    background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.015)",
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}>
+                    <Clock size={11} style={{ color: c.muted }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: c.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                      {group.label}
+                    </span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, color: accentColor,
+                      background: `${accentColor}15`, padding: "1px 7px", borderRadius: 2,
+                    }}>
+                      {group.items.length}
+                    </span>
+                  </div>
+
+                  <AnimatePresence mode="popLayout">
+                    {group.items.map((n, i) => (
+                      <React.Fragment key={n.$id}>
+                        {i > 0 && <div style={{ height: 1, background: c.border, margin: "0" }} />}
+                        <NotificationItem
+                          notification={n}
+                          c={c}
+                          accentColor={accentColor}
+                          isDark={isDark}
+                          onMarkRead={markRead}
+                          onDelete={remove}
+                        />
+                      </React.Fragment>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
 
         <ThemeToggle />
       </div>
