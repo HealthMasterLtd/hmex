@@ -48,7 +48,8 @@ interface Analytics {
   avgHypertensionScore: number;
   highRiskCount: number;
   joinedByMonth: Record<string, number>;
-  topRisks: { name: string; diabetesScore: number; hypertensionScore: number; diabetesLevel: string; hypertensionLevel: string }[];
+  // Anonymous score buckets — no individual identifiers
+  scoreBuckets: { diabetesRange: string; count: number; color: string }[];
   genderBreakdown: Record<string, number>;
   ageBreakdown: Record<string, number>;
   bmiBreakdown: Record<string, number>;
@@ -128,17 +129,22 @@ function computeAnalytics(members: MemberWithRisk[]): Analytics {
     joinedByMonth[key] = (joinedByMonth[key] || 0) + 1;
   });
 
-  const topRisks = assessed
-    .filter(m => m.assessment)
-    .map(m => ({
-      name: m.fullName || m.email.split("@")[0],
-      diabetesScore: Number(m.assessment!.diabetesScore) || 0,
-      hypertensionScore: Number(m.assessment!.hypertensionScore) || 0,
-      diabetesLevel: m.assessment!.diabetesLevel || "",
-      hypertensionLevel: m.assessment!.hypertensionLevel || "",
-    }))
-    .sort((a, b) => (b.diabetesScore + b.hypertensionScore) - (a.diabetesScore + a.hypertensionScore))
-    .slice(0, 6);
+  // Anonymous score distribution buckets — no names attached
+  const scoreBuckets = [
+    { diabetesRange: "0–20",   count: 0, color: "#10B981" },
+    { diabetesRange: "21–40",  count: 0, color: "#34D399" },
+    { diabetesRange: "41–60",  count: 0, color: "#F59E0B" },
+    { diabetesRange: "61–80",  count: 0, color: "#F97316" },
+    { diabetesRange: "81–100", count: 0, color: "#EF4444" },
+  ];
+  assessed.forEach(m => {
+    const s = Number(m.assessment!.diabetesScore) || 0;
+    if (s <= 20) scoreBuckets[0].count++;
+    else if (s <= 40) scoreBuckets[1].count++;
+    else if (s <= 60) scoreBuckets[2].count++;
+    else if (s <= 80) scoreBuckets[3].count++;
+    else scoreBuckets[4].count++;
+  });
 
   const n = assessed.length || 1;
   return {
@@ -152,7 +158,7 @@ function computeAnalytics(members: MemberWithRisk[]): Analytics {
     avgHypertensionScore: Math.round(hypSum / n),
     highRiskCount: diabetes.high + hypertension.high,
     joinedByMonth,
-    topRisks,
+    scoreBuckets,
     genderBreakdown,
     ageBreakdown,
     bmiBreakdown,
@@ -420,64 +426,52 @@ function RadarChartWidget({ title, labels, values, color, surface, loading }: {
   );
 }
 
-// ─── RISK TABLE ───────────────────────────────────────────────────────────────
-function RiskTable({ members, surface, loading }: { members: MemberWithRisk[]; surface: any; loading?: boolean }) {
-  const assessed = members.filter(m => m.assessment && m.status === "active");
+// ─── SCORE BUCKET CHART ──────────────────────────────────────────────────────
+// Anonymous — shows how many employees fall in each score range, no names
+function ScoreBucketChart({ buckets, title, surface, loading }: {
+  buckets: { diabetesRange: string; count: number; color: string }[];
+  title: string; surface: any; loading?: boolean;
+}) {
+  const max = Math.max(...buckets.map(b => b.count), 1);
   return (
-    <div style={{ background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2, overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px", borderBottom: `1px solid ${surface.border}`, display: "flex", alignItems: "center", gap: 8 }}>
-        <AlertCircle size={15} style={{ color: "#EF4444" }} />
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: surface.text }}>Individual Risk Overview</p>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: surface.muted }}>{assessed.length} assessed</span>
-      </div>
-      {/* Header */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 120px 90px 90px", gap: 8, padding: "8px 16px", background: surface.bg, fontSize: 10, fontWeight: 700, color: surface.muted, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${surface.border}` }}>
-        <span>Employee</span><span>Diabetes</span><span>Hypertension</span><span style={{ textAlign: "right" }}>D. Score</span><span style={{ textAlign: "right" }}>H. Score</span>
-      </div>
+    <div style={{ padding: "20px", background: surface.surface, border: `1px solid ${surface.border}`, borderRadius: 2 }}>
+      <p style={{ margin: "0 0 16px", fontSize: 13, fontWeight: 800, color: surface.text }}>{title}</p>
       {loading ? (
-        [1,2,3,4].map(i => (
-          <div key={i} style={{ padding: "12px 16px", borderBottom: `1px solid ${surface.border}`, display: "flex", gap: 12, alignItems: "center" }}>
-            <Skeleton w={28} h={28} radius={14} />
-            <Skeleton w="30%" h={13} />
-            <Skeleton w="15%" h={20} />
-            <Skeleton w="15%" h={20} />
-          </div>
-        ))
-      ) : assessed.length === 0 ? (
-        <div style={{ padding: "32px 20px", textAlign: "center" }}>
-          <p style={{ margin: 0, fontSize: 12, color: surface.muted }}>No assessment data yet</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[1,2,3,4,5].map(i => <Skeleton key={i} w="100%" h={28} />)}
+        </div>
+      ) : buckets.every(b => b.count === 0) ? (
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <p style={{ margin: 0, fontSize: 12, color: surface.muted }}>No data yet</p>
         </div>
       ) : (
-        assessed.map((m, i) => {
-          const a = m.assessment!;
-          const name = m.fullName || m.email.split("@")[0];
-          const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-          return (
-            <motion.div key={m.$id}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-              style={{ display: "grid", gridTemplateColumns: "1fr 110px 120px 90px 90px", gap: 8, padding: "10px 16px", borderBottom: i < assessed.length - 1 ? `1px solid ${surface.border}` : "none", alignItems: "center", fontSize: 12 }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: `linear-gradient(135deg,${riskColor(a.diabetesLevel)},${riskColor(a.hypertensionLevel)})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "white" }}>{initials}</div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ margin: 0, fontWeight: 600, color: surface.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
-                  <p style={{ margin: 0, fontSize: 10, color: surface.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</p>
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {buckets.map(b => (
+            <div key={b.diabetesRange}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: surface.text, fontWeight: 600 }}>Score {b.diabetesRange}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: b.color }}>{b.count} employees</span>
               </div>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 2, background: riskBg(a.diabetesLevel), color: riskColor(a.diabetesLevel), fontWeight: 700, fontSize: 10, width: "fit-content" }}>{capitalize(a.diabetesLevel)}</span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 2, background: riskBg(a.hypertensionLevel), color: riskColor(a.hypertensionLevel), fontWeight: 700, fontSize: 10, width: "fit-content" }}>{capitalize(a.hypertensionLevel)}</span>
-              <span style={{ textAlign: "right", fontWeight: 700, color: riskColor(a.diabetesLevel) }}>{Math.round(Number(a.diabetesScore))}</span>
-              <span style={{ textAlign: "right", fontWeight: 700, color: riskColor(a.hypertensionLevel) }}>{Math.round(Number(a.hypertensionScore))}</span>
-            </motion.div>
-          );
-        })
+              <div style={{ height: 8, background: surface.border, borderRadius: 4 }}>
+                <motion.div
+                  initial={{ width: 0 }} animate={{ width: `${(b.count / max) * 100}%` }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  style={{ height: "100%", background: b.color, borderRadius: 4 }}
+                />
+              </div>
+            </div>
+          ))}
+          <p style={{ margin: "8px 0 0", fontSize: 10, color: surface.muted, fontStyle: "italic" }}>
+            Anonymous distribution — individual scores are not visible to employers
+          </p>
+        </div>
       )}
     </div>
   );
 }
 
 // ─── PDF / CSV EXPORT ────────────────────────────────────────────────────────
-function buildCSV(company: Company | null, analytics: Analytics, members: MemberWithRisk[]): string {
+function buildCSV(company: Company | null, analytics: Analytics): string {
   const rows: string[][] = [];
   rows.push(["HMEX Workforce Health Report"]);
   rows.push(["Company", company?.name || "—"]);
@@ -491,6 +485,7 @@ function buildCSV(company: Company | null, analytics: Analytics, members: Member
   rows.push(["Assessment Rate", `${analytics.assessmentRate}%`]);
   rows.push(["Avg Diabetes Score", String(analytics.avgDiabetesScore)]);
   rows.push(["Avg Hypertension Score", String(analytics.avgHypertensionScore)]);
+  rows.push(["High Risk Count", String(analytics.highRiskCount)]);
   rows.push([]);
   rows.push(["DIABETES RISK DISTRIBUTION"]);
   rows.push(["Low", String(analytics.diabetes.low)]);
@@ -504,21 +499,11 @@ function buildCSV(company: Company | null, analytics: Analytics, members: Member
   rows.push(["High", String(analytics.hypertension.high)]);
   rows.push(["Not Assessed", String(analytics.hypertension.none)]);
   rows.push([]);
-  rows.push(["INDIVIDUAL RISK DATA"]);
-  rows.push(["Name", "Email", "Status", "Diabetes Level", "Diabetes Score", "Hypertension Level", "Hypertension Score", "Assessment Date"]);
-  members.filter(m => m.status === "active").forEach(m => {
-    const a = m.assessment;
-    rows.push([
-      m.fullName || "",
-      m.email,
-      m.status,
-      a ? capitalize(a.diabetesLevel) : "Not Assessed",
-      a ? String(Math.round(Number(a.diabetesScore))) : "",
-      a ? capitalize(a.hypertensionLevel) : "Not Assessed",
-      a ? String(Math.round(Number(a.hypertensionScore))) : "",
-      a ? new Date(a.$createdAt).toLocaleDateString("en-GB") : "",
-    ]);
-  });
+  rows.push(["DIABETES SCORE DISTRIBUTION (ANONYMOUS)"]);
+  rows.push(["Score Range", "Employees"]);
+  analytics.scoreBuckets.forEach(b => rows.push([`Score ${b.diabetesRange}`, String(b.count)]));
+  rows.push([]);
+  rows.push(["NOTE: Individual employee health data is not included in this export to protect employee privacy."]);
   return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
@@ -655,10 +640,8 @@ export default function EmployerReportsPage() {
   const joinedLabels = a ? Object.keys(a.joinedByMonth).slice(-6) : [];
   const joinedValues = a ? joinedLabels.map(k => a.joinedByMonth[k]) : [];
 
-  const topRiskLabels = a?.topRisks.map(r => r.name) ?? [];
-  const topDiabScores = a?.topRisks.map(r => r.diabetesScore) ?? [];
-  const topHypScores  = a?.topRisks.map(r => r.hypertensionScore) ?? [];
-  const topColors     = a?.topRisks.map(r => riskColor(r.diabetesLevel)) ?? [];
+  // Anonymous score distribution — no individual names
+  const scoreBuckets = a?.scoreBuckets ?? [];
 
   const gLabels = a ? Object.keys(a.genderBreakdown) : [];
   const gValues = a ? gLabels.map(k => a.genderBreakdown[k]) : [];
@@ -682,7 +665,7 @@ export default function EmployerReportsPage() {
     setExporting(true);
     setExportMenuOpen(false);
     await new Promise(r => setTimeout(r, 400));
-    const csv = buildCSV(company, analytics, members);
+    const csv = buildCSV(company, analytics);
     downloadCSV(csv, `hmex-health-report-${company?.name?.replace(/\s+/g, "-") || "company"}-${new Date().toISOString().slice(0,10)}.csv`);
     setExporting(false);
   };
@@ -811,7 +794,7 @@ export default function EmployerReportsPage() {
               />
             </div>
 
-            {/* ── Row 2: Employee growth + top risk bar ──────────────────── */}
+            {/* ── Row 2: Employee growth + score distribution ────────────── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14, marginBottom: 14 }}>
               <LineAreaChart
                 title="Employee Onboarding Timeline"
@@ -820,28 +803,16 @@ export default function EmployerReportsPage() {
                 surface={c}
                 loading={loading}
               />
-              <HBarChart
-                title="Top Risk — Diabetes Scores"
-                labels={topRiskLabels}
-                values={topDiabScores}
-                colors={topColors}
+              <ScoreBucketChart
+                title="Diabetes Score Distribution (Anonymous)"
+                buckets={scoreBuckets}
                 surface={c}
                 loading={isLoading}
-                maxVal={100}
               />
             </div>
 
-            {/* ── Row 3: Hypertension scores + Gender + Age ─────────────── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginBottom: 14 }}>
-              <HBarChart
-                title="Top Risk — Hypertension Scores"
-                labels={topRiskLabels}
-                values={topHypScores}
-                colors={(a?.topRisks ?? []).map(r => riskColor(r.hypertensionLevel))}
-                surface={c}
-                loading={isLoading}
-                maxVal={100}
-              />
+            {/* ── Row 3: Gender + Age ────────────────────────────────────── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginBottom: 28 }}>
               <DonutChartWidget
                 title="Gender Distribution"
                 data={gLabels.map((l, i) => ({ label: capitalize(l), value: gValues[i] }))}
@@ -858,26 +829,6 @@ export default function EmployerReportsPage() {
                 loading={isLoading}
                 maxVal={Math.max(...ageValues, 1)}
               />
-            </div>
-
-            {/* ── Score comparison ──────────────────────────────────────── */}
-            {a && a.topRisks.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <HBarChart
-                  title="Diabetes vs Hypertension Score Comparison (Top Members)"
-                  labels={topRiskLabels}
-                  values={topDiabScores.map((d, i) => Math.round((d + topHypScores[i]) / 2))}
-                  colors={topRiskLabels.map((_, i) => [accentColor, "#EF4444", "#F59E0B", "#8B5CF6", "#10B981", "#0EA5E9"][i % 6])}
-                  surface={c}
-                  loading={isLoading}
-                  maxVal={100}
-                />
-              </div>
-            )}
-
-            {/* ── Individual risk table ─────────────────────────────────── */}
-            <div style={{ marginBottom: 28 }}>
-              <RiskTable members={members} surface={c} loading={isLoading} />
             </div>
 
             {/* ── Report summary card ───────────────────────────────────── */}
