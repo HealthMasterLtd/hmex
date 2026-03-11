@@ -21,16 +21,14 @@ import {
   type AiProgramSuggestion,
 } from "@/services/employerProgramsAiService";
 import {
-  // layout / nav
   Sparkles, RefreshCw, ChevronDown, ChevronUp,
   Target, Users, Activity, Heart, Brain, Salad, Dumbbell,
   AlertTriangle, CheckCircle, Clock, Building2, Loader2,
   MessageSquare, Send, X, Lightbulb, TrendingUp, BarChart3,
   Shield, Zap, Trophy, Star, Megaphone, Gift, Award, Handshake,
-  // program icons
   Stethoscope, Apple, PersonStanding, Bike, FlaskConical, Scale,
   Wind, Smile, Pill, Thermometer, Eye, Clipboard, Moon, Coffee,
-  Ban, Droplets, ShieldCheck,
+  Ban, Droplets, ShieldCheck, Radio,
 } from "lucide-react";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
@@ -45,58 +43,15 @@ interface MemberWithRisk {
 }
 
 // ─── ICON RESOLVER ────────────────────────────────────────────────────────────
-// Maps Lucide icon name strings (from AI) to actual components
-const ICON_MAP: Record<string, React.ReactNode> = {
-  Heart:          <Heart size={20} />,
-  Activity:       <Activity size={20} />,
-  Stethoscope:    <Stethoscope size={20} />,
-  Brain:          <Brain size={20} />,
-  Apple:          <Apple size={20} />,
-  Dumbbell:       <Dumbbell size={20} />,
-  ShieldCheck:    <ShieldCheck size={20} />,
-  TrendingUp:     <TrendingUp size={20} />,
-  Users:          <Users size={20} />,
-  Clipboard:      <Clipboard size={20} />,
-  FlaskConical:   <FlaskConical size={20} />,
-  Scale:          <Scale size={20} />,
-  Wind:           <Wind size={20} />,
-  Salad:          <Salad size={20} />,
-  Bike:           <Bike size={20} />,
-  PersonStanding: <PersonStanding size={20} />,
-  Pill:           <Pill size={20} />,
-  Thermometer:    <Thermometer size={20} />,
-  Eye:            <Eye size={20} />,
-  Smile:          <Smile size={20} />,
-  Trophy:         <Trophy size={20} />,
-  Target:         <Target size={20} />,
-  Zap:            <Zap size={20} />,
-  Moon:           <Moon size={20} />,
-  Coffee:         <Coffee size={20} />,
-  Ban:            <Ban size={20} />,
-  Droplets:       <Droplets size={20} />,
-  Star:           <Star size={20} />,
-  Megaphone:      <Megaphone size={20} />,
-  Gift:           <Gift size={20} />,
-  Award:          <Award size={20} />,
-  Handshake:      <Handshake size={20} />,
-  Shield:         <Shield size={20} />,
-  CheckCircle:    <CheckCircle size={20} />,
-  BarChart3:      <BarChart3 size={20} />,
-  MessageSquare:  <MessageSquare size={20} />,
-  Lightbulb:      <Lightbulb size={20} />,
-  Brain2:         <Brain size={20} />,
-};
-
 function resolveIcon(name: string, size = 20, color?: string): React.ReactNode {
-  // Try to find the component in the map and clone it with the right color/size
-  const iconMap16: Record<string, React.ComponentType<any>> = {
+  const iconMap: Record<string, React.ComponentType<any>> = {
     Heart, Activity, Stethoscope, Brain, Apple, Dumbbell, ShieldCheck, TrendingUp,
     Users, Clipboard, FlaskConical, Scale, Wind, Salad, Bike, PersonStanding,
     Pill, Thermometer, Eye, Smile, Trophy, Target, Zap, Moon, Coffee, Ban,
     Droplets, Star, Megaphone, Gift, Award, Handshake, Shield, CheckCircle,
     BarChart3, MessageSquare, Lightbulb,
   };
-  const Comp = iconMap16[name] || Sparkles;
+  const Comp = iconMap[name] || Sparkles;
   return <Comp size={size} color={color} />;
 }
 
@@ -170,11 +125,137 @@ function buildSnapshot(company: Company | null, members: MemberWithRisk[]): Work
   };
 }
 
-// ─── PROGRAM CARD ─────────────────────────────────────────────────────────────
-function ProgramCard({ prog, c, accentColor }: {
-  prog: AiProgramSuggestion; c: any; accentColor: string;
+// ─── BROADCAST RESULT TOAST ───────────────────────────────────────────────────
+interface BroadcastResult {
+  sent:       number;
+  skipped:    number;
+  targetRisk: string;
+  programTitle: string;
+}
+
+function riskLabel(risk: string): string {
+  switch (risk) {
+    case "high_diabetes":    return "high diabetes risk";
+    case "high_hypertension": return "high hypertension risk";
+    case "high_any":         return "high-risk employees";
+    case "moderate":         return "moderate-risk employees";
+    default:                 return "all employees";
+  }
+}
+
+function BroadcastToast({ result, onClose, accentColor, c }: {
+  result: BroadcastResult; onClose: () => void; accentColor: string; c: any;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(onClose, 6000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+      style={{
+        position: "fixed", bottom: 90, right: 24, zIndex: 200,
+        maxWidth: 360, width: "calc(100vw - 48px)",
+        background: c.surface, border: `1px solid ${accentColor}40`,
+        borderLeft: `3px solid ${accentColor}`,
+        padding: "14px 16px",
+        boxShadow: `0 8px 32px rgba(0,0,0,0.15)`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <div style={{
+          width: 28, height: 28, background: `${accentColor}15`,
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        }}>
+          <Radio size={14} style={{ color: accentColor }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 800, color: c.text }}>
+            Program Broadcast Complete
+          </p>
+          <p style={{ margin: 0, fontSize: 11.5, color: c.muted, lineHeight: 1.6 }}>
+            <strong style={{ color: c.text }}>{result.sent}</strong> employee{result.sent !== 1 ? "s" : ""} with{" "}
+            {riskLabel(result.targetRisk)} received <strong style={{ color: c.text }}>&quot;{result.programTitle}&quot;</strong>.
+            {result.skipped > 0 && ` ${result.skipped} skipped (no matching risk or already enrolled).`}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          style={{ background: "none", border: "none", cursor: "pointer", color: c.muted, padding: 2, flexShrink: 0 }}
+        >
+          <X size={13} />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── PROGRAM CARD ─────────────────────────────────────────────────────────────
+function ProgramCard({ prog, c, accentColor, companyId, companyName, sentBy, onBroadcastSuccess }: {
+  prog: AiProgramSuggestion;
+  c: any;
+  accentColor: string;
+  companyId: string;
+  companyName: string;
+  sentBy: string;
+  onBroadcastSuccess: (result: BroadcastResult) => void;
+}) {
+  const [expanded,      setExpanded]      = useState(false);
+  const [broadcasting,  setBroadcasting]  = useState(false);
+  const [alreadySent,   setAlreadySent]   = useState(false);
+  const [broadcastError, setBroadcastError] = useState<string | null>(null);
+
+  const handleBroadcast = async () => {
+    if (broadcasting || alreadySent) return;
+    setBroadcasting(true);
+    setBroadcastError(null);
+
+    try {
+      const res = await fetch("/api/broadcast-programs", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId,
+          companyName,
+          sentBy,
+          program: {
+            id:          prog.id,
+            title:       prog.title,
+            description: prog.description,
+            category:    prog.category,
+            priority:    prog.priority,
+            tagline:     prog.tagline,
+            targetGroup: prog.targetGroup,
+          },
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          setAlreadySent(true);
+          setBroadcastError("Already sent to your team.");
+        } else {
+          setBroadcastError(data.error || "Broadcast failed. Please try again.");
+        }
+        return;
+      }
+
+      setAlreadySent(true);
+      onBroadcastSuccess({
+        sent:         data.sent,
+        skipped:      data.skipped,
+        targetRisk:   data.targetRisk,
+        programTitle: prog.title,
+      });
+    } catch {
+      setBroadcastError("Network error. Please try again.");
+    } finally {
+      setBroadcasting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -243,7 +324,7 @@ function ProgramCard({ prog, c, accentColor }: {
           padding: "7px 10px",
           background: `${prog.color}0C`,
           border: `1px solid ${prog.color}22`,
-          borderRadius: 2, marginBottom: 12,
+          borderRadius: 2, marginBottom: 14,
         }}>
           <p style={{ margin: 0, fontSize: 11, color: prog.color, fontWeight: 600 }}>
             <Zap size={11} style={{ display: "inline", marginRight: 4 }} />
@@ -251,18 +332,66 @@ function ProgramCard({ prog, c, accentColor }: {
           </p>
         </div>
 
-        {/* Expand toggle */}
-        <button
-          onClick={() => setExpanded(v => !v)}
-          style={{
-            display: "flex", alignItems: "center", gap: 5,
-            fontSize: 12, fontWeight: 700, color: accentColor,
-            background: "none", border: "none", cursor: "pointer", padding: 0,
-          }}
-        >
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          {expanded ? "Hide" : "Show"} Implementation Plan
-        </button>
+        {/* ── SEND TO TEAM BUTTON ─────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          {/* Expand toggle */}
+          <button
+            onClick={() => setExpanded(v => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              fontSize: 12, fontWeight: 700, color: accentColor,
+              background: "none", border: "none", cursor: "pointer", padding: 0,
+            }}
+          >
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {expanded ? "Hide" : "Show"} Plan
+          </button>
+
+          {/* Broadcast button */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <button
+              onClick={handleBroadcast}
+              disabled={broadcasting || alreadySent}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 14px",
+                background: alreadySent
+                  ? "rgba(34,197,94,0.10)"
+                  : accentColor,
+                border: alreadySent
+                  ? "1px solid rgba(34,197,94,0.30)"
+                  : "none",
+                color: alreadySent ? "#22c55e" : "white",
+                fontSize: 11, fontWeight: 700,
+                cursor: alreadySent || broadcasting ? "default" : "pointer",
+                opacity: broadcasting ? 0.7 : 1,
+                transition: "all 0.2s",
+              }}
+            >
+              {broadcasting ? (
+                <>
+                  <Loader2 size={11} className="animate-spin" />
+                  Sending…
+                </>
+              ) : alreadySent ? (
+                <>
+                  <CheckCircle size={11} />
+                  Sent to Team
+                </>
+              ) : (
+                <>
+                  <Radio size={11} />
+                  Send to Team
+                </>
+              )}
+            </button>
+            {broadcastError && (
+              <p style={{ margin: 0, fontSize: 10, color: broadcastError.includes("Already") ? "#22c55e" : "#EF4444", textAlign: "right" }}>
+                {broadcastError}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Expanded: steps + KPIs + resources */}
@@ -372,7 +501,6 @@ function AiChatPanel({ snapshot, c, accentColor, onClose }: {
         display: "flex", flexDirection: "column", zIndex: 100, overflow: "hidden",
       }}
     >
-      {/* Header */}
       <div style={{
         padding: "12px 16px", borderBottom: `1px solid ${c.border}`,
         display: "flex", alignItems: "center", gap: 8, background: `${accentColor}0C`,
@@ -383,8 +511,6 @@ function AiChatPanel({ snapshot, c, accentColor, onClose }: {
           <X size={15} />
         </button>
       </div>
-
-      {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         {messages.map((msg, i) => (
           <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
@@ -412,8 +538,6 @@ function AiChatPanel({ snapshot, c, accentColor, onClose }: {
         )}
         <div ref={bottomRef} />
       </div>
-
-      {/* Input */}
       <div style={{ padding: "10px 12px", borderTop: `1px solid ${c.border}`, display: "flex", gap: 8 }}>
         <input
           value={input}
@@ -447,22 +571,21 @@ export default function EmployerProgramsPage() {
   const { isDark, surface, accentColor } = useTheme();
   const c = surface;
 
-  const [company,   setCompany]   = useState<Company | null>(null);
-  const [members,   setMembers]   = useState<MemberWithRisk[]>([]);
-  const [snapshot,  setSnapshot]  = useState<WorkforceSnapshot | null>(null);
-  const [aiData,    setAiData]    = useState<ProgramsAiResponse | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError,   setAiError]   = useState<string | null>(null);
-  const [tab,       setTab]       = useState<"programs" | "interventions" | "engagement">("programs");
-  const [chatOpen,  setChatOpen]  = useState(false);
+  const [company,        setCompany]        = useState<Company | null>(null);
+  const [members,        setMembers]        = useState<MemberWithRisk[]>([]);
+  const [snapshot,       setSnapshot]       = useState<WorkforceSnapshot | null>(null);
+  const [aiData,         setAiData]         = useState<ProgramsAiResponse | null>(null);
+  const [loading,        setLoading]        = useState(true);
+  const [aiLoading,      setAiLoading]      = useState(false);
+  const [aiError,        setAiError]        = useState<string | null>(null);
+  const [tab,            setTab]            = useState<"programs" | "interventions" | "engagement">("programs");
+  const [chatOpen,       setChatOpen]       = useState(false);
   const [lastRefresh,    setLastRefresh]    = useState<Date | null>(null);
-  // Refresh eligibility
-  const [refreshAllowed,    setRefreshAllowed]    = useState(false);
-  const [nextRefreshAt,     setNextRefreshAt]     = useState<Date | null>(null);
+  const [refreshAllowed, setRefreshAllowed] = useState(false);
+  const [nextRefreshAt,  setNextRefreshAt]  = useState<Date | null>(null);
   const [refreshCooldownMsg, setRefreshCooldownMsg] = useState<string | null>(null);
+  const [broadcastResult,    setBroadcastResult]    = useState<BroadcastResult | null>(null);
 
-  // ─── LOAD DATA ──────────────────────────────────────────────────────────────
   const loadData = useCallback(async (uid: string) => {
     setLoading(true);
     try {
@@ -509,12 +632,10 @@ export default function EmployerProgramsPage() {
       setLoading(false);
       setLastRefresh(new Date());
 
-      // Check refresh eligibility
       const { allowed, nextAllowedAt } = await checkRefreshEligibility(co.$id);
       setRefreshAllowed(allowed);
       setNextRefreshAt(nextAllowedAt);
 
-      // Load from Appwrite cache first — only calls AI if no cache
       setAiLoading(true);
       setAiError(null);
       try {
@@ -532,22 +653,17 @@ export default function EmployerProgramsPage() {
     }
   }, []);
 
-  // ─── MANUAL REFRESH (rate-limited) ──────────────────────────────────────────
   const handleRefresh = async () => {
     if (!user || !company || !snapshot) return;
-
     const { allowed, nextAllowedAt } = await checkRefreshEligibility(company.$id);
     if (!allowed && nextAllowedAt) {
       const diff    = nextAllowedAt.getTime() - Date.now();
       const hours   = Math.floor(diff / 3600000);
       const minutes = Math.floor((diff % 3600000) / 60000);
-      setRefreshCooldownMsg(
-        `Programs were recently updated. You can refresh again in ${hours}h ${minutes}m.`
-      );
+      setRefreshCooldownMsg(`Programs were recently updated. You can refresh again in ${hours}h ${minutes}m.`);
       setTimeout(() => setRefreshCooldownMsg(null), 5000);
       return;
     }
-
     setAiLoading(true);
     setAiError(null);
     try {
@@ -555,11 +671,9 @@ export default function EmployerProgramsPage() {
       setAiData(result);
       setLastRefresh(new Date());
       setRefreshAllowed(false);
-      const next = new Date(Date.now() + 3 * 60 * 60 * 1000);
-      setNextRefreshAt(next);
+      setNextRefreshAt(new Date(Date.now() + 3 * 60 * 60 * 1000));
     } catch (e: any) {
       setAiError("AI refresh failed. Please try again later.");
-      console.error("[Programs] refresh error:", e);
     } finally {
       setAiLoading(false);
     }
@@ -567,17 +681,15 @@ export default function EmployerProgramsPage() {
 
   useEffect(() => { if (user) loadData(user.id); }, [user]);
 
-  // Cooldown countdown display
   const cooldownLabel = (() => {
     if (!nextRefreshAt) return null;
-    const diff    = nextRefreshAt.getTime() - Date.now();
+    const diff = nextRefreshAt.getTime() - Date.now();
     if (diff <= 0) return null;
     const hours   = Math.floor(diff / 3600000);
     const minutes = Math.floor((diff % 3600000) / 60000);
     return `Next refresh in ${hours}h ${minutes}m`;
   })();
 
-  // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
     <EmployerLayout>
       <div style={{ paddingBottom: 80 }}>
@@ -611,14 +723,12 @@ export default function EmployerProgramsPage() {
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {/* Refresh programs button — rate-limited */}
               <button
                 onClick={handleRefresh}
                 disabled={loading || aiLoading || (!refreshAllowed && !!nextRefreshAt)}
-                title={!refreshAllowed && cooldownLabel ? cooldownLabel : "Refresh AI programs with latest workforce data"}
+                title={!refreshAllowed && cooldownLabel ? cooldownLabel : "Refresh AI programs"}
                 style={{
-                  padding: "8px 14px",
-                  background: "transparent",
+                  padding: "8px 14px", background: "transparent",
                   border: `1px solid ${c.border}`,
                   color: (!refreshAllowed && !!nextRefreshAt) ? c.muted : c.text,
                   borderRadius: 2,
@@ -631,7 +741,6 @@ export default function EmployerProgramsPage() {
                 <RefreshCw size={13} className={aiLoading ? "animate-spin" : ""} />
                 Refresh Programs
               </button>
-
               <button
                 onClick={() => setChatOpen(v => !v)}
                 style={{
@@ -643,25 +752,21 @@ export default function EmployerProgramsPage() {
                 <MessageSquare size={13} />Ask AI
               </button>
             </div>
-
-            {/* Cooldown message */}
             {cooldownLabel && !refreshAllowed && (
               <p style={{ margin: 0, fontSize: 10, color: c.muted, textAlign: "right" }}>{cooldownLabel}</p>
             )}
           </div>
         </motion.div>
 
-        {/* ── Cooldown toast ────────────────────────────────────────────────── */}
+        {/* ── Cooldown toast ──────────────────────────────────────────────── */}
         <AnimatePresence>
           {refreshCooldownMsg && (
             <motion.div
               initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               style={{
                 display: "flex", alignItems: "center", gap: 12,
-                padding: "12px 16px",
-                background: "rgba(245,158,11,0.06)",
-                border: "1px solid rgba(245,158,11,0.25)",
-                borderRadius: 2, marginBottom: 16,
+                padding: "12px 16px", background: "rgba(245,158,11,0.06)",
+                border: "1px solid rgba(245,158,11,0.25)", borderRadius: 2, marginBottom: 16,
               }}
             >
               <Clock size={16} style={{ color: "#F59E0B", flexShrink: 0 }} />
@@ -670,17 +775,15 @@ export default function EmployerProgramsPage() {
           )}
         </AnimatePresence>
 
-        {/* ── Urgent Alert ──────────────────────────────────────────────────── */}
+        {/* ── Urgent Alert ─────────────────────────────────────────────────── */}
         <AnimatePresence>
           {!loading && aiData?.urgentMessage && (
             <motion.div
               initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               style={{
                 display: "flex", alignItems: "center", gap: 12,
-                padding: "12px 16px",
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.25)",
-                borderRadius: 2, marginBottom: 20,
+                padding: "12px 16px", background: "rgba(239,68,68,0.06)",
+                border: "1px solid rgba(239,68,68,0.25)", borderRadius: 2, marginBottom: 20,
               }}
             >
               <AlertTriangle size={16} style={{ color: "#EF4444", flexShrink: 0 }} />
@@ -692,12 +795,12 @@ export default function EmployerProgramsPage() {
         {/* ── Snapshot Stats ───────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
           {[
-            { icon: <Users size={15} />,     label: "Total",    value: snapshot?.totalEmployees ?? "—",      color: accentColor },
-            { icon: <CheckCircle size={15} />, label: "Active",  value: snapshot?.activeEmployees ?? "—",    color: "#10B981" },
-            { icon: <Activity size={15} />,  label: "Assessed", value: `${snapshot?.assessmentRate ?? 0}%`,  color: "#8B5CF6" },
-            { icon: <Heart size={15} />,     label: "High Risk", value: snapshot?.highRiskCount ?? "—",      color: "#EF4444" },
-            { icon: <BarChart3 size={15} />, label: "Avg Diab", value: snapshot?.avgDiabetesScore ?? "—",    color: "#F59E0B" },
-            { icon: <Shield size={15} />,    label: "Avg BP",   value: snapshot?.avgHypertensionScore ?? "—", color: "#3B82F6" },
+            { icon: <Users size={15} />,       label: "Total",     value: snapshot?.totalEmployees      ?? "—", color: accentColor },
+            { icon: <CheckCircle size={15} />, label: "Active",    value: snapshot?.activeEmployees     ?? "—", color: "#10B981"  },
+            { icon: <Activity size={15} />,    label: "Assessed",  value: `${snapshot?.assessmentRate   ?? 0}%`, color: "#8B5CF6" },
+            { icon: <Heart size={15} />,       label: "High Risk", value: snapshot?.highRiskCount       ?? "—", color: "#EF4444"  },
+            { icon: <BarChart3 size={15} />,   label: "Avg Diab",  value: snapshot?.avgDiabetesScore    ?? "—", color: "#F59E0B"  },
+            { icon: <Shield size={15} />,      label: "Avg BP",    value: snapshot?.avgHypertensionScore ?? "—", color: "#3B82F6" },
           ].map((s, i) => (
             <motion.div
               key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -738,20 +841,16 @@ export default function EmployerProgramsPage() {
               <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 800, color: accentColor, textTransform: "uppercase", letterSpacing: "0.07em" }}>
                 AI Analysis
               </p>
-              {aiLoading
-                ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Loader2 size={13} className="animate-spin" style={{ color: accentColor }} />
-                    <span style={{ fontSize: 12, color: c.muted }}>Analysing your workforce data…</span>
-                  </div>
-                )
-                : (
-                  <p style={{ margin: 0, fontSize: 13, color: c.text, lineHeight: 1.5 }}>
-                    {aiData?.headline || "Building your personalised health program recommendations…"}
-                  </p>
-                )
-              }
-              {/* Show cache info */}
+              {aiLoading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Loader2 size={13} className="animate-spin" style={{ color: accentColor }} />
+                  <span style={{ fontSize: 12, color: c.muted }}>Analysing your workforce data…</span>
+                </div>
+              ) : (
+                <p style={{ margin: 0, fontSize: 13, color: c.text, lineHeight: 1.5 }}>
+                  {aiData?.headline || "Building your personalised health program recommendations…"}
+                </p>
+              )}
               {aiData?.generatedAt && !aiLoading && (
                 <p style={{ margin: "4px 0 0", fontSize: 10, color: c.muted, opacity: 0.6 }}>
                   Programs generated {new Date(aiData.generatedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -765,9 +864,9 @@ export default function EmployerProgramsPage() {
         {!loading && (
           <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: `1px solid ${c.border}`, paddingBottom: 0 }}>
             {([
-              { key: "programs",      label: "AI Programs",  icon: <Sparkles size={13} /> },
-              { key: "interventions", label: "Quick Wins",   icon: <Lightbulb size={13} /> },
-              { key: "engagement",    label: "Engagement",   icon: <Target size={13} /> },
+              { key: "programs",      label: "AI Programs", icon: <Sparkles size={13} /> },
+              { key: "interventions", label: "Quick Wins",  icon: <Lightbulb size={13} /> },
+              { key: "engagement",    label: "Engagement",  icon: <Target size={13} /> },
             ] as const).map(t => (
               <button
                 key={t.key} onClick={() => setTab(t.key)}
@@ -824,11 +923,34 @@ export default function EmployerProgramsPage() {
                 <p style={{ margin: 0, fontSize: 12, color: c.muted }}>Add employees and complete assessments to unlock AI recommendations.</p>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 14 }}>
-                {(aiData?.programs || []).map((prog, i) => (
-                  <ProgramCard key={prog.id || i} prog={prog} c={c} accentColor={accentColor} />
-                ))}
-              </div>
+              <>
+                {/* Broadcast hint */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "9px 14px", marginBottom: 16,
+                  background: `${accentColor}08`, border: `1px solid ${accentColor}20`,
+                }}>
+                  <Radio size={12} style={{ color: accentColor, flexShrink: 0 }} />
+                  <p style={{ margin: 0, fontSize: 11, color: accentColor, fontWeight: 600 }}>
+                    Click <strong>Send to Team</strong> on any program to automatically route it to the right employees based on their health risk — without revealing individual data.
+                  </p>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 14 }}>
+                  {(aiData?.programs || []).map((prog, i) => (
+                    <ProgramCard
+                      key={prog.id || i}
+                      prog={prog}
+                      c={c}
+                      accentColor={accentColor}
+                      companyId={company?.$id  || ""}
+                      companyName={company?.name || ""}
+                      sentBy={user?.id || ""}
+                      onBroadcastSuccess={setBroadcastResult}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </>
         )}
@@ -885,8 +1007,6 @@ export default function EmployerProgramsPage() {
                     <Skeleton w="55%" h={16} />
                     <div style={{ height: 10 }} />
                     <Skeleton w="100%" h={32} />
-                    <div style={{ height: 8 }} />
-                    {[1, 2, 3].map(j => <div key={j} style={{ marginBottom: 6 }}><Skeleton w="90%" h={12} /></div>)}
                   </div>
                 ))
               : (aiData?.engagement || []).map((strat, i) => (
@@ -928,17 +1048,25 @@ export default function EmployerProgramsPage() {
         <ThemeToggle />
       </div>
 
-      {/* ── Floating AI Chat ─────────────────────────────────────────────────── */}
+      {/* ── Broadcast result toast ────────────────────────────────────────────── */}
       <AnimatePresence>
-        {chatOpen && snapshot && (
-          <AiChatPanel
-            snapshot={snapshot} c={c} accentColor={accentColor}
-            onClose={() => setChatOpen(false)}
+        {broadcastResult && (
+          <BroadcastToast
+            result={broadcastResult}
+            c={c}
+            accentColor={accentColor}
+            onClose={() => setBroadcastResult(null)}
           />
         )}
       </AnimatePresence>
 
-      {/* Floating chat button */}
+      {/* ── Floating AI Chat ──────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {chatOpen && snapshot && (
+          <AiChatPanel snapshot={snapshot} c={c} accentColor={accentColor} onClose={() => setChatOpen(false)} />
+        )}
+      </AnimatePresence>
+
       <motion.button
         whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.96 }}
         onClick={() => setChatOpen(v => !v)}

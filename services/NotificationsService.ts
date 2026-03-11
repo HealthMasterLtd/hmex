@@ -6,18 +6,15 @@
  * Creates, fetches, marks as read, and manages notification lifecycle.
  *
  * Appwrite Collection: "notifications" in "hmex_db"
- * Required attributes:
- *   - userId       (string, required)
- *   - type         (string, required) — see NotificationType
- *   - title        (string, required)
- *   - message      (string, required)
- *   - isRead       (boolean, default: false)
- *   - priority     (string, required) — "low" | "medium" | "high" | "urgent"
- *   - category     (string, required) — "risk_alert" | "recommendation" | "xp" | "milestone" | "reminder" | "system"
- *   - actionUrl    (string, optional)
- *   - actionLabel  (string, optional)
- *   - metadata     (string, optional) — JSON string for extra data
- *   - expiresAt    (string, optional) — ISO timestamp
+ *
+ * WRITE STRATEGY:
+ *   - Assessment / XP / reminder notifications:  client SDK (user is logged in,
+ *     so their own session has write permission on their own documents).
+ *   - Team / program notifications:              POST /api/employee-notify
+ *     These are triggered by employer-side actions. The logged-in user at that
+ *     moment is the EMPLOYER, not the employee being notified, so the client
+ *     session has no write permission for the target userId's documents.
+ *     The server route uses APPWRITE_API_KEY and bypasses permissions entirely.
  */
 
 import { Client, Databases, ID, Query } from "appwrite";
@@ -42,25 +39,26 @@ export type NotificationCategory =
   | "xp"             // XP earned / milestone
   | "milestone"      // Assessment count milestones
   | "reminder"       // Periodic check-up reminders
-  | "system";        // System / onboarding messages
+  | "system"         // System / onboarding messages
+  | "team"           // Team / organisation events (added, removed)
+  | "program";       // Wellness program broadcast from employer
 
 export interface AppNotification {
-  $id:         string;
-  $createdAt:  string;
-  userId:      string;
-  type:        string;
-  title:       string;
-  message:     string;
-  isRead:      boolean;
-  priority:    NotificationPriority;
-  category:    NotificationCategory;
-  actionUrl?:  string;
+  $id:          string;
+  $createdAt:   string;
+  userId:       string;
+  type:         string;
+  title:        string;
+  message:      string;
+  isRead:       boolean;
+  priority:     NotificationPriority;
+  category:     NotificationCategory;
+  actionUrl?:   string;
   actionLabel?: string;
-  metadata?:   string; // JSON
-  expiresAt?:  string;
+  metadata?:    string; // JSON
+  expiresAt?:   string;
 }
 
-// What you pass to create a notification
 export interface CreateNotificationInput {
   userId:       string;
   type:         string;
@@ -74,18 +72,134 @@ export interface CreateNotificationInput {
   expiresAt?:   string;
 }
 
-// ─── NOTIFICATION TEMPLATES ──────────────────────────────────────────────────
+// ─── SERVER-SIDE NOTIFICATION (via API route) ─────────────────────────────────
+// Used whenever we need to notify a DIFFERENT user than the one currently
+// logged in — e.g. employer action notifying an employee.
+// Routes through /api/employee-notify which uses APPWRITE_API_KEY.
+
+async function createNotificationViaServer(
+  input: CreateNotificationInput
+): Promise<boolean> {
+  try {
+    const base = typeof window !== "undefined"
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
+
+    const res = await fetch(`${base}/api/employee-notify`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        userId:      input.userId,
+        type:        input.type,
+        title:       input.title,
+        message:     input.message,
+        priority:    input.priority,
+        category:    input.category,
+        actionUrl:   input.actionUrl   ?? null,
+        actionLabel: input.actionLabel ?? null,
+        metadata:    input.metadata    ?? null,
+        expiresAt:   input.expiresAt   ?? null,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("[NotificationsService] server notify failed:", res.status, err);
+      return false;
+    }
+
+    const data = await res.json();
+    console.log("[NotificationsService] server notify created:", data.id, "type:", input.type, "for user:", input.userId);
+    return true;
+  } catch (e) {
+    console.error("[NotificationsService] createNotificationViaServer error:", e);
+    return false;
+  }
+}
+
+// ─── TEAM / ORGANISATION NOTIFICATIONS ───────────────────────────────────────
+// These route through the server API because the caller (employer session)
+// does not have client-SDK write permission on the employee's notifications.
 
 /**
- * Auto-generate notifications after a completed assessment.
- * Call this right after saveAssessment() succeeds.
+ * Fired when an employer adds an employee to their team.
+ * Routes through /api/employee-notify (server API key).
  */
-export async function createAssessmentNotifications(
+export async function notifyEmployeeAddedToTeam(
   userId:      string,
-  diabetesLevel:    string,
+  companyName: string,
+  companyId:   string,
+): Promise<boolean> {
+  return createNotificationViaServer({
+    userId,
+    type:        "team_added",
+    title:       `You've been added to ${companyName}`,
+    message:     `${companyName} has added you to their workforce on HMEX. You can now view your team and any wellness programs they share with you.`,
+    priority:    "medium",
+    category:    "team",
+    actionUrl:   "/dashboard/teams",
+    actionLabel: "View My Teams",
+    metadata:    { companyName, companyId },
+  });
+}
+
+/**
+ * Fired when an employee is removed from a company's team.
+ * Routes through /api/employee-notify (server API key).
+ */
+export async function notifyEmployeeRemovedFromTeam(
+  userId:      string,
+  companyName: string,
+  companyId:   string,
+): Promise<boolean> {
+  return createNotificationViaServer({
+    userId,
+    type:        "team_removed",
+    title:       `Removed from ${companyName}`,
+    message:     `You have been removed from ${companyName}'s workforce on HMEX. Your personal health data remains private and is not affected.`,
+    priority:    "medium",
+    category:    "team",
+    actionUrl:   "/dashboard/teams",
+    actionLabel: "View My Teams",
+    metadata:    { companyName, companyId },
+    expiresAt:   new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+}
+
+/**
+ * Fired when an employer broadcasts a wellness program to the team.
+ * Routes through /api/employee-notify (server API key).
+ */
+export async function notifyEmployeeProgramBroadcast(
+  userId:       string,
+  companyName:  string,
+  companyId:    string,
+  programTitle: string,
+  programId:    string,
+): Promise<boolean> {
+  return createNotificationViaServer({
+    userId,
+    type:        "program_broadcast",
+    title:       `New wellness program from ${companyName}`,
+    message:     `${companyName} has shared a wellness program with you: "${programTitle}". Open My Teams to view details and enrol.`,
+    priority:    "medium",
+    category:    "program",
+    actionUrl:   "/dashboard/teams",
+    actionLabel: "View Program",
+    metadata:    { companyName, companyId, programTitle, programId },
+    expiresAt:   new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+}
+
+// ─── ASSESSMENT NOTIFICATIONS ─────────────────────────────────────────────────
+// These use the client SDK — the logged-in user is writing their own notification.
+
+export async function createAssessmentNotifications(
+  userId:            string,
+  diabetesLevel:     string,
   hypertensionLevel: string,
-  assessmentNumber: number,
-  xpEarned:    number
+  assessmentNumber:  number,
+  xpEarned:          number
 ): Promise<void> {
   const notifications: CreateNotificationInput[] = [];
 
@@ -102,7 +216,7 @@ export async function createAssessmentNotifications(
     metadata:    { xpEarned, assessmentNumber },
   });
 
-  // ── High Diabetes Risk Alert ──
+  // ── High Diabetes Risk ──
   if (diabetesLevel === "high" || diabetesLevel === "very-high") {
     notifications.push({
       userId,
@@ -115,10 +229,7 @@ export async function createAssessmentNotifications(
       actionLabel: "View Full Report",
       metadata:    { diabetesLevel, assessmentNumber },
     });
-  }
-
-  // ── Moderate Diabetes Risk ──
-  else if (diabetesLevel === "moderate") {
+  } else if (diabetesLevel === "moderate") {
     notifications.push({
       userId,
       type:        "risk_alert_diabetes_moderate",
@@ -132,7 +243,7 @@ export async function createAssessmentNotifications(
     });
   }
 
-  // ── High Hypertension Risk Alert ──
+  // ── High Hypertension Risk ──
   if (hypertensionLevel === "high" || hypertensionLevel === "very-high") {
     notifications.push({
       userId,
@@ -145,10 +256,7 @@ export async function createAssessmentNotifications(
       actionLabel: "View Full Report",
       metadata:    { hypertensionLevel, assessmentNumber },
     });
-  }
-
-  // ── Moderate Hypertension Risk ──
-  else if (hypertensionLevel === "moderate") {
+  } else if (hypertensionLevel === "moderate") {
     notifications.push({
       userId,
       type:        "risk_alert_hypertension_moderate",
@@ -162,7 +270,7 @@ export async function createAssessmentNotifications(
     });
   }
 
-  // ── Both Low Risk — Positive Reinforcement ──
+  // ── Both Low Risk ──
   if (diabetesLevel === "low" && hypertensionLevel === "low") {
     notifications.push({
       userId,
@@ -177,7 +285,7 @@ export async function createAssessmentNotifications(
     });
   }
 
-  // ── Milestone: 1st Assessment ──
+  // ── Milestone: 1st ──
   if (assessmentNumber === 1) {
     notifications.push({
       userId,
@@ -192,7 +300,7 @@ export async function createAssessmentNotifications(
     });
   }
 
-  // ── Milestone: 5th Assessment ──
+  // ── Milestone: 5th ──
   if (assessmentNumber === 5) {
     notifications.push({
       userId,
@@ -207,7 +315,7 @@ export async function createAssessmentNotifications(
     });
   }
 
-  // ── Recommendation Reminder (after 2nd+ assessment) ──
+  // ── New Recommendations (2nd+) ──
   if (assessmentNumber >= 2) {
     notifications.push({
       userId,
@@ -222,28 +330,27 @@ export async function createAssessmentNotifications(
     });
   }
 
-  // Save all in parallel
   await Promise.allSettled(notifications.map(n => createNotification(n)));
 }
 
-// ─── CREATE ───────────────────────────────────────────────────────────────────
+// ─── CREATE (client SDK — user writing their own data) ────────────────────────
 
 export async function createNotification(
   input: CreateNotificationInput
 ): Promise<AppNotification | null> {
   try {
     const doc = await db.createDocument(NOTIF_DB_ID, NOTIF_COLLECTION_ID, ID.unique(), {
-      userId:       input.userId,
-      type:         input.type,
-      title:        input.title,
-      message:      input.message,
-      isRead:       false,
-      priority:     input.priority,
-      category:     input.category,
-      actionUrl:    input.actionUrl   ?? null,
-      actionLabel:  input.actionLabel ?? null,
-      metadata:     input.metadata ? JSON.stringify(input.metadata) : null,
-      expiresAt:    input.expiresAt ?? null,
+      userId:      input.userId,
+      type:        input.type,
+      title:       input.title,
+      message:     input.message,
+      isRead:      false,
+      priority:    input.priority,
+      category:    input.category,
+      actionUrl:   input.actionUrl   ?? null,
+      actionLabel: input.actionLabel ?? null,
+      metadata:    input.metadata ? JSON.stringify(input.metadata) : null,
+      expiresAt:   input.expiresAt ?? null,
     });
     return doc as unknown as AppNotification;
   } catch (e) {
@@ -254,7 +361,6 @@ export async function createNotification(
 
 // ─── FETCH ────────────────────────────────────────────────────────────────────
 
-/** All notifications for a user, newest first */
 export async function fetchNotifications(
   userId: string,
   limit = 30
@@ -266,7 +372,6 @@ export async function fetchNotifications(
       Query.orderDesc("$createdAt"),
       Query.limit(limit),
     ]);
-    // Filter out expired notifications client-side
     return (res.documents as unknown as AppNotification[]).filter(
       n => !n.expiresAt || n.expiresAt > now
     );
@@ -276,7 +381,6 @@ export async function fetchNotifications(
   }
 }
 
-/** Count of unread notifications */
 export async function fetchUnreadCount(userId: string): Promise<number> {
   try {
     const res = await db.listDocuments(NOTIF_DB_ID, NOTIF_COLLECTION_ID, [
@@ -292,12 +396,9 @@ export async function fetchUnreadCount(userId: string): Promise<number> {
 
 // ─── MARK AS READ ─────────────────────────────────────────────────────────────
 
-/** Mark a single notification as read */
 export async function markAsRead(notificationId: string): Promise<boolean> {
   try {
-    await db.updateDocument(NOTIF_DB_ID, NOTIF_COLLECTION_ID, notificationId, {
-      isRead: true,
-    });
+    await db.updateDocument(NOTIF_DB_ID, NOTIF_COLLECTION_ID, notificationId, { isRead: true });
     return true;
   } catch (e) {
     console.error("[NotificationsService] markAsRead error:", e);
@@ -305,7 +406,6 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
   }
 }
 
-/** Mark ALL notifications for a user as read */
 export async function markAllAsRead(userId: string): Promise<boolean> {
   try {
     const unread = await db.listDocuments(NOTIF_DB_ID, NOTIF_COLLECTION_ID, [
@@ -337,7 +437,6 @@ export async function deleteNotification(notificationId: string): Promise<boolea
   }
 }
 
-/** Delete all read notifications for a user (housekeeping) */
 export async function clearReadNotifications(userId: string): Promise<boolean> {
   try {
     const read = await db.listDocuments(NOTIF_DB_ID, NOTIF_COLLECTION_ID, [
@@ -359,7 +458,6 @@ export async function clearReadNotifications(userId: string): Promise<boolean> {
 
 // ─── SYSTEM NOTIFICATIONS ────────────────────────────────────────────────────
 
-/** Send a reminder to users who haven't taken an assessment in 30+ days */
 export async function createRetakeReminder(
   userId: string,
   daysSinceLastAssessment: number
@@ -374,11 +472,10 @@ export async function createRetakeReminder(
     actionUrl:   "/dashboard/assessment",
     actionLabel: "Take Assessment Now",
     metadata:    { daysSinceLastAssessment },
-    expiresAt:   new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // expires in 14 days
+    expiresAt:   new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   });
 }
 
-/** Notify when XP threshold is reached for a free consultation */
 export async function createXpUnlockedNotification(
   userId: string,
   totalXp: number
@@ -404,17 +501,17 @@ export function parseNotificationMetadata(metadata?: string): Record<string, any
   catch { return {}; }
 }
 
-/** Get a colour for a notification's priority/category */
 export function getNotificationColor(n: AppNotification): string {
-  if (n.priority === "urgent") return "#ef4444";
-  if (n.priority === "high")   return "#f97316";
-  if (n.category === "xp")     return "#0FBB7D";
-  if (n.category === "milestone") return "#8b5cf6";
+  if (n.priority === "urgent")         return "#ef4444";
+  if (n.priority === "high")           return "#f97316";
+  if (n.category === "xp")             return "#0FBB7D";
+  if (n.category === "milestone")      return "#8b5cf6";
   if (n.category === "recommendation") return "#6366f1";
+  if (n.category === "team")           return "#3b82f6";
+  if (n.category === "program")        return "#0d9488";
   return "#64748b";
 }
 
-/** Get an emoji icon for a notification category */
 export function getNotificationIcon(n: AppNotification): string {
   switch (n.category) {
     case "risk_alert":     return n.priority === "urgent" ? "🚨" : "⚠️";
@@ -422,6 +519,8 @@ export function getNotificationIcon(n: AppNotification): string {
     case "xp":             return "⚡";
     case "milestone":      return "🏆";
     case "reminder":       return "📅";
+    case "team":           return "🏢";
+    case "program":        return "🎯";
     case "system":         return "🔔";
     default:               return "📩";
   }

@@ -10,6 +10,10 @@ import {
   notifyEmployeeRemoved,
   notifyEmployerWelcome,
 } from "./employerNotificationsService";
+import {
+  notifyEmployeeAddedToTeam,
+  notifyEmployeeRemovedFromTeam,
+} from "./NotificationsService"; // ← employee-side notifications
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const ENDPOINT   = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
@@ -98,7 +102,8 @@ function parseMember(doc: Record<string, unknown>): CompanyMember {
 // ─── RECONCILE PENDING MEMBERS ────────────────────────────────────────────────
 // Runs automatically inside getCompanyMembers on every refresh.
 // For each pending member, checks if their email now has an HMEX account.
-// If yes → activates the member, links their profile, fires a notification.
+// If yes → activates the member, links their profile, fires notifications to
+// BOTH the employer and the employee.
 
 async function reconcilePendingMembers(pendingMembers: CompanyMember[]): Promise<void> {
   if (pendingMembers.length === 0) return;
@@ -133,11 +138,18 @@ async function reconcilePendingMembers(pendingMembers: CompanyMember[]): Promise
           console.error("[CompanyService] reconcile profile link failed:", e)
         );
 
-        // ── Fire notification to employer ─────────────────────────────────
-        // We need the employer's userId (ownerId) — fetch the company for it
+        // ── Notify EMPLOYEE they've been added to the team ─────────────
+        notifyEmployeeAddedToTeam(
+          userDoc.$id as string,
+          m.companyName,
+          m.companyId,
+        ).catch((e) =>
+          console.error("[CompanyService] reconcile notifyEmployeeAddedToTeam error:", e)
+        );
+
+        // ── Notify EMPLOYER an employee has joined ─────────────────────
         const company = await getCompany(m.companyId).catch(() => null);
         if (company) {
-          // Count current active members so the notification shows accurate total
           const allMembers = await db.listDocuments(
             USERS_DB_ID,
             COMPANY_MEMBERS_COLLECTION_ID,
@@ -148,10 +160,7 @@ async function reconcilePendingMembers(pendingMembers: CompanyMember[]): Promise
             ]
           ).catch(() => null);
 
-          const totalActive = allMembers
-            ? allMembers.documents.length
-            : 0;
-
+          const totalActive = allMembers ? allMembers.documents.length : 0;
           const employeeName =
             (userDoc.fullName as string) ||
             (userDoc.name as string) ||
@@ -197,7 +206,7 @@ export async function createCompany(data: {
     console.log("[CompanyService] Created company:", doc.$id);
     const company = parseCompany(doc);
 
-    // ── Welcome notification ──────────────────────────────────────────────
+    // ── Welcome notification to employer ──────────────────────────────
     notifyEmployerWelcome(company.$id, company.ownerId, company.name).catch((e) =>
       console.error("[CompanyService] createCompany notifyWelcome error:", e)
     );
@@ -243,7 +252,7 @@ export async function inviteEmployee(data: {
   companyId:   string;
   companyName: string;
   email:       string;
-  invitedBy:   string; // this is the employer's userId
+  invitedBy:   string; // employer's userId
 }): Promise<{ member: CompanyMember; inviteToken: string } | null> {
   try {
     const inviteToken = crypto.randomUUID();
@@ -271,10 +280,10 @@ export async function inviteEmployee(data: {
         inviteCount: company.inviteCount + 1,
       });
 
-      // ── Fire invite-sent notification ─────────────────────────────────
+      // ── Notify employer invite was sent ────────────────────────────
       notifyInviteSent(
         data.companyId,
-        data.invitedBy,        // employer's userId
+        data.invitedBy,
         data.email,
         company.inviteCount + 1
       ).catch((e) =>
@@ -323,7 +332,16 @@ export async function addExistingEmployee(data: {
       companyName: data.companyName,
     } as never);
 
-    // ── Count active members then notify ─────────────────────────────────
+    // ── Notify EMPLOYEE they've been added ─────────────────────────
+    notifyEmployeeAddedToTeam(
+      data.userId,
+      data.companyName,
+      data.companyId,
+    ).catch((e) =>
+      console.error("[CompanyService] addExistingEmployee notifyEmployeeAddedToTeam error:", e)
+    );
+
+    // ── Notify EMPLOYER ────────────────────────────────────────────
     const allMembers = await db.listDocuments(
       USERS_DB_ID,
       COMPANY_MEMBERS_COLLECTION_ID,
@@ -334,12 +352,9 @@ export async function addExistingEmployee(data: {
       ]
     ).catch(() => null);
 
-    const totalActive = allMembers ? allMembers.documents.length : 1;
-
-    // Resolve the employee's display name from their profile
+    const totalActive    = allMembers ? allMembers.documents.length : 1;
     const employeeProfile = await getUserProfile(data.userId).catch(() => null);
-    const employeeName    =
-      employeeProfile?.fullName || data.email;
+    const employeeName   = employeeProfile?.fullName || data.email;
 
     notifyEmployeeJoined(
       data.companyId,
@@ -357,7 +372,7 @@ export async function addExistingEmployee(data: {
   }
 }
 
-// ─── CLAIM INVITE (client-side, kept for reference — prefer server PATCH route) ─
+// ─── CLAIM INVITE (client-side — prefer server PATCH route) ──────────────────
 
 export async function claimInvite(
   inviteToken: string,
@@ -383,7 +398,16 @@ export async function claimInvite(
       companyName: member.companyName,
     } as never);
 
-    // ── Notify employer that the invite was claimed ────────────────────────
+    // ── Notify EMPLOYEE their invite was claimed / they joined ─────
+    notifyEmployeeAddedToTeam(
+      userId,
+      member.companyName,
+      member.companyId,
+    ).catch((e) =>
+      console.error("[CompanyService] claimInvite notifyEmployeeAddedToTeam error:", e)
+    );
+
+    // ── Notify EMPLOYER ────────────────────────────────────────────
     const company = await getCompany(member.companyId).catch(() => null);
     if (company) {
       const allMembers = await db.listDocuments(
@@ -436,7 +460,6 @@ export async function getCompanyMemberByToken(
 }
 
 // ─── GET COMPANY MEMBERS ──────────────────────────────────────────────────────
-// Auto-reconciles any pending members whose email now has an HMEX account.
 
 export async function getCompanyMembers(
   companyId: string
@@ -451,14 +474,13 @@ export async function getCompanyMembers(
 
     const members = res.documents.map((d) => parseMember(d));
 
-    // ── Auto-reconcile pending members ───────────────────────────────────────
+    // ── Auto-reconcile pending members ──────────────────────────────
     const pending = members.filter((m) => m.status === "pending");
     if (pending.length > 0) {
-      // Fire-and-forget — don't block the list render
       reconcilePendingMembers(pending).catch(console.error);
     }
 
-    // ── Merge in user profile data ────────────────────────────────────────────
+    // ── Merge in user profile data ───────────────────────────────────
     const rows: EmployeeDashboardRow[] = await Promise.all(
       members.map(async (m) => {
         if (m.userId) {
@@ -497,15 +519,17 @@ export async function getCompanyMembers(
 export async function removeEmployee(
   memberId:   string,
   userId:     string | null,
-  employerId: string,   // employer's userId — needed to address the notification
-  companyId:  string    // needed to count remaining active members
+  employerId: string,
+  companyId:  string
 ): Promise<boolean> {
   try {
-    // Grab member details before marking removed so we have the name
+    // Grab member details before marking removed
     let employeeName = "An employee";
+    let companyName  = "";
     if (userId) {
       const profile = await getUserProfile(userId).catch(() => null);
       employeeName  = profile?.fullName || profile?.email || employeeName;
+      companyName   = profile?.companyName || "";
     }
 
     await db.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId, {
@@ -517,9 +541,18 @@ export async function removeEmployee(
         companyId:   "",
         companyName: "",
       } as never);
+
+      // ── Notify EMPLOYEE they were removed ──────────────────────────
+      notifyEmployeeRemovedFromTeam(
+        userId,
+        companyName,
+        companyId,
+      ).catch((e) =>
+        console.error("[CompanyService] removeEmployee notifyEmployeeRemovedFromTeam error:", e)
+      );
     }
 
-    // ── Count remaining active members then notify ─────────────────────────
+    // ── Notify EMPLOYER ────────────────────────────────────────────
     const allMembers = await db.listDocuments(
       USERS_DB_ID,
       COMPANY_MEMBERS_COLLECTION_ID,
