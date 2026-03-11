@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Activity, History, User, Settings,
-  LogOut, ChevronLeft, ChevronRight, X, HelpCircle, Bell, Lightbulb,
+  LogOut, ChevronLeft, ChevronRight, X, HelpCircle, Bell, Lightbulb, Users2,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 const PRIMARY_NAV = [
   { id: "overview",        label: "Overview",        icon: LayoutDashboard, href: "/dashboard" },
   { id: "recommendations", label: "Recommendations", icon: Lightbulb,       href: "/dashboard/recommendations" },
+  { id: "teams",           label: "My Teams",        icon: Users2,          href: "/dashboard/teams" },   // ← ADD THIS
   { id: "history",         label: "History",         icon: History,         href: "/dashboard/history" },
   { id: "assessment",      label: "New Assessment",  icon: Activity,        href: "/dashboard/assessment" },
   { id: "profile",         label: "My Profile",      icon: User,            href: "/dashboard/profile" },
