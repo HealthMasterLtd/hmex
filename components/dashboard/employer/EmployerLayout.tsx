@@ -1,15 +1,13 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 /**
  * /components/dashboard/employer/EmployerLayout.tsx
- * 
- * Employer Dashboard Layout
- * Same structure as user DashboardLayout but with employer sidebar
  */
 
 import React, { useState, useEffect, createContext, useContext } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import EmployerSidebar from "./EmployerSidebar";
-import DashboardHeader from "../DashboardHeader"; // Reuse the same header
+import EmployerHeader from "./EmployerHeader"; // ← employer-specific header (no XP)
 
 // ─── LAYOUT CONTEXT ──────────────────────────────────────────────────────────
 interface LayoutContextType {
@@ -35,7 +33,6 @@ export default function EmployerLayout({ children }: { children: React.ReactNode
 
   useEffect(() => {
     const saved = localStorage.getItem("hmex-employer-sidebar-collapsed");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (saved !== null) setSidebarCollapsed(saved === "true");
     setMounted(true);
   }, []);
@@ -52,18 +49,15 @@ export default function EmployerLayout({ children }: { children: React.ReactNode
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const pageBg = S.bg;
-  const mainBg = S.surface;
-
   if (!mounted) {
-    return <div style={{ display: "flex", height: "100vh", background: pageBg,}} />;
+    return <div style={{ display: "flex", height: "100vh", background: S.bg }} />;
   }
 
   return (
     <LayoutContext.Provider value={{ sidebarCollapsed, setSidebarCollapsed, mobileOpen, setMobileOpen }}>
       <div style={{
         display: "flex", height: "100vh", overflow: "hidden",
-        padding: 8, gap: 8, background: pageBg,
+        padding: 8, gap: 8, background: S.bg,
       }}>
         {/* Employer Sidebar */}
         <EmployerSidebar
@@ -76,14 +70,16 @@ export default function EmployerLayout({ children }: { children: React.ReactNode
         {/* Main column */}
         <div style={{
           display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden",
-          background: mainBg,
+          background: S.surface,
           boxShadow: isDark
             ? `0 0 0 1px ${S.border}, 0 8px 40px rgba(0,0,0,0.45)`
             : `0 0 0 1px ${S.border}, 0 4px 24px rgba(0,0,0,0.07)`,
         }}>
-          <DashboardHeader onMobileMenuOpen={() => setMobileOpen(true)} />
-          <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", background: "transparent"}}>
-            <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 24px"}}>
+          {/* Employer-specific header — no XP badge, employer notification bell */}
+          <EmployerHeader onMobileMenuOpen={() => setMobileOpen(true)} />
+
+          <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", background: "transparent" }}>
+            <div style={{ maxWidth: 1400, margin: "0 auto", padding: "24px 24px" }}>
               {children}
             </div>
           </main>

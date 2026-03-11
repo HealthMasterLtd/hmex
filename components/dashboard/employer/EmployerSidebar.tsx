@@ -176,9 +176,17 @@ function NavItem({
         <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
         {collapsed && badge && badge > 0 && (
           <span style={{
-            position: "absolute", top: 2, right: 2,
-            width: 8, height: 8, background: "#EF4444", borderRadius: "50%",
-          }} />
+            position: "absolute", top: -4, right: -4,
+            minWidth: 16, height: 16, padding: "0 3px",
+            background: "#EF4444",
+            borderRadius: 3,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 9, fontWeight: 900, color: "#fff",
+            border: `2px solid ${S.surface ?? "#fff"}`,
+            lineHeight: 1,
+          }}>
+            {badge > 99 ? "99+" : badge}
+          </span>
         )}
       </span>
 
@@ -193,11 +201,12 @@ function NavItem({
           }}>
             {item.label}
           </span>
-          {badge && badge > 0 && (
+          {typeof badge === "number" && badge > 0 && (
             <span style={{
-              minWidth: 20, height: 20, padding: "0 6px",
+              minWidth: 18, height: 18, padding: "0 5px",
               background: "#EF4444", color: "#fff",
-              fontSize: 10, fontWeight: 800,
+              borderRadius: 3,
+              fontSize: 10, fontWeight: 900,
               display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1,
             }}>
               {badge > 99 ? "99+" : badge}
