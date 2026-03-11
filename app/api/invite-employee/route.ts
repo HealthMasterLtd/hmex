@@ -1,7 +1,7 @@
 // app/api/invite-employee/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { Client, Databases, Query } from "node-appwrite";
+import { Client, Databases, ID, Query } from "node-appwrite";
 
 const resend  = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hmex.vercel.app";
@@ -10,6 +10,7 @@ const USERS_DB_ID                   = "hmex_db";
 const USERS_COLLECTION_ID           = "users";
 const COMPANY_MEMBERS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_COMPANY_MEMBERS_COLLECTION_ID!;
 const COMPANIES_COLLECTION_ID       = process.env.NEXT_PUBLIC_APPWRITE_COMPANIES_COLLECTION_ID!;
+const EMPLOYER_NOTIF_COLLECTION_ID  = "employer_notifications";
 
 const serverClient = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!.replace(/\/$/, ""))
@@ -17,6 +18,46 @@ const serverClient = new Client()
   .setKey(process.env.APPWRITE_API_KEY!);
 
 const serverDb = new Databases(serverClient);
+
+// ─── Notification helper — runs entirely server-side with API key ─────────────
+async function createNotification(data: {
+  companyId:    string;
+  employerId:   string;
+  type:         string;
+  title:        string;
+  message:      string;
+  priority:     string;
+  category:     string;
+  actionUrl?:   string;
+  actionLabel?: string;
+  metadata?:    Record<string, unknown>;
+  expiresAt?:   string;
+}) {
+  try {
+    const doc = await serverDb.createDocument(
+      USERS_DB_ID,
+      EMPLOYER_NOTIF_COLLECTION_ID,
+      ID.unique(),
+      {
+        companyId:    data.companyId,
+        employerId:   data.employerId,
+        type:         data.type,
+        title:        data.title,
+        message:      data.message,
+        isRead:       false,
+        priority:     data.priority,
+        category:     data.category,
+        actionUrl:    data.actionUrl   ?? null,
+        actionLabel:  data.actionLabel ?? null,
+        metadata:     data.metadata ? JSON.stringify(data.metadata) : null,
+        expiresAt:    data.expiresAt   ?? null,
+      }
+    );
+    console.log("[invite-employee] notification created:", doc.$id, "type:", data.type);
+  } catch (e) {
+    console.error("[invite-employee] createNotification failed:", e);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const email = employeeEmail.toLowerCase().trim();
 
-    // ── Already a member? ────────────────────────────────────────────────────
+    // ── Already a member? ─────────────────────────────────────────────────────
     const existingMember = await serverDb.listDocuments(
       USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
       [Query.equal("companyId", companyId), Query.equal("email", email), Query.notEqual("status", "removed"), Query.limit(1)]
@@ -79,15 +120,63 @@ export async function POST(req: NextRequest) {
         .catch((e) => console.error("[invite-employee] profile link failed:", e));
     }
 
-    // ── Increment inviteCount (non-critical) ──────────────────────────────────
-    serverDb.getDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId)
-      .then((co) => serverDb.updateDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId, { inviteCount: ((co.inviteCount as number) || 0) + 1 }))
+    // ── Increment inviteCount + get current total for notification ────────────
+    let totalInvited = 1;
+    await serverDb.getDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId)
+      .then((co) => {
+        totalInvited = ((co.inviteCount as number) || 0) + 1;
+        return serverDb.updateDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId, { inviteCount: totalInvited });
+      })
       .catch(() => {});
+
+    // ── Count active members for joined notification ───────────────────────────
+    let totalActive = 1;
+    if (isExistingUser) {
+      const activeRes = await serverDb.listDocuments(
+        USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
+        [Query.equal("companyId", companyId), Query.equal("status", "active"), Query.limit(100)]
+      ).catch(() => null);
+      totalActive = activeRes ? activeRes.documents.length : 1;
+    }
+
+    // ── Fire notification ─────────────────────────────────────────────────────
+    const employeeName = (existingProfile?.fullName as string) || email;
+
+    if (isExistingUser) {
+      // Employee is active immediately — notify joined
+      await createNotification({
+        companyId,
+        employerId:  invitedBy,
+        type:        "employee_joined",
+        title:       "New Employee Joined",
+        message:     `${employeeName} already had an HMEX account and has been added to your workforce. You now have ${totalActive} active employee${totalActive !== 1 ? "s" : ""}.`,
+        priority:    "medium",
+        category:    "employee_activity",
+        actionUrl:   "/dashboard/employer/employees",
+        actionLabel: "View Team",
+        metadata:    { employeeName, totalActive },
+      });
+    } else {
+      // Invite sent — pending until they sign up
+      await createNotification({
+        companyId,
+        employerId:  invitedBy,
+        type:        "invite_sent",
+        title:       "Invitation Sent",
+        message:     `An invitation has been sent to ${email}. You have sent ${totalInvited} invitation${totalInvited !== 1 ? "s" : ""} in total.`,
+        priority:    "low",
+        category:    "employee_activity",
+        actionUrl:   "/dashboard/employer/employees",
+        actionLabel: "Manage Team",
+        metadata:    { invitedEmail: email, totalInvited },
+        expiresAt:   new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+    }
 
     // ── Build invite URL ──────────────────────────────────────────────────────
     const inviteUrl = `${APP_URL}/register?invite=${inviteToken}&company=${companyId}`;
 
-    // ── Send email — same pattern as contact route (no .catch swallowing) ────
+    // ── Send email ────────────────────────────────────────────────────────────
     let resendMsgId: string | null = null;
     let emailError: string | null  = null;
 
@@ -111,8 +200,8 @@ export async function POST(req: NextRequest) {
         resendMsgId = emailRes.data?.id ?? null;
         if (emailRes.error) throw new Error(emailRes.error.message);
       }
-    } catch (e: any) {
-      emailError = e?.message || "Email delivery failed";
+    } catch (e: unknown) {
+      emailError = e instanceof Error ? e.message : "Email delivery failed";
       console.error("[invite-employee] Resend error:", emailError);
     }
 
@@ -128,16 +217,17 @@ export async function POST(req: NextRequest) {
       isExistingUser,
       inviteUrl:     isExistingUser ? null : inviteUrl,
       emailSent:     !!resendMsgId,
-      emailError,   // surface to client so UI shows fallback copy-link immediately
+      emailError,
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[invite-employee API] Error:", err);
-    return NextResponse.json({ error: err?.message || "Failed to send invitation. Please try again." }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to send invitation. Please try again.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-// ── PATCH — claim invite (authService + register page safety-net both call this) ─
+// ── PATCH — claim invite ──────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   try {
     const { inviteToken, userId } = await req.json();
@@ -147,16 +237,14 @@ export async function PATCH(req: NextRequest) {
 
     console.log("[invite-employee PATCH] claiming token:", inviteToken, "for user:", userId);
 
-    // Retry once after a short delay — handles Appwrite indexing lag where the
-    // member doc was just created milliseconds ago and may not appear yet
-    let memberDoc: Record<string, any> | null = null;
+    let memberDoc: Record<string, unknown> | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
       const res = await serverDb.listDocuments(
         USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
         [Query.equal("inviteToken", inviteToken), Query.limit(1)]
       ).catch(() => null);
-      if (res && res.documents.length > 0) { memberDoc = res.documents[0]; break; }
+      if (res && res.documents.length > 0) { memberDoc = res.documents[0] as Record<string, unknown>; break; }
     }
 
     if (!memberDoc) {
@@ -164,38 +252,64 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Invite not found." }, { status: 404 });
     }
 
-    const now = new Date().toISOString();
+    const companyId   = memberDoc.companyId   as string;
+    const companyName = memberDoc.companyName as string;
+    const memberId    = memberDoc.$id         as string;
+    const now         = new Date().toISOString();
 
-    // Idempotent: if already active just re-link profile and return success
+    // Idempotent: already active
     if (memberDoc.status === "active") {
       console.log("[invite-employee PATCH] already active, re-linking profile for:", userId);
-      await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId, {
-        companyId: memberDoc.companyId, companyName: memberDoc.companyName,
-      }).catch((e) => console.error("[claim] profile re-link failed:", e));
-      // Also ensure userId is stamped on the member row
+      await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId, { companyId, companyName })
+        .catch((e) => console.error("[claim] profile re-link failed:", e));
       if (!memberDoc.userId) {
-        await serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberDoc.$id, { userId })
-          .catch(() => {});
+        await serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId, { userId }).catch(() => {});
       }
-      return NextResponse.json({ success: true, companyId: memberDoc.companyId, companyName: memberDoc.companyName, alreadyActive: true });
+      return NextResponse.json({ success: true, companyId, companyName, alreadyActive: true });
     }
 
     // Activate member record
-    await serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberDoc.$id, {
+    await serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId, {
       userId, status: "active", acceptedAt: now,
     });
-    console.log("[invite-employee PATCH] activated member:", memberDoc.$id);
+    console.log("[invite-employee PATCH] activated member:", memberId);
 
     // Link user profile to company
-    await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId, {
-      companyId: memberDoc.companyId, companyName: memberDoc.companyName,
-    }).catch((e) => console.error("[claim] profile link failed:", e));
+    await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId, { companyId, companyName })
+      .catch((e) => console.error("[claim] profile link failed:", e));
 
-    return NextResponse.json({ success: true, companyId: memberDoc.companyId, companyName: memberDoc.companyName });
+    // ── Notify employer that invite was claimed ────────────────────────────────
+    const company = await serverDb.getDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId).catch(() => null);
+    if (company) {
+      const activeRes = await serverDb.listDocuments(
+        USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
+        [Query.equal("companyId", companyId), Query.equal("status", "active"), Query.limit(100)]
+      ).catch(() => null);
+      const totalActive = activeRes ? activeRes.documents.length : 1;
 
-  } catch (err: any) {
+      const userDoc = await serverDb.getDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId).catch(() => null);
+      const employeeName = (userDoc?.fullName as string) || (memberDoc.email as string);
+
+      await createNotification({
+        companyId,
+        employerId:  company.ownerId as string,
+        type:        "employee_joined",
+        title:       "Employee Accepted Invitation",
+        message:     `${employeeName} accepted their invitation and joined your workforce. You now have ${totalActive} active employee${totalActive !== 1 ? "s" : ""}.`,
+        priority:    "medium",
+        category:    "employee_activity",
+        actionUrl:   "/dashboard/employer/employees",
+        actionLabel: "View Team",
+        metadata:    { employeeName, totalActive },
+      });
+    }
+
+    return NextResponse.json({ success: true, companyId, companyName });
+
+  } catch (err: unknown) {
     console.error("[invite-employee PATCH] Error:", err);
-    return NextResponse.json({ error: err?.message || "Failed to claim invite." }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to claim invite.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

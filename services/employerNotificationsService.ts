@@ -93,18 +93,23 @@ export async function createEmployerNotification(
   input: CreateEmployerNotificationInput
 ): Promise<EmployerNotification | null> {
   try {
-    const res = await fetch("/api/employer-notify", {
+    // Build absolute URL so this works from both client AND server contexts
+    const base = typeof window !== "undefined"
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
+
+    const res = await fetch(`${base}/api/employer-notify`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(input),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      console.error("[EmployerNotif] createEmployerNotification API error:", res.status, err);
+      console.error("[EmployerNotif] API error:", res.status, err);
       return null;
     }
     const data = await res.json();
-    console.log("[EmployerNotif] Created notification via API:", data.id, "type:", input.type);
+    console.log("[EmployerNotif] Created:", data.id, "| type:", input.type, "| employer:", input.employerId);
     return { $id: data.id, ...input, isRead: false, $createdAt: new Date().toISOString() } as EmployerNotification;
   } catch (e) {
     console.error("[EmployerNotif] createEmployerNotification error:", e);

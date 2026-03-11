@@ -381,12 +381,27 @@ export default function EmployerEmployeesPage() {
   }, [user, loadMembers]);
 
   const handleRemove = async (memberId: string, userId: string | null) => {
+    if (!user || !company) return;
     setRemovingId(memberId);
-    const ok = await removeEmployee(memberId, userId).catch(() => false);
-    if (ok) {
-      setMembers(prev => prev.filter(m => m.$id !== memberId));
-      setToast({ message: "Employee removed.", type: "success" });
-    } else {
+    try {
+      const res = await fetch("/api/remove-employee", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId,
+          userId,
+          employerId: user.id,
+          companyId:  company.$id,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMembers((prev) => prev.filter((m) => m.$id !== memberId));
+        setToast({ message: "Employee removed.", type: "success" });
+      } else {
+        setToast({ message: data.error || "Failed to remove employee.", type: "error" });
+      }
+    } catch {
       setToast({ message: "Failed to remove employee.", type: "error" });
     }
     setRemovingId(null);
