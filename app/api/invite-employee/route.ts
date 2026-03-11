@@ -19,8 +19,10 @@ const serverClient = new Client()
 
 const serverDb = new Databases(serverClient);
 
-// ─── Notification helper — runs entirely server-side with API key ─────────────
-async function createNotification(data: {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Create an employer notification (employer_notifications collection) */
+async function createEmployerNotification(data: {
   companyId:    string;
   employerId:   string;
   type:         string;
@@ -53,11 +55,51 @@ async function createNotification(data: {
         expiresAt:    data.expiresAt   ?? null,
       }
     );
-    console.log("[invite-employee] notification created:", doc.$id, "type:", data.type);
+    console.log("[invite-employee] employer notification created:", doc.$id, "type:", data.type);
   } catch (e) {
-    console.error("[invite-employee] createNotification failed:", e);
+    console.error("[invite-employee] createEmployerNotification failed:", e);
   }
 }
+
+/** Create an employee notification (notifications collection) */
+async function createEmployeeNotification(data: {
+  userId:       string;
+  type:         string;
+  title:        string;
+  message:      string;
+  priority:     string;
+  category:     string;
+  actionUrl?:   string;
+  actionLabel?: string;
+  metadata?:    Record<string, unknown>;
+  expiresAt?:   string;
+}) {
+  try {
+    const doc = await serverDb.createDocument(
+      USERS_DB_ID,
+      "notifications",
+      ID.unique(),
+      {
+        userId:      data.userId,
+        type:        data.type,
+        title:       data.title,
+        message:     data.message,
+        isRead:      false,
+        priority:    data.priority,
+        category:    data.category,
+        actionUrl:   data.actionUrl   ?? null,
+        actionLabel: data.actionLabel ?? null,
+        metadata:    data.metadata ? JSON.stringify(data.metadata) : null,
+        expiresAt:   data.expiresAt   ?? null,
+      }
+    );
+    console.log("[invite-employee] employee notification created:", doc.$id, "for user:", data.userId, "type:", data.type);
+  } catch (e) {
+    console.error("[invite-employee] createEmployeeNotification failed:", e);
+  }
+}
+
+// ─── POST — send invite ───────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,10 +120,15 @@ export async function POST(req: NextRequest) {
 
     const email = employeeEmail.toLowerCase().trim();
 
-    // ── Already a member? ─────────────────────────────────────────────────────
+    // ── Already a member? ────────────────────────────────────────────────────
     const existingMember = await serverDb.listDocuments(
       USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
-      [Query.equal("companyId", companyId), Query.equal("email", email), Query.notEqual("status", "removed"), Query.limit(1)]
+      [
+        Query.equal("companyId", companyId),
+        Query.equal("email", email),
+        Query.notEqual("status", "removed"),
+        Query.limit(1),
+      ]
     ).catch(() => null);
 
     if (existingMember && existingMember.documents.length > 0) {
@@ -92,7 +139,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Existing HMEX account? ────────────────────────────────────────────────
+    // ── Existing HMEX account? ───────────────────────────────────────────────
     const existingUser = await serverDb.listDocuments(
       USERS_DB_ID, USERS_COLLECTION_ID,
       [Query.equal("email", email), Query.limit(1)]
@@ -102,7 +149,7 @@ export async function POST(req: NextRequest) {
     const isExistingUser  = !!existingProfile;
     const existingUserId  = existingProfile?.$id ?? null;
 
-    // ── Create member record ──────────────────────────────────────────────────
+    // ── Create member record ─────────────────────────────────────────────────
     const inviteToken = crypto.randomUUID();
     const now         = new Date().toISOString();
     const status      = isExistingUser ? "active"  : "pending";
@@ -111,44 +158,61 @@ export async function POST(req: NextRequest) {
 
     const memberDoc = await serverDb.createDocument(
       USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, docId,
-      { companyId, companyName, email, userId: existingUserId, status, inviteToken, invitedAt: now, acceptedAt, invitedBy, resendMsgId: null }
+      {
+        companyId, companyName, email,
+        userId:      existingUserId,
+        status,
+        inviteToken,
+        invitedAt:   now,
+        acceptedAt,
+        invitedBy,
+        resendMsgId: null,
+      }
     );
 
-    // ── Link existing user's profile ──────────────────────────────────────────
+    // ── Link existing user's profile ─────────────────────────────────────────
     if (isExistingUser && existingUserId) {
-      await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, existingUserId, { companyId, companyName })
-        .catch((e) => console.error("[invite-employee] profile link failed:", e));
+      await serverDb.updateDocument(
+        USERS_DB_ID, USERS_COLLECTION_ID, existingUserId,
+        { companyId, companyName }
+      ).catch((e) => console.error("[invite-employee] profile link failed:", e));
     }
 
-    // ── Increment inviteCount + get current total for notification ────────────
+    // ── Increment inviteCount ────────────────────────────────────────────────
     let totalInvited = 1;
     await serverDb.getDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId)
       .then((co) => {
         totalInvited = ((co.inviteCount as number) || 0) + 1;
-        return serverDb.updateDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId, { inviteCount: totalInvited });
+        return serverDb.updateDocument(
+          USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId,
+          { inviteCount: totalInvited }
+        );
       })
       .catch(() => {});
 
-    // ── Count active members for joined notification ───────────────────────────
+    // ── Count active members for notification copy ───────────────────────────
     let totalActive = 1;
     if (isExistingUser) {
       const activeRes = await serverDb.listDocuments(
         USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
-        [Query.equal("companyId", companyId), Query.equal("status", "active"), Query.limit(100)]
+        [
+          Query.equal("companyId", companyId),
+          Query.equal("status", "active"),
+          Query.limit(100),
+        ]
       ).catch(() => null);
       totalActive = activeRes ? activeRes.documents.length : 1;
     }
 
-    // ── Fire notification ─────────────────────────────────────────────────────
     const employeeName = (existingProfile?.fullName as string) || email;
 
+    // ── Fire EMPLOYER notification ───────────────────────────────────────────
     if (isExistingUser) {
-      // Employee is active immediately — notify joined
-      await createNotification({
+      await createEmployerNotification({
         companyId,
         employerId:  invitedBy,
         type:        "employee_joined",
-        title:       "New Employee Joined",
+        title:       "New Employee Added",
         message:     `${employeeName} already had an HMEX account and has been added to your workforce. You now have ${totalActive} active employee${totalActive !== 1 ? "s" : ""}.`,
         priority:    "medium",
         category:    "employee_activity",
@@ -157,8 +221,7 @@ export async function POST(req: NextRequest) {
         metadata:    { employeeName, totalActive },
       });
     } else {
-      // Invite sent — pending until they sign up
-      await createNotification({
+      await createEmployerNotification({
         companyId,
         employerId:  invitedBy,
         type:        "invite_sent",
@@ -173,12 +236,29 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── Build invite URL ──────────────────────────────────────────────────────
+    // ── Fire EMPLOYEE notification (only if they already have an account) ────
+    // Pending invites: they don't have an account yet, nothing to notify.
+    // Once they sign up, the PATCH /claim flow will fire the notification then.
+    if (isExistingUser && existingUserId) {
+      await createEmployeeNotification({
+        userId:      existingUserId,
+        type:        "team_added",
+        title:       `You've been added to ${companyName}`,
+        message:     `${employerName || companyName} has added you to their workforce on HMEX. You can view your team and any wellness programs they share from My Teams.`,
+        priority:    "medium",
+        category:    "team",
+        actionUrl:   "/dashboard/teams",
+        actionLabel: "View My Teams",
+        metadata:    { companyName, companyId },
+      });
+    }
+
+    // ── Build invite URL ─────────────────────────────────────────────────────
     const inviteUrl = `${APP_URL}/register?invite=${inviteToken}&company=${companyId}`;
 
-    // ── Send email ────────────────────────────────────────────────────────────
+    // ── Send email ───────────────────────────────────────────────────────────
     let resendMsgId: string | null = null;
-    let emailError: string | null  = null;
+    let emailError:  string | null = null;
 
     try {
       if (isExistingUser) {
@@ -205,9 +285,12 @@ export async function POST(req: NextRequest) {
       console.error("[invite-employee] Resend error:", emailError);
     }
 
-    // ── Store resendMsgId ─────────────────────────────────────────────────────
+    // ── Store resendMsgId ────────────────────────────────────────────────────
     if (resendMsgId) {
-      serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberDoc.$id, { resendMsgId }).catch(() => {});
+      serverDb.updateDocument(
+        USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberDoc.$id,
+        { resendMsgId }
+      ).catch(() => {});
     }
 
     return NextResponse.json({
@@ -227,16 +310,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── PATCH — claim invite ──────────────────────────────────────────────────────
+// ─── PATCH — claim invite ─────────────────────────────────────────────────────
+
 export async function PATCH(req: NextRequest) {
   try {
     const { inviteToken, userId } = await req.json();
     if (!inviteToken || !userId) {
-      return NextResponse.json({ error: "inviteToken and userId are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "inviteToken and userId are required." },
+        { status: 400 }
+      );
     }
 
     console.log("[invite-employee PATCH] claiming token:", inviteToken, "for user:", userId);
 
+    // Find the member record by token (retry once)
     let memberDoc: Record<string, unknown> | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
@@ -244,7 +332,10 @@ export async function PATCH(req: NextRequest) {
         USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
         [Query.equal("inviteToken", inviteToken), Query.limit(1)]
       ).catch(() => null);
-      if (res && res.documents.length > 0) { memberDoc = res.documents[0] as Record<string, unknown>; break; }
+      if (res && res.documents.length > 0) {
+        memberDoc = res.documents[0] as Record<string, unknown>;
+        break;
+      }
     }
 
     if (!memberDoc) {
@@ -260,37 +351,58 @@ export async function PATCH(req: NextRequest) {
     // Idempotent: already active
     if (memberDoc.status === "active") {
       console.log("[invite-employee PATCH] already active, re-linking profile for:", userId);
-      await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId, { companyId, companyName })
-        .catch((e) => console.error("[claim] profile re-link failed:", e));
+      await serverDb.updateDocument(
+        USERS_DB_ID, USERS_COLLECTION_ID, userId,
+        { companyId, companyName }
+      ).catch((e) => console.error("[claim] profile re-link failed:", e));
+
       if (!memberDoc.userId) {
-        await serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId, { userId }).catch(() => {});
+        await serverDb.updateDocument(
+          USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId,
+          { userId }
+        ).catch(() => {});
       }
       return NextResponse.json({ success: true, companyId, companyName, alreadyActive: true });
     }
 
     // Activate member record
-    await serverDb.updateDocument(USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId, {
-      userId, status: "active", acceptedAt: now,
-    });
+    await serverDb.updateDocument(
+      USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID, memberId,
+      { userId, status: "active", acceptedAt: now }
+    );
     console.log("[invite-employee PATCH] activated member:", memberId);
 
-    // Link user profile to company
-    await serverDb.updateDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId, { companyId, companyName })
-      .catch((e) => console.error("[claim] profile link failed:", e));
+    // Link user profile
+    await serverDb.updateDocument(
+      USERS_DB_ID, USERS_COLLECTION_ID, userId,
+      { companyId, companyName }
+    ).catch((e) => console.error("[claim] profile link failed:", e));
 
-    // ── Notify employer that invite was claimed ────────────────────────────────
-    const company = await serverDb.getDocument(USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId).catch(() => null);
+    // Fetch company + user details for notification copy
+    const company = await serverDb.getDocument(
+      USERS_DB_ID, COMPANIES_COLLECTION_ID, companyId
+    ).catch(() => null);
+
+    const userDoc = await serverDb.getDocument(
+      USERS_DB_ID, USERS_COLLECTION_ID, userId
+    ).catch(() => null);
+
+    const employeeName = (userDoc?.fullName as string) || (memberDoc.email as string);
+
+    // Count active members
+    const activeRes = await serverDb.listDocuments(
+      USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
+      [
+        Query.equal("companyId", companyId),
+        Query.equal("status", "active"),
+        Query.limit(100),
+      ]
+    ).catch(() => null);
+    const totalActive = activeRes ? activeRes.documents.length : 1;
+
+    // ── Notify EMPLOYER invite was accepted ──────────────────────────────────
     if (company) {
-      const activeRes = await serverDb.listDocuments(
-        USERS_DB_ID, COMPANY_MEMBERS_COLLECTION_ID,
-        [Query.equal("companyId", companyId), Query.equal("status", "active"), Query.limit(100)]
-      ).catch(() => null);
-      const totalActive = activeRes ? activeRes.documents.length : 1;
-
-      const userDoc = await serverDb.getDocument(USERS_DB_ID, USERS_COLLECTION_ID, userId).catch(() => null);
-      const employeeName = (userDoc?.fullName as string) || (memberDoc.email as string);
-
-      await createNotification({
+      await createEmployerNotification({
         companyId,
         employerId:  company.ownerId as string,
         type:        "employee_joined",
@@ -304,6 +416,19 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
+    // ── Notify EMPLOYEE they are now part of the team ────────────────────────
+    await createEmployeeNotification({
+      userId,
+      type:        "team_added",
+      title:       `You've joined ${companyName}`,
+      message:     `Your invitation to ${companyName} has been accepted. You're now part of their workforce on HMEX. View your team and any wellness programs from My Teams.`,
+      priority:    "medium",
+      category:    "team",
+      actionUrl:   "/dashboard/teams",
+      actionLabel: "View My Teams",
+      metadata:    { companyName, companyId },
+    });
+
     return NextResponse.json({ success: true, companyId, companyName });
 
   } catch (err: unknown) {
@@ -315,7 +440,9 @@ export async function PATCH(req: NextRequest) {
 
 // ─── Email Templates ──────────────────────────────────────────────────────────
 
-function buildInviteEmail({ companyName, employerName, inviteUrl }: { companyName: string; employerName?: string; inviteUrl: string }): string {
+function buildInviteEmail({
+  companyName, employerName, inviteUrl,
+}: { companyName: string; employerName?: string; inviteUrl: string }): string {
   const sender = employerName ? `<strong>${employerName}</strong> from ` : "";
   return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8fafc;">
@@ -337,7 +464,9 @@ function buildInviteEmail({ companyName, employerName, inviteUrl }: { companyNam
     </div>`;
 }
 
-function buildExistingUserEmail({ companyName, employerName, appUrl }: { companyName: string; employerName?: string; appUrl: string }): string {
+function buildExistingUserEmail({
+  companyName, employerName, appUrl,
+}: { companyName: string; employerName?: string; appUrl: string }): string {
   const sender = employerName ? `<strong>${employerName}</strong> from ` : "";
   return `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8fafc;">
@@ -349,7 +478,7 @@ function buildExistingUserEmail({ companyName, employerName, appUrl }: { company
         <p style="font-size:14px;color:#334155;line-height:1.7;margin:0 0 16px;">Hi! ${sender}<strong>${companyName}</strong> has added you to their health programme on HMEX. Since you already have an account, you're good to go — no action needed.</p>
         <p style="font-size:14px;color:#334155;line-height:1.7;margin:0 0 24px;">Your health data remains <strong>completely private</strong>. Your employer only sees anonymised team insights.</p>
         <div style="text-align:center;">
-          <a href="${appUrl}/dashboard" style="display:inline-block;background:linear-gradient(135deg,#0d9488,#059669);color:white;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">Go to My Dashboard</a>
+          <a href="${appUrl}/dashboard/teams" style="display:inline-block;background:linear-gradient(135deg,#0d9488,#059669);color:white;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">View My Teams</a>
         </div>
       </div>
       <p style="font-size:12px;color:#94a3b8;text-align:center;margin:20px 0 0;">Health Master · info@healthmasterco.com</p>
