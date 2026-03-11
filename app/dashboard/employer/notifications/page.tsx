@@ -122,88 +122,69 @@ function NotificationItem({
         alignItems: "flex-start",
         gap: 14,
         padding: "16px 20px",
-        background: notification.isRead
-          ? "transparent"
-          : isDark ? `${color}07` : `${color}05`,
-        borderLeft: notification.isRead ? `3px solid transparent` : `3px solid ${color}`,
+        background: hovered
+          ? isDark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.018)"
+          : notification.isRead
+            ? "transparent"
+            : isDark ? `${color}08` : `${color}05`,
         transition: "background 0.15s",
-        position: "relative",
         cursor: "default",
       }}
     >
-      {/* Icon */}
-      <div style={{
-        width: 40, height: 40, borderRadius: 2, flexShrink: 0,
-        background: `${color}15`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <CategoryIcon
-          category={notification.category}
-          type={notification.type}
-          color={color}
-          size={17}
-        />
+      {/* Unread dot — left of icon, vertically centred */}
+      <div style={{ width: 6, flexShrink: 0, display: "flex", alignItems: "flex-start", paddingTop: 17 }}>
+        {!notification.isRead && (
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+        )}
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 4 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: 1 }}>
-            <p style={{
-              margin: 0, fontSize: 13,
-              fontWeight: notification.isRead ? 600 : 800,
-              color: c.text, lineHeight: 1.3,
-            }}>
-              {notification.title}
-            </p>
-            {!notification.isRead && (
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%",
-                background: color, flexShrink: 0,
-              }} />
-            )}
-          </div>
-          <span style={{ fontSize: 11, color: c.muted, flexShrink: 0, marginTop: 1 }}>
-            {timeAgo(notification.$createdAt)}
-          </span>
-        </div>
+      {/* Icon */}
+      <div style={{
+        width: 38, height: 38, borderRadius: 2, flexShrink: 0,
+        background: `${color}14`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <CategoryIcon category={notification.category} type={notification.type} color={color} size={16} />
+      </div>
 
+      {/* Content — takes all remaining space */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Title row */}
         <p style={{
-          margin: "0 0 10px", fontSize: 12, color: c.muted, lineHeight: 1.65,
+          margin: "0 0 4px", fontSize: 13,
+          fontWeight: notification.isRead ? 500 : 700,
+          color: notification.isRead ? c.muted : c.text,
+          lineHeight: 1.3,
         }}>
+          {notification.title}
+        </p>
+
+        {/* Message */}
+        <p style={{ margin: "0 0 10px", fontSize: 12, color: c.muted, lineHeight: 1.65 }}>
           {notification.message}
         </p>
 
-        {/* Meta row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {/* Category tag */}
+        {/* Tags + action link */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{
-            padding: "2px 8px", borderRadius: 2,
+            padding: "2px 7px", borderRadius: 2,
             background: `${color}12`, color,
             fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
           }}>
             {categoryLabel(notification.category)}
           </span>
-
-          {/* Priority tag */}
           <span style={{
-            padding: "2px 8px", borderRadius: 2,
+            padding: "2px 7px", borderRadius: 2,
             background: pLabel.bg, color: pLabel.color,
             fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em",
           }}>
             {pLabel.label}
           </span>
-
-          {/* Action link */}
           {notification.actionUrl && notification.actionLabel && (
             <a
               href={notification.actionUrl}
               onClick={() => { if (!notification.isRead) onMarkRead(notification.$id); }}
-              style={{
-                display: "flex", alignItems: "center", gap: 4,
-                fontSize: 11, fontWeight: 700, color: accentColor,
-                textDecoration: "none",
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: accentColor, textDecoration: "none" }}
             >
               {notification.actionLabel}
               <Activity size={9} />
@@ -212,43 +193,58 @@ function NotificationItem({
         </div>
       </div>
 
-      {/* Action buttons on hover */}
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{
-              position: "absolute", top: 12, right: 16,
-              display: "flex", gap: 6,
-            }}
-          >
-            {!notification.isRead && (
-              <button
-                onClick={() => onMarkRead(notification.$id)}
-                title="Mark as read"
-                style={{
-                  width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-                  background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                  border: `1px solid ${c.border}`, borderRadius: 2, cursor: "pointer", color: accentColor,
-                }}
-              >
-                <CheckCheck size={12} strokeWidth={2.2} />
-              </button>
-            )}
-            <button
-              onClick={() => onDelete(notification.$id)}
-              title="Delete"
+      {/* Right column — fixed 76px, buttons replace timestamp on hover, never overlaps */}
+      {/* Right column — fixed 76px. Timestamp fades out, buttons fade in on hover */}
+      <div style={{ flexShrink: 0, width: 76, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+        {/* Timestamp */}
+        <span style={{
+          fontSize: 11, color: c.subtle, whiteSpace: "nowrap",
+          opacity: hovered ? 0 : 1,
+          transition: "opacity 0.15s",
+          height: 26, display: "flex", alignItems: "center",
+        }}>
+          {timeAgo(notification.$createdAt)}
+        </span>
+
+        {/* Buttons — absolutely overlaid on top of timestamp slot */}
+        <AnimatePresence>
+          {hovered && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
               style={{
-                width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
-                background: isDark ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.2)", borderRadius: 2, cursor: "pointer", color: "#EF4444",
+                display: "flex", gap: 5,
+                marginTop: -26, // pull up into timestamp slot
               }}
             >
-              <Trash2 size={12} strokeWidth={2} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {!notification.isRead && (
+                <button
+                  onClick={() => onMarkRead(notification.$id)}
+                  title="Mark as read"
+                  style={{
+                    width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                    border: `1px solid ${c.border}`, borderRadius: 2, cursor: "pointer", color: accentColor,
+                  }}
+                >
+                  <CheckCheck size={11} strokeWidth={2.2} />
+                </button>
+              )}
+              <button
+                onClick={() => onDelete(notification.$id)}
+                title="Delete"
+                style={{
+                  width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.18)", borderRadius: 2, cursor: "pointer", color: "#EF4444",
+                }}
+              >
+                <Trash2 size={11} strokeWidth={2} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 }
