@@ -27,7 +27,7 @@
  *   - expiresAt     (string, optional)  — ISO timestamp
  */
 
-import { Client, Databases, ID, Query } from "appwrite";
+import { Client, Databases, Query } from "appwrite";
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const ENDPOINT   = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
@@ -86,31 +86,26 @@ export interface CreateEmployerNotificationInput {
 }
 
 // ─── CREATE ───────────────────────────────────────────────────────────────────
+// Routes through /api/employer-notify so it uses the server API key.
+// This bypasses Appwrite client-side permission issues entirely.
 
 export async function createEmployerNotification(
   input: CreateEmployerNotificationInput
 ): Promise<EmployerNotification | null> {
   try {
-    const doc = await db.createDocument(
-      EMPLOYER_NOTIF_DB_ID,
-      EMPLOYER_NOTIF_COLLECTION_ID,
-      ID.unique(),
-      {
-        companyId:    input.companyId,
-        employerId:   input.employerId,
-        type:         input.type,
-        title:        input.title,
-        message:      input.message,
-        isRead:       false,
-        priority:     input.priority,
-        category:     input.category,
-        actionUrl:    input.actionUrl   ?? null,
-        actionLabel:  input.actionLabel ?? null,
-        metadata:     input.metadata ? JSON.stringify(input.metadata) : null,
-        expiresAt:    input.expiresAt   ?? null,
-      }
-    );
-    return doc as unknown as EmployerNotification;
+    const res = await fetch("/api/employer-notify", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error("[EmployerNotif] createEmployerNotification API error:", res.status, err);
+      return null;
+    }
+    const data = await res.json();
+    console.log("[EmployerNotif] Created notification via API:", data.id, "type:", input.type);
+    return { $id: data.id, ...input, isRead: false, $createdAt: new Date().toISOString() } as EmployerNotification;
   } catch (e) {
     console.error("[EmployerNotif] createEmployerNotification error:", e);
     return null;
