@@ -2,12 +2,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Sun, Moon, Palette, Check, Shield, Trash2, KeyRound,
   Bell, Eye, EyeOff, AlertTriangle, CheckCircle, Loader2,
-  ChevronRight, User, LogOut, Sliders, Type, Contrast,
+  ChevronRight, User, LogOut, Type, Contrast,
   Zap, RefreshCw, Lock,
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -161,7 +161,7 @@ function FontSizeControl({ S, accentColor }: { S: any; accentColor: string }) {
 // ─── APPEARANCE SECTION ───────────────────────────────────────────────────────
 function AppearanceSection({ S }: { S: any }) {
   const {
-    theme, isDark, darkVariant, accent, accentColor, accentSecondary,
+    theme, isDark, darkVariant, accent, accentColor,
     accentFaint, toggleTheme, setDarkVariant, setAccent,
   } = useTheme();
 
@@ -283,11 +283,7 @@ function AppearanceSection({ S }: { S: any }) {
 
       <SectionLabel S={S}>Contrast</SectionLabel>
       <SettingRow label="High contrast borders" sub="Increase border visibility for better readability" S={S}>
-        <Toggle
-          checked={false}
-          onChange={() => {}}
-          accentColor={accentColor}
-        />
+        <Toggle checked={false} onChange={() => {}} accentColor={accentColor} />
       </SettingRow>
 
       {/* Preview swatch */}
@@ -309,6 +305,56 @@ function AppearanceSection({ S }: { S: any }) {
   );
 }
 
+// ─── PASSWORD FIELD ───────────────────────────────────────────────────────────
+// Defined OUTSIDE SecuritySection so it is never redeclared on re-render,
+// which would cause React to unmount+remount the <input> and steal focus.
+function PasswordField({
+  val, set, show, setShow, placeholder, S, accentColor,
+}: {
+  val: string;
+  set: (v: string) => void;
+  show: boolean;
+  setShow: (v: boolean) => void;
+  placeholder: string;
+  S: any;
+  accentColor: string;
+}) {
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type={show ? "text" : "password"}
+        value={val}
+        onChange={e => set(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          padding: "10px 44px 10px 14px",
+          background: S.surfaceAlt,
+          border: `1px solid ${S.border}`,
+          color: S.text,
+          fontSize: 13,
+          outline: "none",
+          fontFamily: "inherit",
+          boxSizing: "border-box",
+          transition: "border-color 0.15s",
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = accentColor; }}
+        onBlur={e  => { e.currentTarget.style.borderColor = S.border; }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        style={{
+          position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer", color: S.muted, padding: 0,
+        }}
+      >
+        {show ? <EyeOff size={14} strokeWidth={1.8} /> : <Eye size={14} strokeWidth={1.8} />}
+      </button>
+    </div>
+  );
+}
+
 // ─── SECURITY SECTION ─────────────────────────────────────────────────────────
 function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor: string; accentFaint: string }) {
   const [current,  setCurrent]  = useState("");
@@ -323,9 +369,9 @@ function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor:
   const strength = (() => {
     if (!newPw) return 0;
     let s = 0;
-    if (newPw.length >= 8)  s++;
-    if (/[A-Z]/.test(newPw)) s++;
-    if (/[0-9]/.test(newPw)) s++;
+    if (newPw.length >= 8)           s++;
+    if (/[A-Z]/.test(newPw))         s++;
+    if (/[0-9]/.test(newPw))         s++;
     if (/[^A-Za-z0-9]/.test(newPw)) s++;
     return s;
   })();
@@ -334,9 +380,9 @@ function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor:
 
   const handleChangePassword = async () => {
     setStatus(null);
-    if (!current) { setStatus({ type: "error", msg: "Enter your current password." }); return; }
-    if (newPw.length < 8) { setStatus({ type: "error", msg: "New password must be at least 8 characters." }); return; }
-    if (newPw !== confirm) { setStatus({ type: "error", msg: "Passwords do not match." }); return; }
+    if (!current)          { setStatus({ type: "error", msg: "Enter your current password." }); return; }
+    if (newPw.length < 8)  { setStatus({ type: "error", msg: "New password must be at least 8 characters." }); return; }
+    if (newPw !== confirm)  { setStatus({ type: "error", msg: "Passwords do not match." }); return; }
     setLoading(true);
     try {
       await account.updatePassword(newPw, current);
@@ -350,41 +396,6 @@ function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor:
     }
   };
 
-  const inputStyle = (focused?: boolean): React.CSSProperties => ({
-    width: "100%", padding: "10px 44px 10px 14px",
-    background: S.surfaceAlt, border: `1px solid ${focused ? accentColor : S.border}`,
-    color: S.text, fontSize: 13, outline: "none", fontFamily: "inherit",
-    boxSizing: "border-box",
-  });
-
-  const PasswordField = ({
-    val, set, show, setShow, placeholder,
-  }: {
-    val: string; set: (v: string) => void;
-    show: boolean; setShow: (v: boolean) => void; placeholder: string;
-  }) => (
-    <div style={{ position: "relative" }}>
-      <input
-        type={show ? "text" : "password"}
-        value={val}
-        onChange={e => set(e.target.value)}
-        placeholder={placeholder}
-        style={inputStyle()}
-        onFocus={e => { e.target.style.borderColor = accentColor; }}
-        onBlur={e => { e.target.style.borderColor = S.border; }}
-      />
-      <button
-        onClick={() => setShow(!show)}
-        style={{
-          position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-          background: "none", border: "none", cursor: "pointer", color: S.muted, padding: 0,
-        }}
-      >
-        {show ? <EyeOff size={14} strokeWidth={1.8} /> : <Eye size={14} strokeWidth={1.8} />}
-      </button>
-    </div>
-  );
-
   return (
     <div>
       <SectionLabel S={S}>Change Password</SectionLabel>
@@ -394,14 +405,24 @@ function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor:
           <label style={{ display: "block", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: S.subtle, marginBottom: 6 }}>
             Current Password
           </label>
-          <PasswordField val={current} set={setCurrent} show={showCurr} setShow={setShowCurr} placeholder="Enter current password" />
+          <PasswordField
+            val={current} set={setCurrent}
+            show={showCurr} setShow={setShowCurr}
+            placeholder="Enter current password"
+            S={S} accentColor={accentColor}
+          />
         </div>
 
         <div>
           <label style={{ display: "block", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: S.subtle, marginBottom: 6 }}>
             New Password
           </label>
-          <PasswordField val={newPw} set={setNewPw} show={showNew} setShow={setShowNew} placeholder="Min. 8 characters" />
+          <PasswordField
+            val={newPw} set={setNewPw}
+            show={showNew} setShow={setShowNew}
+            placeholder="Min. 8 characters"
+            S={S} accentColor={accentColor}
+          />
           {newPw && (
             <div style={{ marginTop: 8 }}>
               <div style={{ display: "flex", gap: 3, marginBottom: 4 }}>
@@ -422,7 +443,12 @@ function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor:
           <label style={{ display: "block", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: S.subtle, marginBottom: 6 }}>
             Confirm New Password
           </label>
-          <PasswordField val={confirm} set={setConfirm} show={showConf} setShow={setShowConf} placeholder="Repeat new password" />
+          <PasswordField
+            val={confirm} set={setConfirm}
+            show={showConf} setShow={setShowConf}
+            placeholder="Repeat new password"
+            S={S} accentColor={accentColor}
+          />
           {confirm && newPw && confirm !== newPw && (
             <p style={{ fontSize: 11, color: "#ef4444", margin: "5px 0 0", fontWeight: 600 }}>Passwords do not match</p>
           )}
@@ -444,6 +470,7 @@ function SecuritySection({ S, accentColor, accentFaint }: { S: any; accentColor:
         )}
 
         <button
+          type="button"
           onClick={handleChangePassword}
           disabled={loading}
           style={{
@@ -511,11 +538,11 @@ function NotificationsSection({ S, accentColor }: { S: any; accentColor: string 
     setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
 
   const rows: { key: keyof typeof prefs; label: string; sub: string }[] = [
-    { key: "riskAlerts",      label: "Risk Alerts",         sub: "Urgent notifications when high risk is detected" },
-    { key: "recommendations", label: "Recommendations",     sub: "New personalised health tips after assessments" },
-    { key: "xpMilestones",   label: "XP & Milestones",     sub: "XP earned and achievement unlocks" },
-    { key: "reminders",      label: "Check-up Reminders",   sub: "Periodic nudges to retake your assessment" },
-    { key: "emailDigest",    label: "Email Digest",         sub: "Weekly summary sent to your email address" },
+    { key: "riskAlerts",      label: "Risk Alerts",        sub: "Urgent notifications when high risk is detected" },
+    { key: "recommendations", label: "Recommendations",    sub: "New personalised health tips after assessments" },
+    { key: "xpMilestones",   label: "XP & Milestones",    sub: "XP earned and achievement unlocks" },
+    { key: "reminders",      label: "Check-up Reminders",  sub: "Periodic nudges to retake your assessment" },
+    { key: "emailDigest",    label: "Email Digest",        sub: "Weekly summary sent to your email address" },
   ];
 
   return (
@@ -550,23 +577,17 @@ function AccountSection({
   const { user, logout } = useAuth();
   const router = useRouter();
 
-  // Export
-  const [exporting,    setExporting]    = useState(false);
-  const [exportDone,   setExportDone]   = useState(false);
-
-  // Delete flow
-  const [deletePhase,  setDeletePhase]  = useState<0 | 1 | 2>(0); // 0=idle 1=confirm 2=deleting
-  const [deleteInput,  setDeleteInput]  = useState("");
-  const [deleteError,  setDeleteError]  = useState<string | null>(null);
-
-  // Sign out all
-  const [signingOut,   setSigningOut]   = useState(false);
+  const [exporting,   setExporting]   = useState(false);
+  const [exportDone,  setExportDone]  = useState(false);
+  const [deletePhase, setDeletePhase] = useState<0 | 1 | 2>(0);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [signingOut,  setSigningOut]  = useState(false);
 
   const CONFIRM_PHRASE = "delete my account";
 
   const handleExport = async () => {
     setExporting(true);
-    // Simulate data export — in production fetch real data
     await new Promise(r => setTimeout(r, 1200));
     const data = {
       exportedAt: new Date().toISOString(),
@@ -601,10 +622,6 @@ function AccountSection({
     }
     setDeletePhase(2);
     try {
-      // Delete Appwrite auth account
-      // Note: Appwrite doesn't allow users to delete their own auth account via client SDK
-      // In production, call a server-side endpoint that uses admin API key
-      // For now: delete the session and log out — data remains but access is revoked
       await account.deleteSessions();
       logout();
       router.push("/?deleted=1");
@@ -638,6 +655,7 @@ function AccountSection({
           <p style={{ fontSize: 12, color: S.muted, margin: "2px 0 0" }}>{user?.email}</p>
         </div>
         <button
+          type="button"
           onClick={() => router.push("/dashboard/profile")}
           style={{
             display: "flex", alignItems: "center", gap: 5,
@@ -656,6 +674,7 @@ function AccountSection({
       <SectionLabel S={S}>Data & Privacy</SectionLabel>
       <SettingRow label="Export your data" sub="Download a JSON file of your account and assessment data" S={S}>
         <button
+          type="button"
           onClick={handleExport}
           disabled={exporting}
           style={{
@@ -678,6 +697,7 @@ function AccountSection({
       <SectionLabel S={S}>Sessions</SectionLabel>
       <SettingRow label="Sign out all devices" sub="Invalidates all active sessions across every device" S={S}>
         <button
+          type="button"
           onClick={handleSignOutAll}
           disabled={signingOut}
           style={{
@@ -703,7 +723,6 @@ function AccountSection({
         background: isDark ? "rgba(239,68,68,0.04)" : "rgba(239,68,68,0.02)",
         overflow: "hidden",
       }}>
-        {/* Header */}
         <div style={{
           padding: "14px 16px",
           borderBottom: deletePhase > 0 ? "1px solid rgba(239,68,68,0.2)" : "none",
@@ -720,6 +739,7 @@ function AccountSection({
           </div>
           {deletePhase === 0 && (
             <button
+              type="button"
               onClick={() => setDeletePhase(1)}
               style={{
                 padding: "7px 14px", background: "rgba(239,68,68,0.1)",
@@ -736,7 +756,6 @@ function AccountSection({
           )}
         </div>
 
-        {/* Confirm step */}
         {deletePhase === 1 && (
           <div style={{ padding: "16px" }}>
             <p style={{ fontSize: 12, color: S.text, margin: "0 0 10px", lineHeight: 1.6 }}>
@@ -761,6 +780,7 @@ function AccountSection({
             )}
             <div style={{ display: "flex", gap: 8 }}>
               <button
+                type="button"
                 onClick={() => { setDeletePhase(0); setDeleteInput(""); setDeleteError(null); }}
                 style={{
                   flex: 1, padding: "9px", background: S.surfaceAlt,
@@ -771,6 +791,7 @@ function AccountSection({
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDeleteAccount}
                 disabled={(deletePhase as number) === 2}
                 style={{
@@ -808,10 +829,10 @@ export default function SettingsPage() {
   if (auth.loading) return null;
 
   const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
-    { id: "appearance",    label: "Appearance",    icon: Palette },
-    { id: "security",      label: "Security",       icon: Shield },
-    { id: "notifications", label: "Notifications",  icon: Bell },
-    { id: "account",       label: "Account",        icon: User },
+    { id: "appearance",    label: "Appearance",   icon: Palette },
+    { id: "security",      label: "Security",      icon: Shield },
+    { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "account",       label: "Account",       icon: User },
   ];
 
   return (
@@ -819,12 +840,7 @@ export default function SettingsPage() {
       <div style={{ maxWidth: 820, margin: "0 auto" }}>
 
         {/* ── PAGE HEADER ── */}
-        <div
-          style={{
-            marginBottom: 24,
-            animation: "fadeUp 0.45s ease both",
-          }}
-        >
+        <div style={{ marginBottom: 24, animation: "fadeUp 0.45s ease both" }}>
           <p style={{
             fontSize: 10, fontWeight: 800, textTransform: "uppercase",
             letterSpacing: "0.18em", color: accentColor, margin: "0 0 4px",
@@ -847,15 +863,13 @@ export default function SettingsPage() {
         <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
           {/* ── SIDEBAR NAV ── */}
-          <div
-            style={{
-              width: 196, flexShrink: 0,
-              background: S.surface, border: `1px solid ${S.border}`,
-              overflow: "hidden",
-              position: "sticky", top: 16,
-              animation: "fadeUp 0.45s ease 0.05s both",
-            }}
-          >
+          <div style={{
+            width: 196, flexShrink: 0,
+            background: S.surface, border: `1px solid ${S.border}`,
+            overflow: "hidden",
+            position: "sticky", top: 16,
+            animation: "fadeUp 0.45s ease 0.05s both",
+          }}>
             <div style={{ padding: "12px 0" }}>
               {NAV_ITEMS.map(item => (
                 <NavPill
@@ -892,8 +906,8 @@ export default function SettingsPage() {
           </div>
 
           {/* ── CONTENT PANEL ── */}
+          {/* NOTE: NO key prop here — adding key causes full remount which kills input focus */}
           <div
-            key={activeSection}
             style={{
               flex: 1, minWidth: 0,
               background: S.surface, border: `1px solid ${S.border}`,
