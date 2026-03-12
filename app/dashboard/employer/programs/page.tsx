@@ -210,7 +210,7 @@ function ProgramCard({ prog, c, accentColor, companyId, companyName, sentBy, onB
     if (broadcasting || alreadySent) return;
     setBroadcasting(true);
     setBroadcastError(null);
-
+   
     try {
       const res = await fetch("/api/broadcast-programs", {
         method:  "POST",
@@ -220,19 +220,30 @@ function ProgramCard({ prog, c, accentColor, companyId, companyName, sentBy, onB
           companyName,
           sentBy,
           program: {
-            id:          prog.id,
-            title:       prog.title,
-            description: prog.description,
-            category:    prog.category,
-            priority:    prog.priority,
-            tagline:     prog.tagline,
-            targetGroup: prog.targetGroup,
+            // ── Required ───────────────────────────────────────────────────
+            id:              prog.id,
+            title:           prog.title,
+            description:     prog.description,
+            category:        prog.category,
+            priority:        prog.priority,
+            // ── Full plan fields (NEW) ─────────────────────────────────────
+            tagline:         prog.tagline         || "",
+            targetGroup:     prog.targetGroup     || "",
+            estimatedImpact: prog.estimatedImpact || "",
+            duration:        prog.duration        || "",
+            urgency:         prog.urgency         || "",
+            iconName:        prog.iconName        || "Sparkles",
+            color:           prog.color           || "#0d9488",
+            steps:           prog.steps           || [],
+            kpis:            prog.kpis            || [],
+            resources:       prog.resources       || [],
+            evidenceBased:   prog.evidenceBased   ?? true,
           },
         }),
       });
-
+   
       const data = await res.json();
-
+   
       if (!res.ok) {
         if (res.status === 409) {
           setAlreadySent(true);
@@ -242,7 +253,7 @@ function ProgramCard({ prog, c, accentColor, companyId, companyName, sentBy, onB
         }
         return;
       }
-
+   
       setAlreadySent(true);
       onBroadcastSuccess({
         sent:         data.sent,
@@ -256,7 +267,6 @@ function ProgramCard({ prog, c, accentColor, companyId, companyName, sentBy, onB
       setBroadcasting(false);
     }
   };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
