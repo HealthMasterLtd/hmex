@@ -13,6 +13,7 @@
  *   5. Infers targetRisk from program content
  *   6. Matches employee risk to targetRisk
  *   7. Creates team_programs record + program_enrollments per employee
+ *      (now storing full plan: steps, kpis, resources, etc.)
  *   8. Fires employee notification per recipient
  *   9. Returns { sent: N, skipped: N } — employer never sees who got what
  */
@@ -47,14 +48,29 @@ type TargetRisk =
   | "moderate"
   | "all";
 
+interface ProgramStep {
+  week:        string;
+  action:      string;
+  responsible: string;
+}
+
 interface IncomingProgram {
-  id:          string;   // AI program ref e.g. "prog_1"
-  title:       string;
-  description: string;
-  category:    string;
-  priority:    string;
-  tagline?:    string;
-  targetGroup?: string;
+  id:              string;   // AI program ref e.g. "prog_1"
+  title:           string;
+  description:     string;
+  category:        string;
+  priority:        string;
+  tagline?:        string;
+  targetGroup?:    string;
+  estimatedImpact?: string;
+  duration?:       string;
+  urgency?:        string;
+  iconName?:       string;
+  color?:          string;
+  steps?:          ProgramStep[];
+  kpis?:           string[];
+  resources?:      string[];
+  evidenceBased?:  boolean;
 }
 
 interface BroadcastRequest {
@@ -65,9 +81,6 @@ interface BroadcastRequest {
 }
 
 // ─── RISK INFERENCE ───────────────────────────────────────────────────────────
-// Reads program content and returns the appropriate targetRisk tag.
-// No ML needed — keyword matching on title + description + targetGroup is
-// reliable enough because the AI prompts use consistent terminology.
 
 function inferTargetRisk(program: IncomingProgram): TargetRisk {
   const haystack = [
@@ -80,31 +93,27 @@ function inferTargetRisk(program: IncomingProgram): TargetRisk {
     .join(" ")
     .toLowerCase();
 
-  const diabetesKeywords    = ["diabetes", "glucose", "blood sugar", "insulin", "glycaemic", "glycemic", "hba1c", "hyperglycaemi", "prediabet"];
+  const diabetesKeywords     = ["diabetes", "glucose", "blood sugar", "insulin", "glycaemic", "glycemic", "hba1c", "hyperglycaemi", "prediabet"];
   const hypertensionKeywords = ["hypertension", "blood pressure", "bp ", "cardiovascular", "systolic", "diastolic", "stroke risk", "heart disease", "sodium", "salt intake"];
-  const moderateKeywords    = ["moderate risk", "moderate-risk", "lifestyle change", "early intervention", "moderate"];
+  const moderateKeywords     = ["moderate risk", "moderate-risk", "lifestyle change", "early intervention", "moderate"];
 
-  const matchesDiabetes    = diabetesKeywords.some(k    => haystack.includes(k));
+  const matchesDiabetes     = diabetesKeywords.some(k    => haystack.includes(k));
   const matchesHypertension = hypertensionKeywords.some(k => haystack.includes(k));
-  const matchesModerate    = moderateKeywords.some(k    => haystack.includes(k));
+  const matchesModerate     = moderateKeywords.some(k    => haystack.includes(k));
 
-  // Both conditions mentioned → high_any (anyone with any high risk gets it)
   if (matchesDiabetes && matchesHypertension) return "high_any";
-  if (matchesDiabetes)    return "high_diabetes";
+  if (matchesDiabetes)     return "high_diabetes";
   if (matchesHypertension) return "high_hypertension";
 
-  // Critical/high priority programs with no specific condition → high_any
   if ((program.priority === "critical" || program.priority === "high") && !matchesModerate) {
     return "high_any";
   }
 
   if (matchesModerate) return "moderate";
 
-  // Screening, preventive, fitness, nutrition → send to everyone
   const universalCategories = ["screening", "preventive", "fitness", "nutrition", "education", "mental_health"];
   if (universalCategories.includes(program.category)) return "all";
 
-  // Safe default
   return "all";
 }
 
@@ -121,12 +130,12 @@ function employeeMatchesRisk(
   const hMod  = hypertensionLevel === "medium" || hypertensionLevel === "moderate";
 
   switch (targetRisk) {
-    case "high_diabetes":    return dHigh;
+    case "high_diabetes":     return dHigh;
     case "high_hypertension": return hHigh;
-    case "high_any":         return dHigh || hHigh;
-    case "moderate":         return (dMod || hMod) && !dHigh && !hHigh;
-    case "all":              return true;
-    default:                 return true;
+    case "high_any":          return dHigh || hHigh;
+    case "moderate":          return (dMod || hMod) && !dHigh && !hHigh;
+    case "all":               return true;
+    default:                  return true;
   }
 }
 
@@ -161,6 +170,12 @@ export async function POST(req: NextRequest) {
     // ── Infer target risk from program content ───────────────────────────────
     const targetRisk = inferTargetRisk(program);
     console.log(`[broadcast-programs] program "${program.title}" → targetRisk: ${targetRisk}`);
+
+    // ── Serialize full plan data for storage ─────────────────────────────────
+    // We store steps, kpis, resources as JSON strings so they survive in Appwrite
+    const stepsJson     = JSON.stringify(program.steps     || []);
+    const kpisJson      = JSON.stringify(program.kpis      || []);
+    const resourcesJson = JSON.stringify(program.resources || []);
 
     // ── Create team_programs record ──────────────────────────────────────────
     const teamProgramDoc = await db.createDocument(
@@ -203,12 +218,10 @@ export async function POST(req: NextRequest) {
         const userId = member.userId as string;
 
         try {
-          // If targetRisk is "all", skip assessment lookup
           let diabetesLevel    = "low";
           let hypertensionLevel = "low";
 
           if (targetRisk !== "all") {
-            // Fetch latest assessment for this employee
             const assessRes = await db.listDocuments(DB_ID, ASSESSMENTS_COLLECTION_ID, [
               Query.equal("userId", userId),
               Query.orderDesc("$createdAt"),
@@ -216,23 +229,21 @@ export async function POST(req: NextRequest) {
             ]).catch(() => null);
 
             if (!assessRes || assessRes.documents.length === 0) {
-              // No assessment → skip for risk-targeted programs
               skipped++;
               return;
             }
 
-            const assessment = assessRes.documents[0];
-            diabetesLevel    = ((assessment.diabetesLevel    as string) || "low").toLowerCase();
+            const assessment  = assessRes.documents[0];
+            diabetesLevel     = ((assessment.diabetesLevel    as string) || "low").toLowerCase();
             hypertensionLevel = ((assessment.hypertensionLevel as string) || "low").toLowerCase();
           }
 
-          // Check if employee's risk matches the target
           if (!employeeMatchesRisk(targetRisk, diabetesLevel, hypertensionLevel)) {
             skipped++;
             return;
           }
 
-          // Check: already enrolled in this team program?
+          // Check: already enrolled?
           const enrolledCheck = await db.listDocuments(DB_ID, ENROLLMENTS_COLLECTION_ID, [
             Query.equal("programId", teamProgramId),
             Query.equal("userId", userId),
@@ -244,18 +255,47 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          // ── Create enrollment record ───────────────────────────────────────
+          // ── Create enrollment record with full plan data ───────────────────
+          // IMPORTANT: Your Appwrite `program_enrollments` collection needs these
+          // additional string attributes added:
+          //   programTagline    (string, optional, size 500)
+          //   programTargetGroup (string, optional, size 500)
+          //   programImpact     (string, optional, size 500)
+          //   programDuration   (string, optional, size 100)
+          //   programUrgency    (string, optional, size 500)
+          //   programIconName   (string, optional, size 100)
+          //   programColor      (string, optional, size 20)
+          //   programSteps      (string, optional, size 5000)  ← JSON
+          //   programKpis       (string, optional, size 2000)  ← JSON
+          //   programResources  (string, optional, size 2000)  ← JSON
+          //   evidenceBased     (boolean, optional)
+          //
+          // If these attributes don't exist yet, add them in Appwrite console
+          // before deploying this route.
+
           await db.createDocument(DB_ID, ENROLLMENTS_COLLECTION_ID, ID.unique(), {
-            programId:       teamProgramId,
+            programId:         teamProgramId,
             companyId,
             userId,
-            programTitle:    program.title,
-            programDesc:     program.description,
-            programCategory: program.category,
-            programPriority: program.priority,
+            programTitle:      program.title,
+            programDesc:       program.description,
+            programCategory:   program.category,
+            programPriority:   program.priority,
             targetRisk,
-            enrolledAt:      new Date().toISOString(),
-            status:          "active",
+            enrolledAt:        new Date().toISOString(),
+            status:            "active",
+            // ── Full plan fields ────────────────────────────────────────────
+            programTagline:    program.tagline     || "",
+            programTargetGroup: program.targetGroup || "",
+            programImpact:     program.estimatedImpact || "",
+            programDuration:   program.duration    || "",
+            programUrgency:    program.urgency      || "",
+            programIconName:   program.iconName     || "Sparkles",
+            programColor:      program.color        || "#0d9488",
+            programSteps:      stepsJson,
+            programKpis:       kpisJson,
+            programResources:  resourcesJson,
+            evidenceBased:     program.evidenceBased ?? true,
           });
 
           // ── Fire in-app notification to employee ───────────────────────────
@@ -277,7 +317,6 @@ export async function POST(req: NextRequest) {
 
           sent++;
 
-          // ── Increment enrolledCount on team_programs ───────────────────────
           await db.updateDocument(DB_ID, TEAM_PROGRAMS_COLLECTION_ID, teamProgramId, {
             enrolledCount: sent,
           }).catch(() => {});
@@ -292,11 +331,11 @@ export async function POST(req: NextRequest) {
     console.log(`[broadcast-programs] done — sent: ${sent}, skipped: ${skipped}, targetRisk: ${targetRisk}`);
 
     return NextResponse.json({
-      success:    true,
+      success:   true,
       sent,
       skipped,
-      targetRisk, // returned so UI can show "sent to high-risk employees" etc without leaking who
-      programId:  teamProgramId,
+      targetRisk,
+      programId: teamProgramId,
     });
 
   } catch (err: unknown) {
