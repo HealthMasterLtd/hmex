@@ -6,7 +6,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 const steps = [
   { number: "01", title: "Check Your Risk",     description: "Answer a short set of health and lifestyle questions tailored to you.",              icon: ClipboardCheck, side: "left"  },
-  { number: "02", title: "AI Analyzes",         description: "Our model scores your NCD risk instantly across 12 conditions.",                     icon: Brain,          side: "left"  },
+  { number: "02", title: "AI Analyzes",         description: "Our model scores your NCD risk instantly across 2 conditions.",                     icon: Brain,          side: "left"  },
   { number: "03", title: "Get Smart Tips",      description: "Receive daily prevention advice and lifestyle guidance personalised to your profile.",icon: Lightbulb,      side: "left"  },
   { number: "04", title: "Connect to Care",     description: "Get referred to certified nearby health centres when you need them.",                 icon: Hospital,       side: "right" },
   { number: "05", title: "Empowering Insights", description: "Your anonymised data helps health systems identify risks and act faster.",            icon: Share2,         side: "right" },

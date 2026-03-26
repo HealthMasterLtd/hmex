@@ -122,7 +122,7 @@ export default function CallToAction() {
             <div className="grid grid-cols-3 gap-4">
               {[
                 { v: "2 min", l: "to complete"        },
-                { v: "12",    l: "conditions checked"  },
+                { v: "2",    l: "conditions checked"  },
                 { v: "Free",  l: "always"              },
               ].map((s, i) => (
                 <div key={i} className="flex flex-col gap-1">

@@ -87,7 +87,7 @@ export default function Hero() {
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-1 w-1 rounded-full bg-teal-500" />
-              3+ conditions
+              2 conditions
             </span>
           </div>
         </div>
@@ -201,7 +201,7 @@ export default function Hero() {
                 className="text-[13px] font-bold leading-none"
                 style={{ color: surface.text }}
               >
-                50+
+                1240+
               </p>
               <p
                 className="mt-1 text-[11px]"
