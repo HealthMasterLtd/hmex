@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
             </p>
             <p style="font-size: 14px; color: #334155; line-height: 1.7; margin: 0;">
               In the meantime, you can learn more about our health monitoring tools at 
-              <a href="https://hmex.vercel.app" style="color: #0d9488;">Health Master</a>.
+              <a href="https://hmex.healthmasterco.com" style="color: #0d9488;">Health Master</a>.
             </p>
           </div>
 

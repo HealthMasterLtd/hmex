@@ -230,7 +230,7 @@ ${declined.length > 0 ? `
 </table>
 
 <div class="footer">
-  <span>HMEX Workforce Health Platform · hmex.vercel.app</span>
+  <span>HMEX Workforce Health Platform · https://hmex.healthmasterco.com/span>
   <span>Confidential — For Internal Compliance Records Only</span>
 </div>
 </body></html>`);
