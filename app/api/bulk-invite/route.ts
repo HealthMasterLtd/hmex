@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/bulk-invite/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { Client, Databases, Query, ID } from "node-appwrite";
@@ -6,7 +7,7 @@ const USERS_DB_ID                   = "hmex_db";
 const USERS_COLLECTION_ID           = "users";
 const COMPANY_MEMBERS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_COMPANY_MEMBERS_COLLECTION_ID!;
 const COMPANIES_COLLECTION_ID       = process.env.NEXT_PUBLIC_APPWRITE_COMPANIES_COLLECTION_ID!;
-const APP_URL                       = process.env.NEXT_PUBLIC_APP_URL || "https://hmex.vercel.app";
+const APP_URL                       = process.env.NEXT_PUBLIC_APP_URL || "https://hmex.healthmasterco.com";
 
 const serverClient = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!.replace(/\/$/, ""))

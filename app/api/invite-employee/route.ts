@@ -4,7 +4,7 @@ import { Resend } from "resend";
 import { Client, Databases, ID, Query } from "node-appwrite";
 
 const resend  = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hmex.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hmex.healthmasterco.com";
 
 const USERS_DB_ID                   = "hmex_db";
 const USERS_COLLECTION_ID           = "users";
