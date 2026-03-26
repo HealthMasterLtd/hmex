@@ -170,7 +170,7 @@ function WhoWeAre() {
           </p>
           <div className="h-px w-12" style={{ background: surface.subtle }} />
           <div className="flex flex-wrap gap-8">
-            {[{ v: "100+", l: "Users" }, { v: "3+", l: "Countries" }, { v: "12", l: "Conditions" }].map((s, i) => (
+            {[{ v: "80+", l: "Users" }, { v: "3+", l: "Countries" }, { v: "2", l: "Conditions" }].map((s, i) => (
               <div key={i}>
                 <p className="text-[1.6rem] font-bold tabular-nums leading-none" style={{ color: surface.text }}>{s.v}</p>
                 <p className="mt-1 text-[12px]" style={{ color: surface.muted }}>{s.l}</p>
@@ -424,7 +424,7 @@ function WhatWeDo() {
 /* ══ IMPACT STATS ═══════════════════════════════════════ */
 function ImpactStats() {
   const { ref, visible } = useInView();
-  const c1 = useCountUp(100, 1200, visible);
+  const c1 = useCountUp(1240, 1200, visible);
   const c2 = useCountUp(500, 1400, visible);
 
   return (

@@ -26,7 +26,7 @@ function useInView(threshold = 0.15) {
 
 const steps = [
   { n: "01", icon: FileText,    title: "Answer 14 questions", body: "Simple questions about your lifestyle, habits, and history. No jargon, no medical knowledge needed." },
-  { n: "02", icon: ShieldCheck, title: "AI scores your risk",  body: "Your answers are assessed against validated clinical benchmarks across 12 NCD conditions."            },
+  { n: "02", icon: ShieldCheck, title: "AI scores your risk",  body: "Your answers are assessed against validated clinical benchmarks across 2 NCD conditions."            },
   { n: "03", icon: Clock,       title: "Get your report",      body: "An instant, personal risk profile with clear prevention tips — ready in under 2 minutes."             },
 ];
 
@@ -96,7 +96,7 @@ export default function HealthCheckPage() {
               {[
                 { icon: Clock,       label: "Under 2 minutes", sub: "Complete the full check in one sitting"          },
                 { icon: ShieldCheck, label: "Private & secure", sub: "Your data is encrypted and never sold"           },
-                { icon: FileText,    label: "12 conditions",    sub: "Diabetes, hypertension, heart disease, and more" },
+                { icon: FileText,    label: "2 conditions",    sub: "Diabetes, hypertension, heart disease, and more" },
               ].map(({ icon: Icon, label, sub }, i) => (
                 <div
                   key={label}
