@@ -12,7 +12,7 @@ const partners = [
 ];
 
 const achievements = [
-  { icon: ClipboardCheck, value: "100+", label: "Risk checks completed"        },
+  { icon: ClipboardCheck, value: "1240+", label: "Risk checks completed"        },
   { icon: Users,          value: "80+",  label: "Active users on the platform"  },
   { icon: Globe2,         value: "3+",   label: "Countries represented"         },
   { icon: Handshake,      value: "4",    label: "Supporting organisations"      },

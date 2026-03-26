@@ -40,7 +40,7 @@ const journeySteps = [
   },
   {
     n: "02", title: "AI scores your risk",
-    body: "Our model analyses your responses against validated clinical benchmarks across 12 NCD conditions instantly.",
+    body: "Our model analyses your responses against validated clinical benchmarks across 2 NCD conditions instantly.",
     checks: ["Validated against clinical standards", "Considers multiple health dimensions", "Results available in seconds"],
   },
   {
@@ -53,7 +53,7 @@ const journeySteps = [
 const faqs = [
   { q: "How accurate is the assessment?",      a: "Our AI-powered assessment is validated against clinical standards and continuously refined with real-world data from healthcare professionals."                            },
   { q: "Is my health information secure?",      a: "Yes. We use strong encryption and comply with international healthcare data protection standards. Your information is never sold or shared without explicit consent." },
-  { q: "How long does the assessment take?",    a: "Under 2 minutes. 12 simple questions about your lifestyle, health history, and habits."                                                                              },
+  { q: "How long does the assessment take?",    a: "Under 2 minutes. 14 simple questions about your lifestyle, health history, and habits."                                                                              },
   { q: "What happens after I get my results?",  a: "You'll receive a detailed risk profile with personalised recommendations. If needed, we'll connect you with nearby healthcare facilities."                           },
   { q: "Do I need any medical equipment?",      a: "No equipment needed. The assessment uses self-reported information. Knowing basic vitals like blood pressure can improve accuracy if you have them."                  },
 ];
