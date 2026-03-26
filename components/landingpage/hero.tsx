@@ -229,7 +229,7 @@ export default function Hero() {
               className="text-[12px] font-medium"
               style={{ color: surface.muted }}
             >
-              3+ conditions screened
+              2 conditions screened
             </p>
           </div>
         </div>
