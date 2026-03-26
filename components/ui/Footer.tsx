@@ -21,7 +21,7 @@ const legalLinks = [
 const socials = [
   { icon: Linkedin,  href: "https://linkedin.com",       label: "LinkedIn"  },
   { icon: Instagram, href: "https://instagram.com",      label: "Instagram" },
-  { icon: Mail,      href: "mailto:contact@hmex.health", label: "Email"     },
+  { icon: Mail,      href: "mailto:irene.dushime@healthmasterco.com", label: "Email"     },
 ];
 
 export default function Footer() {
@@ -176,12 +176,12 @@ export default function Footer() {
             </p>
             <div className="flex flex-col gap-3">
               <a
-                href="mailto:contact@hmex.health"
+                href="mailto:irene.dushime@healthmasterco.com"
                 className="group inline-flex items-center gap-1.5"
                 style={{ color: muted, fontSize: "13.5px" }}
               >
                 <span className="group-hover:text-teal-400 transition-colors duration-150">
-                  contact@hmex.health
+                irene.dushime@healthmasterco.com
                 </span>
               </a>
               <p style={{ color: dim, fontSize: "13px", lineHeight: "1.75", maxWidth: "22ch" }}>
