@@ -5,6 +5,7 @@ import {
   ChevronRight, ChevronLeft, Loader2, AlertCircle, Sparkles,
   Activity, Calendar, User, Scale, Heart, Brain, Utensils,
   Droplets, Moon, Shield, Clock, Users, Info, CheckCircle, Zap,
+  Share2, X,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -15,6 +16,7 @@ import { holdRecommendationsLocally } from "@/services/RecommendationService";
 import Navbar from "@/components/landingpage/navbar";
 import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggle from "@/components/Themetoggle";
+import ShareableRiskCard from "@/components/ShareableRiskCard";
 
 // ─── ICON MAPPING ─────────────────────────────────────────────────────────────
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -94,10 +96,9 @@ function ProgressDots({ total, current }: { total: number; current: number }) {
   );
 }
 
-// ─── GENERATING SCREEN (shown while AI builds recommendations) ────────────────
+// ─── GENERATING SCREEN ────────────────────────────────────────────────────────
 function GeneratingScreen() {
-  const { isDark, surface, accentColor } = useTheme();
-
+  const { surface, accentColor } = useTheme();
   const steps = [
     "Analysing your risk profile…",
     "Generating personalised recommendations…",
@@ -115,19 +116,39 @@ function GeneratingScreen() {
       className="min-h-screen flex items-center justify-center transition-colors duration-300"
       style={{ backgroundColor: surface.bg }}
     >
-      <div className="text-center space-y-6 max-w-xs">
-        <div className="relative inline-flex">
-          <div
-            className="w-16 h-16 border-4 animate-spin"
-            style={{
-              borderColor: "transparent",
-              borderTopColor: accentColor,
-              borderRightColor: `${accentColor}33`,
-              borderRadius: 2,
-            }}
+      <div className="text-center space-y-6 max-w-xs px-6">
+        {/* Clean circular spinner */}
+        <div className="relative inline-flex items-center justify-center">
+          <svg
+            className="animate-spin"
+            width="64"
+            height="64"
+            viewBox="0 0 64 64"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ animationDuration: "0.9s" }}
+          >
+            <circle
+              cx="32" cy="32" r="26"
+              stroke={`${accentColor}22`}
+              strokeWidth="5"
+              fill="none"
+            />
+            <path
+              d="M32 6 A26 26 0 0 1 58 32"
+              stroke={accentColor}
+              strokeWidth="5"
+              strokeLinecap="round"
+              fill="none"
+            />
+          </svg>
+          <Heart
+            className="absolute"
+            size={22}
+            style={{ color: accentColor }}
           />
-          <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: accentColor }} />
         </div>
+
         <div>
           <p
             className="text-xs font-bold uppercase tracking-widest mb-2"
@@ -142,17 +163,18 @@ function GeneratingScreen() {
             Your personalised health report is being generated.
           </p>
         </div>
+
         {/* Progress bar */}
         <div
           className="h-1.5 overflow-hidden mx-auto w-48"
-          style={{ backgroundColor: surface.border, borderRadius: 2 }}
+          style={{ backgroundColor: surface.border, borderRadius: 99 }}
         >
           <div
             className="h-full transition-all duration-[2000ms] ease-out"
             style={{
               width: stepIdx === 0 ? "30%" : stepIdx === 1 ? "65%" : "90%",
-              background: `linear-gradient(90deg, ${accentColor}, ${accentColor}dd)`,
-              borderRadius: 2,
+              backgroundColor: accentColor,
+              borderRadius: 99,
             }}
           />
         </div>
@@ -171,10 +193,10 @@ export default function PreLoginAssessmentPage() {
   const [answers, setAnswers] = useState<Record<string, string | number | boolean>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  // "generating" = assessment done, now building AI recommendations in background
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const C = {
     bg: surface.bg,
@@ -192,6 +214,24 @@ export default function PreLoginAssessmentPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowShareModal(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
+  // lock body scroll when modal open
+  useEffect(() => {
+    if (showShareModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showShareModal]);
+
   const loadQuestion = async () => {
     setLoading(true);
     setVisible(false);
@@ -199,41 +239,28 @@ export default function PreLoginAssessmentPage() {
       const next = await groqService.getNextQuestion();
 
       if (!next) {
-        // ── ASSESSMENT COMPLETE ─────────────────────────────────────────────
-        // Show "generating" screen immediately so user doesn't see a blank
         setGenerating(true);
         setLoading(false);
-      
+
         const assessment = await groqService.generateRiskAssessment();
         const allAnswers = groqService.getAnswers();
-      
-        // Save assessment to localStorage (0 XP — pre-login users earn no XP)
+
         holdAssessmentLocally(assessment, allAnswers, 0);
-      
-        // Generate recommendations first, then store them
+
         try {
-          // First generate recommendations from the assessment
           const recommendations = await groqService.generateRecommendations(assessment);
-          
-          // Then store them with the assessment and answers
           await holdRecommendationsLocally(assessment, allAnswers, recommendations);
-        } catch (error) {
-          console.error("Failed to generate recommendations:", error);
-          // Still proceed even if recommendations fail - user can regenerate later
+        } catch (err) {
+          console.error("Failed to generate recommendations:", err);
         }
-      
-        // Navigate to review — the review page reads from sessionStorage/localStorage
+
         try {
           sessionStorage.setItem(
             "hmex_review",
-            JSON.stringify({ 
-              assessment, 
-              answers: allAnswers, 
-              xpEarned: 0 
-            })
+            JSON.stringify({ assessment, answers: allAnswers, xpEarned: 0 })
           );
         } catch { /* private mode */ }
-      
+
         router.push("/review");
         return;
       }
@@ -300,7 +327,7 @@ export default function PreLoginAssessmentPage() {
     }
   };
 
-  // ── WAIST ─────────────────────────────────────────────────────────────────
+  // ── WAIST ──────────────────────────────────────────────────────────────────
   const renderWaistCircumference = () => (
     <div className="space-y-4">
       <p className="text-sm text-center pb-1" style={{ color: C.muted }}>
@@ -340,7 +367,7 @@ export default function PreLoginAssessmentPage() {
     </div>
   );
 
-  // ── HEIGHT / WEIGHT ───────────────────────────────────────────────────────
+  // ── HEIGHT / WEIGHT ────────────────────────────────────────────────────────
   const renderHeightWeight = () => (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4">
@@ -388,7 +415,7 @@ export default function PreLoginAssessmentPage() {
     </div>
   );
 
-  // ── DIET IMAGES ───────────────────────────────────────────────────────────
+  // ── DIET IMAGES ────────────────────────────────────────────────────────────
   const renderDietImages = () => {
     if (question?.id !== "vegetables_fruits") return null;
     return (
@@ -422,7 +449,7 @@ export default function PreLoginAssessmentPage() {
     );
   };
 
-  // ── OPTIONS ───────────────────────────────────────────────────────────────
+  // ── OPTIONS ────────────────────────────────────────────────────────────────
   const renderOptions = () => {
     if (!question?.options) return null;
     const isYesNo = question.type === "yesno";
@@ -437,9 +464,7 @@ export default function PreLoginAssessmentPage() {
               onClick={() => handleSelect(opt)}
               className="flex items-center gap-3 px-4 py-3.5 border-2 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
               style={{
-                backgroundColor: sel
-                  ? C.primaryFaint
-                  : surface.surfaceAlt,
+                backgroundColor: sel ? C.primaryFaint : surface.surfaceAlt,
                 borderColor: sel ? C.primary : C.border,
                 boxShadow: sel ? `0 0 0 3px ${C.primary}18` : "none",
                 borderRadius: 2,
@@ -449,9 +474,7 @@ export default function PreLoginAssessmentPage() {
                 <div
                   className="flex items-center justify-center w-7 h-7 text-sm font-bold shrink-0"
                   style={{
-                    backgroundColor: sel
-                      ? C.primary
-                      : surface.surfaceAlt,
+                    backgroundColor: sel ? C.primary : surface.surfaceAlt,
                     color: sel ? "#fff" : C.muted,
                     borderRadius: 2,
                   }}
@@ -481,7 +504,7 @@ export default function PreLoginAssessmentPage() {
     );
   };
 
-  // ── SLIDER ────────────────────────────────────────────────────────────────
+  // ── SLIDER ─────────────────────────────────────────────────────────────────
   const renderSlider = () => {
     if (question?.type !== "slider") return null;
     const val = Number(currentAnswer ?? question.min ?? 0);
@@ -505,10 +528,7 @@ export default function PreLoginAssessmentPage() {
         <div className="relative pt-2 pb-8 px-2">
           <div
             className="h-3 overflow-hidden"
-            style={{
-              backgroundColor: surface.surfaceAlt,
-              borderRadius: 2,
-            }}
+            style={{ backgroundColor: surface.surfaceAlt, borderRadius: 2 }}
           >
             <div
               className="h-full transition-all duration-100"
@@ -536,23 +556,17 @@ export default function PreLoginAssessmentPage() {
           className="flex justify-between text-xs font-semibold"
           style={{ color: C.muted }}
         >
-          <span>
-            {min} {question.unit}
-          </span>
-          <span>
-            {max} {question.unit}
-          </span>
+          <span>{min} {question.unit}</span>
+          <span>{max} {question.unit}</span>
         </div>
       </div>
     );
   };
 
-  // ── GENERATING SCREEN ─────────────────────────────────────────────────────
-  if (generating) {
-    return <GeneratingScreen />;
-  }
+  // ── GENERATING SCREEN ──────────────────────────────────────────────────────
+  if (generating) return <GeneratingScreen />;
 
-  // ── INITIAL LOADING ───────────────────────────────────────────────────────
+  // ── INITIAL LOADING ────────────────────────────────────────────────────────
   if (loading && !question) {
     return (
       <div
@@ -560,17 +574,31 @@ export default function PreLoginAssessmentPage() {
         style={{ backgroundColor: C.bg }}
       >
         <div className="text-center space-y-6">
-          <div className="relative inline-flex">
-            <div
-              className="w-16 h-16 border-4 animate-spin"
-              style={{
-                borderColor: "transparent",
-                borderTopColor: C.primary,
-                borderRightColor: `${C.primary}33`,
-                borderRadius: 2,
-              }}
-            />
-            <Heart className="absolute inset-0 m-auto w-6 h-6" style={{ color: C.primary }} />
+          <div className="relative inline-flex items-center justify-center">
+            <svg
+              className="animate-spin"
+              width="64"
+              height="64"
+              viewBox="0 0 64 64"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ animationDuration: "0.9s" }}
+            >
+              <circle
+                cx="32" cy="32" r="26"
+                stroke={`${C.primary}22`}
+                strokeWidth="5"
+                fill="none"
+              />
+              <path
+                d="M32 6 A26 26 0 0 1 58 32"
+                stroke={C.primary}
+                strokeWidth="5"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+            <Heart className="absolute" size={22} style={{ color: C.primary }} />
           </div>
           <div>
             <p
@@ -617,218 +645,268 @@ export default function PreLoginAssessmentPage() {
     );
   }
 
-  // ── MAIN RENDER ───────────────────────────────────────────────────────────
+  // ── MAIN RENDER ────────────────────────────────────────────────────────────
   return (
-    <div
-      className="min-h-screen transition-colors duration-300"
-      style={{ backgroundColor: C.bg }}
-    >
-      <Navbar />
+    <>
+      <div
+        className="min-h-screen transition-colors duration-300"
+        style={{ backgroundColor: C.bg }}
+      >
+        <Navbar />
 
-      <div className="max-w-2xl mx-auto px-5 py-10 lg:px-8">
-        {/* Header */}
-        <div className="mb-7 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p
-                className="text-[11px] font-bold uppercase tracking-widest mb-0.5"
-                style={{ color: question?.aiGenerated ? "#8B5CF6" : C.primary }}
-              >
-                {question?.aiGenerated ? "✦ AI Personalised" : getCategoryLabel(step)}
-              </p>
-              <p className="text-sm" style={{ color: C.muted }}>
-                Question {step} of {groqService.getMaxQuestions()}
-              </p>
+        <div className="max-w-2xl mx-auto px-5 py-10 lg:px-8">
+          {/* Header */}
+          <div className="mb-7 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p
+                  className="text-[11px] font-bold uppercase tracking-widest mb-0.5"
+                  style={{ color: question?.aiGenerated ? "#8B5CF6" : C.primary }}
+                >
+                  {question?.aiGenerated ? "✦ AI Personalised" : getCategoryLabel(step)}
+                </p>
+                <p className="text-sm" style={{ color: C.muted }}>
+                  Question {step} of {groqService.getMaxQuestions()}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold tabular-nums" style={{ color: C.muted }}>
+                  {progress}%
+                </span>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all hover:opacity-80 active:scale-95"
+                  style={{
+                    backgroundColor: C.primaryFaint,
+                    color: C.primary,
+                    borderRadius: 2,
+                    border: `1px solid ${C.primary}30`,
+                  }}
+                  title="Share this assessment"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  Share
+                </button>
+              </div>
             </div>
-            <span
-              className="text-sm font-bold tabular-nums"
-              style={{ color: C.muted }}
-            >
-              {progress}%
-            </span>
+            <ProgressDots total={groqService.getMaxQuestions()} current={step - 1} />
           </div>
-          <ProgressDots total={groqService.getMaxQuestions()} current={step - 1} />
-        </div>
 
-        {/* Card */}
-        <div
-          className="border overflow-hidden transition-all duration-300"
-          style={{
-            backgroundColor: C.cardBg,
-            borderColor: C.border,
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            boxShadow: isDark
-              ? "0 8px 32px rgba(0,0,0,0.4)"
-              : "0 8px 32px rgba(0,0,0,0.06)",
-            borderRadius: 2,
-          }}
-        >
-          {/* Card header */}
+          {/* Card */}
           <div
-            className="flex items-start gap-4 p-6 border-b"
-            style={{ borderColor: C.border }}
+            className="border overflow-hidden transition-all duration-300"
+            style={{
+              backgroundColor: C.cardBg,
+              borderColor: C.border,
+              opacity: visible ? 1 : 0,
+              transform: visible ? "translateY(0)" : "translateY(18px)",
+              boxShadow: isDark
+                ? "0 8px 32px rgba(0,0,0,0.4)"
+                : "0 8px 32px rgba(0,0,0,0.06)",
+              borderRadius: 2,
+            }}
           >
             <div
-              className="flex items-center justify-center w-11 h-11 shrink-0"
+              className="flex items-start gap-4 p-6 border-b"
+              style={{ borderColor: C.border }}
+            >
+              <div
+                className="flex items-center justify-center w-11 h-11 shrink-0"
+                style={{
+                  backgroundColor: question?.aiGenerated ? "rgba(139,92,246,0.12)" : C.primaryFaint,
+                  color: question?.aiGenerated ? "#8B5CF6" : C.primary,
+                  borderRadius: 2,
+                }}
+              >
+                {ICON_MAP[question?.id ?? ""] ?? <Activity className="w-5 h-5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2
+                  className="text-[17px] font-bold leading-snug mb-1.5"
+                  style={{ color: C.text }}
+                >
+                  {question?.question}
+                </h2>
+                <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
+                  {SUBTITLES[question?.id ?? ""] ?? SUBTITLES.default}
+                </p>
+              </div>
+              {question?.aiGenerated && (
+                <span
+                  className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shrink-0"
+                  style={{ backgroundColor: "rgba(139,92,246,0.12)", color: "#8B5CF6", borderRadius: 2 }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  AI
+                </span>
+              )}
+            </div>
+
+            <div className="p-6 space-y-4">
+              {error && (
+                <div
+                  className="flex items-center gap-3 px-4 py-3 text-sm"
+                  style={{
+                    backgroundColor: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    color: "#EF4444",
+                    borderRadius: 2,
+                  }}
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              {question?.aiGenerated && (
+                <div
+                  className="flex items-center gap-3 px-4 py-3 text-sm"
+                  style={{
+                    backgroundColor: "rgba(139,92,246,0.07)",
+                    border: "1px solid rgba(139,92,246,0.15)",
+                    color: "#8B5CF6",
+                    borderRadius: 2,
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <span>This question was tailored to your personal risk profile.</span>
+                </div>
+              )}
+
+              {renderDietImages()}
+
+              {question?.id === "waist_circumference" && renderWaistCircumference()}
+              {question?.id === "height_weight" && renderHeightWeight()}
+              {question?.type === "slider" && question.id !== "height_weight" && renderSlider()}
+              {question?.options && question.id !== "waist_circumference" && renderOptions()}
+              {question?.type === "text" && question.id !== "height_weight" && (
+                <input
+                  type="text"
+                  placeholder="Type your answer…"
+                  value={String(currentAnswer ?? "")}
+                  onChange={e => handleSelect(e.target.value)}
+                  className="w-full px-4 py-3.5 text-base focus:outline-none transition-all"
+                  style={{
+                    backgroundColor: surface.surfaceAlt,
+                    border: `1px solid ${C.border}`,
+                    color: C.text,
+                    borderRadius: 2,
+                  }}
+                />
+              )}
+
+              {question?.tooltip && (
+                <div
+                  className="flex items-start gap-3 px-4 py-3 text-[12px] leading-relaxed"
+                  style={{ backgroundColor: surface.surfaceAlt, color: C.muted, borderRadius: 2 }}
+                >
+                  <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                  {question.tooltip}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div className="mt-7 flex items-center justify-between">
+            <button
+              onClick={handleBack}
+              disabled={step === 1}
+              className="flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none"
+              style={{ color: C.muted, backgroundColor: surface.surfaceAlt, borderRadius: 2 }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back
+            </button>
+
+            <button
+              onClick={handleNext}
+              disabled={submitting}
+              className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
               style={{
-                backgroundColor: question?.aiGenerated
-                  ? "rgba(139,92,246,0.12)"
-                  : C.primaryFaint,
-                color: question?.aiGenerated ? "#8B5CF6" : C.primary,
+                background: `linear-gradient(135deg, ${C.primary}, ${C.primary}dd)`,
+                boxShadow: `0 4px 16px ${C.primary}40`,
                 borderRadius: 2,
               }}
             >
-              {ICON_MAP[question?.id ?? ""] ?? <Activity className="w-5 h-5" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2
-                className="text-[17px] font-bold leading-snug mb-1.5"
-                style={{ color: C.text }}
-              >
-                {question?.question}
-              </h2>
-              <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
-                {SUBTITLES[question?.id ?? ""] ?? SUBTITLES.default}
-              </p>
-            </div>
-            {question?.aiGenerated && (
-              <span
-                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shrink-0"
-                style={{ backgroundColor: "rgba(139,92,246,0.12)", color: "#8B5CF6", borderRadius: 2 }}
-              >
-                <Sparkles className="w-3 h-3" />
-                AI
-              </span>
-            )}
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analysing…
+                </>
+              ) : groqService.getQuestionCount() >= groqService.getMaxQuestions() ? (
+                "View Results"
+              ) : (
+                <>
+                  Continue
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Card body */}
-          <div className="p-6 space-y-4">
-            {error && (
-              <div
-                className="flex items-center gap-3 px-4 py-3 text-sm"
-                style={{
-                  backgroundColor: "rgba(239,68,68,0.08)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  color: "#EF4444",
-                  borderRadius: 2,
-                }}
-              >
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {question?.aiGenerated && (
-              <div
-                className="flex items-center gap-3 px-4 py-3 text-sm"
-                style={{
-                  backgroundColor: "rgba(139,92,246,0.07)",
-                  border: "1px solid rgba(139,92,246,0.15)",
-                  color: "#8B5CF6",
-                  borderRadius: 2,
-                }}
-              >
-                <Sparkles className="w-4 h-4 shrink-0" />
-                <span>This question was tailored to your personal risk profile.</span>
-              </div>
-            )}
-
-            {renderDietImages()}
-
-            {question?.id === "waist_circumference" && renderWaistCircumference()}
-            {question?.id === "height_weight" && renderHeightWeight()}
-            {question?.type === "slider" &&
-              question.id !== "height_weight" &&
-              renderSlider()}
-            {question?.options &&
-              question.id !== "waist_circumference" &&
-              renderOptions()}
-            {question?.type === "text" && question.id !== "height_weight" && (
-              <input
-                type="text"
-                placeholder="Type your answer…"
-                value={String(currentAnswer ?? "")}
-                onChange={e => handleSelect(e.target.value)}
-                className="w-full px-4 py-3.5 text-base focus:outline-none transition-all"
-                style={{
-                  backgroundColor: surface.surfaceAlt,
-                  border: `1px solid ${C.border}`,
-                  color: C.text,
-                  borderRadius: 2,
-                }}
-              />
-            )}
-
-            {question?.tooltip && (
-              <div
-                className="flex items-start gap-3 px-4 py-3 text-[12px] leading-relaxed"
-                style={{
-                  backgroundColor: surface.surfaceAlt,
-                  color: C.muted,
-                  borderRadius: 2,
-                }}
-              >
-                <Info className="w-4 h-4 mt-0.5 shrink-0" />
-                {question.tooltip}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="mt-7 flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            disabled={step === 1}
-            className="flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none"
-            style={{
-              color: C.muted,
-              backgroundColor: surface.surfaceAlt,
-              borderRadius: 2,
-            }}
+          <p
+            className="mt-8 text-center text-[11px]"
+            style={{ color: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.25)" }}
           >
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </button>
-
-          <button
-            onClick={handleNext}
-            disabled={submitting}
-            className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-50"
-            style={{
-              background: `linear-gradient(135deg, ${C.primary}, ${C.primary}dd)`,
-              boxShadow: `0 4px 16px ${C.primary}40`,
-              borderRadius: 2,
-            }}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Analysing…
-              </>
-            ) : groqService.getQuestionCount() >= groqService.getMaxQuestions() ? (
-              "View Results"
-            ) : (
-              <>
-                Continue
-                <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+            Based on FINDRISC & Framingham validated frameworks · Private & confidential
+          </p>
         </div>
-
-        <p
-          className="mt-8 text-center text-[11px]"
-          style={{
-            color: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.25)",
-          }}
-        >
-          Based on FINDRISC & Framingham validated frameworks · Private & confidential
-        </p>
+        <ThemeToggle />
       </div>
-      <ThemeToggle />
-    </div>
+
+      {/* ── SHARE FULL-SCREEN TAKEOVER ─────────────────────────────────────────
+           Fixed overlay covering the entire viewport. Not a modal/sheet —
+           it fully replaces the screen with the card designer.
+      ───────────────────────────────────────────────────────────────────────── */}
+      {showShareModal && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto transition-colors duration-300"
+          style={{ backgroundColor: C.bg }}
+        >
+          {/* Sticky top bar */}
+          <div
+            className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b"
+            style={{ backgroundColor: C.cardBg, borderColor: C.border }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="flex items-center justify-center w-8 h-8"
+                style={{ backgroundColor: C.primaryFaint, borderRadius: 2 }}
+              >
+                <Share2 size={15} style={{ color: C.primary }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold leading-none" style={{ color: C.text }}>
+                  Share your assessment
+                </p>
+                <p className="text-[11px] mt-0.5" style={{ color: C.muted }}>
+                  Create a card to spread the word
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-all hover:opacity-80"
+              style={{
+                backgroundColor: surface.surfaceAlt,
+                color: C.muted,
+                borderRadius: 2,
+                border: `1px solid ${C.border}`,
+              }}
+            >
+              <X size={13} />
+              Close
+            </button>
+          </div>
+
+          {/* Card designer fills the rest */}
+          <div className="max-w-2xl mx-auto px-5 pb-16">
+            <ShareableRiskCard />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

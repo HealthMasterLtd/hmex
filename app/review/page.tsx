@@ -6,13 +6,14 @@ import {
   AlertCircle, ArrowRight, RefreshCw, CheckCircle,
   AlertTriangle, Droplet, Heart, TrendingUp, Shield, Zap,
   ChevronDown, ChevronUp, MessageCircle, Lock,
-  Star, Activity, CirclePlus,
+  Star, Activity, CirclePlus, Share2, X,
 } from "lucide-react";
 import { groqService } from "@/services/GroqService";
 import type { DualRiskAssessment } from "@/services/GroqService";
 import Navbar from "@/components/landingpage/navbar";
 import Footer from "@/components/ui/Footer";
 import { useTheme } from "@/contexts/ThemeContext";
+import ShareableRiskCard from "@/components/ShareableRiskCard";
 
 // ─── RISK META ────────────────────────────────────────────────────────────────
 const LEVEL_META: Record<string, {
@@ -79,7 +80,6 @@ function RiskGauge({ level, label, icon, delay = 0 }: {
         boxShadow: `0 4px 24px rgba(0,0,0,0.08)`,
       }}
     >
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", background: meta.bg, color: meta.colour, borderRadius: 12 }}>
@@ -93,7 +93,6 @@ function RiskGauge({ level, label, icon, delay = 0 }: {
         <span style={{ fontSize: 36, fontWeight: 900, color: meta.colour, fontVariantNumeric: "tabular-nums" }}>{pct}%</span>
       </div>
 
-      {/* Bar */}
       <div style={{ height: 8, background: S.surfaceAlt, borderRadius: 99, overflow: "hidden", marginBottom: 16 }}>
         <div style={{
           height: "100%", borderRadius: 99,
@@ -103,7 +102,6 @@ function RiskGauge({ level, label, icon, delay = 0 }: {
         }} />
       </div>
 
-      {/* 5-segment scale */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
         {(["low", "slightly-elevated", "moderate", "high", "very-high"] as const).map(lvl => {
           const m = LEVEL_META[lvl];
@@ -122,7 +120,7 @@ function RiskGauge({ level, label, icon, delay = 0 }: {
   );
 }
 
-// ─── SIGNUP CTA ──────────────────────────────────────────────────────────────
+// ─── SIGNUP CTA ───────────────────────────────────────────────────────────────
 function SignupCTA({ onSignup }: { onSignup: () => void }) {
   const { isDark, surface: S, accentColor, accentSecondary, accentFaint } = useTheme();
   const { ref, vis } = useInView(0.2);
@@ -148,15 +146,15 @@ function SignupCTA({ onSignup }: { onSignup: () => void }) {
         opacity: vis ? 1 : 0,
         transform: vis ? "translateY(0)" : "translateY(24px)",
         transition: "opacity 0.8s ease, transform 0.8s ease",
-        boxShadow: isDark ? `0 0 60px ${accentColor}10, 0 8px 32px rgba(0,0,0,0.4)` : `0 0 60px ${accentColor}08, 0 8px 32px rgba(0,0,0,0.06)`,
+        boxShadow: isDark
+          ? `0 0 60px ${accentColor}10, 0 8px 32px rgba(0,0,0,0.4)`
+          : `0 0 60px ${accentColor}08, 0 8px 32px rgba(0,0,0,0.06)`,
       }}
     >
-      {/* Decorative orbs */}
       <div style={{ position: "absolute", top: -48, right: -48, width: 160, height: 160, borderRadius: "50%", background: `radial-gradient(circle, ${accentColor}22 0%, transparent 70%)`, pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: -40, left: -40, width: 128, height: 128, borderRadius: "50%", background: `radial-gradient(circle, ${accentSecondary}18 0%, transparent 70%)`, pointerEvents: "none" }} />
 
       <div style={{ position: "relative", padding: 28 }}>
-        {/* Lock badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <div style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: accentFaint, borderRadius: 8 }}>
             <Lock size={14} color={accentColor} />
@@ -167,7 +165,6 @@ function SignupCTA({ onSignup }: { onSignup: () => void }) {
           </div>
         </div>
 
-        {/* Features */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
           {features.map((feat, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, filter: i >= 2 ? "blur(3px)" : "none", opacity: i >= 2 ? 0.35 : 0.9, transition: "all 0.3s" }}>
@@ -177,7 +174,6 @@ function SignupCTA({ onSignup }: { onSignup: () => void }) {
           ))}
         </div>
 
-        {/* Stars */}
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 20 }}>
           {[...Array(5)].map((_, i) => (
             <Star key={i} size={13} style={{ fill: "#f59e0b", color: "#f59e0b" }} />
@@ -187,7 +183,6 @@ function SignupCTA({ onSignup }: { onSignup: () => void }) {
           </span>
         </div>
 
-        {/* CTA */}
         <button
           onClick={onSignup}
           onMouseEnter={() => setHovered(true)}
@@ -197,7 +192,9 @@ function SignupCTA({ onSignup }: { onSignup: () => void }) {
             padding: "15px 20px", borderRadius: 12,
             background: `linear-gradient(135deg, ${accentColor}, ${accentSecondary})`,
             border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer",
-            boxShadow: hovered ? `0 8px 30px ${accentColor}55, 0 0 0 4px ${accentColor}20` : `0 4px 16px ${accentColor}40`,
+            boxShadow: hovered
+              ? `0 8px 30px ${accentColor}55, 0 0 0 4px ${accentColor}20`
+              : `0 4px 16px ${accentColor}40`,
             transform: hovered ? "translateY(-2px)" : "translateY(0)",
             transition: "all 0.2s ease",
           }}
@@ -250,15 +247,35 @@ function SectionCard({ icon, accentColor, label, children, delay = 0 }: {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function ReviewPage() {
-  const { isDark, surface: S, accentColor } = useTheme();
+  const { isDark, surface: S, accentColor, accentFaint } = useTheme();
   const router = useRouter();
 
   const [assessment, setAssessment] = useState<DualRiskAssessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showShareScreen, setShowShareScreen] = useState(false);
 
   useEffect(() => { generate(); }, []);
+
+  // lock scroll when share screen is open
+  useEffect(() => {
+    if (showShareScreen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showShareScreen]);
+
+  // Escape key closes share screen
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowShareScreen(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
   const generate = async () => {
     setLoading(true); setError(null);
@@ -267,19 +284,35 @@ export default function ReviewPage() {
     finally { setLoading(false); }
   };
 
-  // ── LOADING ──────────────────────────────────────────────────────────────
+  // derive risk level from assessment for the share card
+  const shareRiskLevel = (() => {
+    if (!assessment) return "moderate" as const;
+    const levels = ["low", "slightly-elevated", "moderate", "high", "very-high"];
+    const dIdx = levels.indexOf(assessment.diabetesRisk.level);
+    const hIdx = levels.indexOf(assessment.hypertensionRisk.level);
+    const worst = Math.max(dIdx, hIdx);
+    if (worst <= 0) return "low" as const;
+    if (worst <= 2) return "moderate" as const;
+    return "high" as const;
+  })();
+
+  // ── LOADING ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ display: "flex", minHeight: "100vh", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 32, background: S.bg, transition: "background 0.4s ease" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center" }}>
-        <div style={{ position: "relative", width: 80, height: 80 }}>
-          <div style={{
-            width: 80, height: 80, borderRadius: "50%",
-            border: `4px solid ${accentColor}22`,
-            borderTopColor: accentColor,
-            animation: "spin 0.9s linear infinite",
-          }} />
-          <Activity size={28} color={accentColor} style={{ position: "absolute", inset: 0, margin: "auto" }} />
+        {/* Clean circular spinner */}
+        <div style={{ position: "relative", width: 72, height: 72, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg
+            width="72" height="72" viewBox="0 0 72 72" fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ animation: "spin 0.9s linear infinite", position: "absolute", inset: 0 }}
+          >
+            <circle cx="36" cy="36" r="30" stroke={`${accentColor}20`} strokeWidth="5" fill="none" />
+            <path d="M36 6 A30 30 0 0 1 66 36" stroke={accentColor} strokeWidth="5" strokeLinecap="round" fill="none" />
+          </svg>
+          <Activity size={26} color={accentColor} />
         </div>
+
         <div>
           <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.22em", color: accentColor, margin: "0 0 8px" }}>
             Analysing your responses
@@ -289,19 +322,28 @@ export default function ReviewPage() {
           </h2>
           <p style={{ fontSize: 13, color: S.muted, margin: 0 }}>Our AI is reviewing your risk factors</p>
         </div>
-        <div style={{ width: 192, height: 4, background: `${accentColor}18`, borderRadius: 99, overflow: "hidden" }}>
+
+        <div style={{ width: 192, height: 5, background: `${accentColor}18`, borderRadius: 99, overflow: "hidden" }}>
           <div style={{
-            height: "100%", width: "70%", borderRadius: 99,
-            background: `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`,
-            animation: "pulse 1.5s ease-in-out infinite",
+            height: "100%", borderRadius: 99,
+            background: accentColor,
+            animation: "loadbar 1.8s ease-in-out infinite",
           }} />
         </div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }`}</style>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes loadbar {
+          0%   { width: 0%;   margin-left: 0%; }
+          50%  { width: 70%;  margin-left: 15%; }
+          100% { width: 0%;   margin-left: 100%; }
+        }
+      `}</style>
     </div>
   );
 
-  // ── ERROR ────────────────────────────────────────────────────────────────
+  // ── ERROR ─────────────────────────────────────────────────────────────────
   if (error || !assessment) return (
     <div style={{ display: "flex", minHeight: "100vh", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 20, padding: "0 24px", textAlign: "center", background: S.bg }}>
       <div style={{ width: 64, height: 64, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(239,68,68,0.1)", borderRadius: 16 }}>
@@ -325,182 +367,269 @@ export default function ReviewPage() {
   const anyUrgent = !!assessment.urgentActions?.length;
 
   return (
-    <div style={{ minHeight: "100vh", background: S.bg, transition: "background 0.4s ease" }}>
-      <Navbar />
+    <>
+      <div style={{ minHeight: "100vh", background: S.bg, transition: "background 0.4s ease" }}>
+        <Navbar />
 
-      <div style={{ maxWidth: 672, margin: "0 auto", padding: "48px 20px 112px" }}>
+        <div style={{ maxWidth: 672, margin: "0 auto", padding: "48px 20px 112px" }}>
 
-        {/* ── HERO ── */}
-        <div style={{ marginBottom: 40, textAlign: "center" }}>
-          <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.22em", color: accentColor, margin: "0 0 12px" }}>
-            Your Risk Snapshot
-          </p>
-          <h1 style={{ fontSize: "clamp(1.7rem, 4vw, 2.5rem)", fontWeight: 900, letterSpacing: "-0.04em", color: S.text, lineHeight: 1.15, margin: "0 0 12px" }}>
-            Your personalised<br />health risk report.
-          </h1>
-          <p style={{ fontSize: 13.5, color: S.muted, maxWidth: "38ch", margin: "0 auto", lineHeight: 1.65 }}>
-            Based on your answers and validated clinical frameworks (FINDRISC & Framingham).
-            This is a screening tool — not a medical diagnosis.
-          </p>
-        </div>
+          {/* ── HERO ── */}
+          <div style={{ marginBottom: 40, textAlign: "center" }}>
+            <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.22em", color: accentColor, margin: "0 0 12px" }}>
+              Your Risk Snapshot
+            </p>
+            <h1 style={{ fontSize: "clamp(1.7rem, 4vw, 2.5rem)", fontWeight: 900, letterSpacing: "-0.04em", color: S.text, lineHeight: 1.15, margin: "0 0 12px" }}>
+              Your personalised<br />health risk report.
+            </h1>
+            <p style={{ fontSize: 13.5, color: S.muted, maxWidth: "38ch", margin: "0 auto 20px", lineHeight: 1.65 }}>
+              Based on your answers and validated clinical frameworks (FINDRISC & Framingham).
+              This is a screening tool — not a medical diagnosis.
+            </p>
 
-        {/* ── URGENT ── */}
-        {anyUrgent && (
-          <div style={{
-            marginBottom: 24, padding: "16px 20px", borderRadius: 16,
-            background: isDark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)",
-            border: "1px solid rgba(239,68,68,0.2)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0 }} />
-              <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.16em", color: "#ef4444", margin: 0 }}>Action recommended</p>
+            {/* ── SHARE BUTTON on review page ── */}
+            <button
+              onClick={() => setShowShareScreen(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "10px 20px", borderRadius: 10,
+                background: accentFaint,
+                border: `1px solid ${accentColor}30`,
+                color: accentColor, fontSize: 13, fontWeight: 700,
+                cursor: "pointer", transition: "all 0.15s ease",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.8"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+            >
+              <Share2 size={14} />
+              Share your result
+            </button>
+          </div>
+
+          {/* ── URGENT ── */}
+          {anyUrgent && (
+            <div style={{
+              marginBottom: 24, padding: "16px 20px", borderRadius: 16,
+              background: isDark ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.04)",
+              border: "1px solid rgba(239,68,68,0.2)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0 }} />
+                <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.16em", color: "#ef4444", margin: 0 }}>Action recommended</p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {assessment.urgentActions!.map((a, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", flexShrink: 0, marginTop: 6 }} />
+                    <p style={{ fontSize: 13, lineHeight: 1.6, color: isDark ? "#fca5a5" : "#b91c1c", margin: 0 }}>{a}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {assessment.urgentActions!.map((a, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", flexShrink: 0, marginTop: 6 }} />
-                  <p style={{ fontSize: 13, lineHeight: 1.6, color: isDark ? "#fca5a5" : "#b91c1c", margin: 0 }}>{a}</p>
+          )}
+
+          {/* ── GAUGES ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 24 }}>
+            <RiskGauge level={dLevel} label="Diabetes Risk"     icon={<Droplet size={18} />} delay={0} />
+            <RiskGauge level={hLevel} label="Hypertension Risk" icon={<Heart   size={18} />} delay={120} />
+          </div>
+
+          {/* ── SUMMARY ── */}
+          <SectionCard icon={<TrendingUp size={14} />} accentColor={accentColor} label="Summary" delay={100}>
+            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: S.text, margin: 0 }}>{assessment.summary}</p>
+          </SectionCard>
+
+          <div style={{ height: 16 }} />
+
+          {/* ── KEY FINDINGS ── */}
+          <SectionCard icon={<Shield size={14} />} accentColor="#6366f1" label="Key Findings" delay={150}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {assessment.keyFindings.map((f, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", flexShrink: 0, marginTop: 7 }} />
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: S.text, margin: 0 }}>{f}</p>
                 </div>
               ))}
             </div>
+          </SectionCard>
+
+          <div style={{ height: 16 }} />
+
+          {/* ── RECOMMENDATIONS ── */}
+          <SectionCard icon={<CheckCircle size={14} />} accentColor="#10b981" label="Recommendations" delay={200}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {assessment.recommendations.map((r, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <CheckCircle size={15} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: S.text, margin: 0 }}>{r}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+
+          <div style={{ height: 16 }} />
+
+          {/* ── AI DETAILED ANALYSIS ── */}
+          {assessment.detailedAnalysis && (
+            <div style={{
+              borderRadius: 16, overflow: "hidden",
+              background: S.surface, border: `1px solid ${S.border}`,
+              boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+              marginBottom: 16,
+            }}>
+              <button
+                onClick={() => setShowDetail(v => !v)}
+                style={{
+                  display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between",
+                  padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
+                  color: S.text, transition: "background 0.15s",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(139,92,246,0.12)", borderRadius: 8 }}>
+                    <Zap size={14} color="#8b5cf6" />
+                  </div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: S.text, margin: 0 }}>AI Detailed Analysis</p>
+                </div>
+                {showDetail
+                  ? <ChevronUp size={15} color={S.muted} />
+                  : <ChevronDown size={15} color={S.muted} />
+                }
+              </button>
+              {showDetail && (
+                <div style={{ borderTop: `1px solid ${S.border}`, padding: "20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  {assessment.detailedAnalysis.split("\n").map((para, i) =>
+                    para.trim()
+                      ? <p key={i} style={{ fontSize: 13, lineHeight: 1.85, color: S.muted, margin: 0 }}>{para}</p>
+                      : null
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── SIGNUP CTA ── */}
+          <div style={{ margin: "24px 0" }}>
+            <SignupCTA onSignup={() => router.push("/login")} />
           </div>
-        )}
 
-        {/* ── GAUGES ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 24 }}>
-          <RiskGauge level={dLevel} label="Diabetes Risk"     icon={<Droplet size={18} />} delay={0} />
-          <RiskGauge level={hLevel} label="Hypertension Risk" icon={<Heart   size={18} />} delay={120} />
-        </div>
-
-        {/* ── SUMMARY ── */}
-        <SectionCard icon={<TrendingUp size={14} />} accentColor={accentColor} label="Summary" delay={100}>
-          <p style={{ fontSize: 13.5, lineHeight: 1.7, color: S.text, margin: 0 }}>{assessment.summary}</p>
-        </SectionCard>
-
-        <div style={{ height: 16 }} />
-
-        {/* ── KEY FINDINGS ── */}
-        <SectionCard icon={<Shield size={14} />} accentColor="#6366f1" label="Key Findings" delay={150}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {assessment.keyFindings.map((f, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", flexShrink: 0, marginTop: 7 }} />
-                <p style={{ fontSize: 13, lineHeight: 1.6, color: S.text, margin: 0 }}>{f}</p>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <div style={{ height: 16 }} />
-
-        {/* ── RECOMMENDATIONS ── */}
-        <SectionCard icon={<CheckCircle size={14} />} accentColor="#10b981" label="Recommendations" delay={200}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {assessment.recommendations.map((r, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                <CheckCircle size={15} color="#10b981" style={{ flexShrink: 0, marginTop: 2 }} />
-                <p style={{ fontSize: 13, lineHeight: 1.6, color: S.text, margin: 0 }}>{r}</p>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <div style={{ height: 16 }} />
-
-        {/* ── AI DETAILED ANALYSIS ── */}
-        {assessment.detailedAnalysis && (
-          <div style={{
-            borderRadius: 16, overflow: "hidden",
-            background: S.surface, border: `1px solid ${S.border}`,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-            marginBottom: 16,
-          }}>
+          {/* ── ACTION STRIP ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
             <button
-              onClick={() => setShowDetail(v => !v)}
+              onClick={() => router.push("/questions")}
               style={{
-                display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between",
-                padding: "16px 20px", background: "none", border: "none", cursor: "pointer",
-                color: S.text, transition: "background 0.15s",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "14px 20px", borderRadius: 12,
+                background: S.surface, border: `1px solid ${S.border}`,
+                color: S.text, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)", transition: "all 0.15s",
               }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = S.surface; }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(139,92,246,0.12)", borderRadius: 8 }}>
-                  <Zap size={14} color="#8b5cf6" />
-                </div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: S.text, margin: 0 }}>AI Detailed Analysis</p>
-              </div>
-              {showDetail
-                ? <ChevronUp size={15} color={S.muted} />
-                : <ChevronDown size={15} color={S.muted} />
-              }
+              <RefreshCw size={14} />
+              Retake assessment
             </button>
-            {showDetail && (
-              <div style={{
-                borderTop: `1px solid ${S.border}`,
-                padding: "20px",
-                display: "flex", flexDirection: "column", gap: 12,
-              }}>
-                {assessment.detailedAnalysis.split("\n").map((para, i) =>
-                  para.trim()
-                    ? <p key={i} style={{ fontSize: 13, lineHeight: 1.85, color: S.muted, margin: 0 }}>{para}</p>
-                    : null
-                )}
-              </div>
-            )}
+            <button
+              onClick={() => window.open("https://wa.me/250789399765", "_blank")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "14px 20px", borderRadius: 12,
+                background: "#25d366", border: "none",
+                color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                boxShadow: "0 4px 16px rgba(37,211,102,0.3)", transition: "opacity 0.15s",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+            >
+              <MessageCircle size={14} />
+              Chat with a doctor
+            </button>
           </div>
-        )}
 
-        {/* ── SIGNUP CTA ── */}
-        <div style={{ margin: "24px 0" }}>
-          <SignupCTA onSignup={() => router.push("/login")} />
+          {/* ── DISCLAIMER ── */}
+          <p style={{ marginTop: 32, textAlign: "center", fontSize: 11, lineHeight: 1.65, color: S.subtle }}>
+            This tool is for educational screening purposes only and does not constitute medical advice.
+            Always consult a qualified healthcare professional for diagnosis and treatment.
+          </p>
         </div>
 
-        {/* ── ACTION STRIP ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          <button
-            onClick={() => router.push("/questions")}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "14px 20px", borderRadius: 12,
-              background: S.surface, border: `1px solid ${S.border}`,
-              color: S.text, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = S.surfaceAlt; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = S.surface; }}
-          >
-            <RefreshCw size={14} />
-            Retake assessment
-          </button>
-          <button
-            onClick={() => window.open("https://wa.me/250789399765", "_blank")}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              padding: "14px 20px", borderRadius: 12,
-              background: "#25d366", border: "none",
-              color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
-              boxShadow: "0 4px 16px rgba(37,211,102,0.3)",
-              transition: "opacity 0.15s",
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = "0.88"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
-          >
-            <MessageCircle size={14} />
-            Chat with a doctor
-          </button>
-        </div>
-
-        {/* ── DISCLAIMER ── */}
-        <p style={{ marginTop: 32, textAlign: "center", fontSize: 11, lineHeight: 1.65, color: S.subtle }}>
-          This tool is for educational screening purposes only and does not constitute medical advice.
-          Always consult a qualified healthcare professional for diagnosis and treatment.
-        </p>
+        <Footer />
       </div>
 
-      <Footer />
-    </div>
+      {/* ── SHARE FULL-SCREEN TAKEOVER ──────────────────────────────────────────
+           Covers the entire viewport. Not a modal. Renders above everything.
+           Passes the real risk level derived from the assessment.
+      ──────────────────────────────────────────────────────────────────────── */}
+      {showShareScreen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            backgroundColor: S.bg,
+            overflowY: "auto",
+            transition: "background 0.3s ease",
+          }}
+        >
+          {/* Sticky top bar */}
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 20px",
+              backgroundColor: S.surface,
+              borderBottom: `1px solid ${S.border}`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 32, height: 32,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  backgroundColor: accentFaint,
+                  borderRadius: 8,
+                }}
+              >
+                <Share2 size={15} color={accentColor} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: S.text, margin: 0, lineHeight: 1.2 }}>
+                  Share your result
+                </p>
+                <p style={{ fontSize: 11, color: S.muted, margin: 0 }}>
+                  Create a card · Download as PNG
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowShareScreen(false)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 8,
+                backgroundColor: S.surfaceAlt,
+                border: `1px solid ${S.border}`,
+                color: S.muted, fontSize: 12, fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <X size={13} />
+              Close
+            </button>
+          </div>
+
+          {/* Card designer */}
+          <div style={{ maxWidth: 600, margin: "0 auto", padding: "0 20px 80px" }}>
+            <ShareableRiskCard/>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
