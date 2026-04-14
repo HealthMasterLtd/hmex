@@ -111,7 +111,7 @@ function Card1({ userName }: CP) {
       <FooterRow
         left={<Domain color="#818cf8" ff={SANS} />}
         btnBg="linear-gradient(135deg,#6366f1,#8b5cf6)" btnColor="#fff"
-        btnText="Free · 3 min" borderColor="rgba(99,102,241,0.2)"
+        btnText="Free · 2 min" borderColor="rgba(99,102,241,0.2)"
       />
     </div>
   );
@@ -137,7 +137,7 @@ function Card2({ userName }: CP) {
           {headline}
         </p>
         <span style={{ fontStyle:"normal",fontWeight:700,fontSize:17,color:"#8b7355",marginTop:6,fontFamily:SANS,letterSpacing:"-0.01em",display:"block" }}>
-          Take the 3-minute assessment.
+          Take the 2-minute assessment.
         </span>
       </div>
 
@@ -160,7 +160,7 @@ function Card3({ userName }: CP) {
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative",zIndex:1 }}>
         <span style={{ fontSize:11,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:"#4ade80",fontFamily:SANS }}>Health Master</span>
-        <span style={{ fontSize:10,color:"#166534",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 3 min</span>
+        <span style={{ fontSize:10,color:"#166534",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 2 min</span>
       </div>
 
       <div style={{ position:"relative",zIndex:1,flexGrow:1,display:"flex",alignItems:"center" }}>
@@ -218,7 +218,7 @@ function Card4({ userName }: CP) {
 
 // ─── CARD 5 – CORPORATE ──────────────────────────────────────────────────────
 function Card5({ userName }: CP) {
-  const headline = userName ? `${userName} took 3 minutes to understand their health.` : "I took 3 minutes to understand my health risks.";
+  const headline = userName ? `${userName} took 2 minutes to understand their health.` : "I took 2 minutes to understand my health risks.";
   return (
     <div style={shell("#ffffff",{ border:"1px solid #e2e8f0" })}>
       <div style={{ position:"absolute",left:0,top:0,bottom:0,width:6,background:"linear-gradient(180deg,#2563eb,#1d4ed8)",borderRadius:"20px 0 0 20px" }} />
@@ -228,7 +228,7 @@ function Card5({ userName }: CP) {
           <div style={{ fontSize:11,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:"#2563eb",marginBottom:2,fontFamily:SANS }}>Health Master</div>
           <div style={{ fontSize:11,color:"#94a3b8",fontFamily:SANS }}>NCD Risk Assessment</div>
         </div>
-        <span style={{ fontSize:10,color:"#94a3b8",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 3 min</span>
+        <span style={{ fontSize:10,color:"#94a3b8",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 2 min</span>
       </div>
 
       <p style={{ fontSize:24,fontWeight:700,color:"#0f172a",lineHeight:1.25,margin:0,fontFamily:SANS,position:"relative",zIndex:1,flexGrow:1,display:"flex",alignItems:"center" }}>
@@ -257,7 +257,7 @@ function Card6({ userName }: CP) {
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative",zIndex:1 }}>
         <span style={{ fontSize:11,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:"#db2777",fontFamily:SANS }}>Health Master</span>
-        <span style={{ fontSize:10,color:"#f472b6",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 3 min</span>
+        <span style={{ fontSize:10,color:"#f472b6",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 2 min</span>
       </div>
 
       <div style={{ position:"relative",zIndex:1,flexGrow:1,display:"flex",alignItems:"center" }}>
@@ -306,7 +306,7 @@ function Card7({ userName }: CP) {
 
 // ─── CARD 8 – AURORA ─────────────────────────────────────────────────────────
 function Card8({ userName }: CP) {
-  const headline = userName ? `${userName} checked their NCD risk. It's free.` : "Check your NCD risk in 3 minutes. It's free.";
+  const headline = userName ? `${userName} checked their NCD risk. It's free.` : "Check your NCD risk in 2 minutes. It's free.";
   return (
     <div style={shell("#130820")}>
       <div style={{ position:"absolute",top:-80,left:-80,width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(124,58,237,.4) 0%,transparent 65%)",pointerEvents:"none" }} />
@@ -314,7 +314,7 @@ function Card8({ userName }: CP) {
 
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",position:"relative",zIndex:1 }}>
         <span style={{ fontSize:11,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:"#c084fc",fontFamily:SANS }}>Health Master</span>
-        <span style={{ fontSize:10,color:"#7c3aed",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 3 min</span>
+        <span style={{ fontSize:10,color:"#7c3aed",fontFamily:SANS,letterSpacing:"0.06em",textTransform:"uppercase" }}>Free · 2 min</span>
       </div>
 
       <p style={{ fontSize:25,fontWeight:700,color:"#faf5ff",lineHeight:1.25,margin:0,letterSpacing:"-0.02em",fontFamily:SANS,position:"relative",zIndex:1,flexGrow:1,display:"flex",alignItems:"center" }}>
@@ -370,7 +370,7 @@ async function captureCard(el: HTMLElement): Promise<Blob> {
 // ─── SHARE HELPERS ────────────────────────────────────────────────────────────
 async function doNativeShare(blob: Blob) {
   const file = new File([blob], "health-master-ncd.png", { type:"image/png" });
-  const text = `I just checked my NCD risk on Health Master — it's free and takes 3 minutes!\n\nCheck yours: ${SITE_URL}`;
+  const text = `I just checked my NCD risk on Health Master — it's free and takes 2 minutes!\n\nCheck yours: ${SITE_URL}`;
   if (navigator.share && navigator.canShare?.({ files:[file] })) {
     await navigator.share({ files:[file], text, url:SITE_URL });
     return "shared";
@@ -381,7 +381,7 @@ async function doNativeShare(blob: Blob) {
 
 async function doWhatsApp(blob: Blob) {
   const file = new File([blob], "health-master-ncd.png", { type:"image/png" });
-  const text = `I just checked my NCD risk on Health Master — free & 3 min!\n\nCheck yours: ${SITE_URL}`;
+  const text = `I just checked my NCD risk on Health Master — free & 2 min!\n\nCheck yours: ${SITE_URL}`;
   if (navigator.share && navigator.canShare?.({ files:[file] })) {
     await navigator.share({ files:[file], text, url:SITE_URL });
     return;
