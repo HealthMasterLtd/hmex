@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@types/chart.js": "^2.9.41",
-    "@types/xlsx": "^0.0.36",
+    "@types/xlsx": "^0.0.35",
     "appwrite": "^22.4.1",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
@@ -21,7 +21,7 @@
     "lucide-react": "^0.563.0",
     "next": "^16.0.10",
     "node-appwrite": "^22.1.2",
-    "nodemailer": "^7.0.12",
+    "nodemailer": "^8.0.5",
     "react": "^19.2.3",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.3",

@@ -245,6 +245,172 @@ function SectionCard({ icon, accentColor, label, children, delay = 0 }: {
   );
 }
 
+function WaitlistPanel({ isDark, accentColor, accentFaint, onSubmit, name, email, loading, success, error, visible, setVisible, setName, setEmail }: {
+  isDark: boolean;
+  accentColor: string;
+  accentFaint: string;
+  onSubmit: () => void;
+  name: string;
+  email: string;
+  loading: boolean;
+  success: boolean;
+  error: string | null;
+  visible: boolean;
+  setVisible: (value: boolean) => void;
+  setName: (value: string) => void;
+  setEmail: (value: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        borderRadius: 28,
+        padding: 28,
+        background: isDark
+          ? "linear-gradient(180deg, #064e3b 0%, #065f46 45%, #0f766e 100%)"
+          : "linear-gradient(180deg, #0f766e 0%, #10b981 45%, #34d399 100%)",
+        color: "#f8fafc",
+        border: `1px solid ${accentColor}30`,
+        boxShadow: `0 20px 60px rgba(0,0,0,0.12)`,
+      }}
+    >
+      <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", margin: 0, opacity: 0.9 }}>
+        HMEX APP · Coming soon
+      </p>
+      <h2 style={{ fontSize: "clamp(1.7rem, 3vw, 2.4rem)", fontWeight: 900, margin: "18px 0 16px", lineHeight: 1.05 }}>
+        Your results are just the beginning.
+      </h2>
+      <p style={{ fontSize: 14.5, lineHeight: 1.85, color: "rgba(248,250,252,0.92)", maxWidth: 640, margin: 0 }}>
+        The HMEX app turns your risk score into a living prevention plan — tracking your habits, showing your progress, and adjusting every week based on what you actually do.
+      </p>
+
+      <div style={{ margin: "24px 0", display: "grid", gap: 10 }}>
+        {[
+          "90-day prevention plan built around your specific risk factors",
+          "Daily micro-actions matched to your conditions",
+          "Weekly check-ins with streak tracking",
+          "Quarterly reassessment — see your risk actually change",
+          "Shareable monthly progress card",
+        ].map((item, index) => (
+          <div key={item} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#6ee7b7", marginTop: 8 }} />
+            <p style={{ fontSize: 13.3, lineHeight: 1.7, color: "rgba(248,250,252,0.92)", margin: 0 }}>{item}</p>
+          </div>
+        ))}
+      </div>
+
+      <p style={{ fontSize: 13, fontStyle: "italic", opacity: 0.88, marginBottom: 20 }}>
+        Early access · ~$3/month · Price shown upfront
+      </p>
+
+      {success ? (
+        <div style={{ padding: 22, borderRadius: 18, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.14)" }}>
+          <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>You’re on the waitlist.</p>
+          <p style={{ fontSize: 13, opacity: 0.9, margin: "10px 0 0" }}>
+            We’ve sent your request to the HMEX team and will notify you when early access is available.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {!visible ? (
+            <button
+              onClick={() => setVisible(true)}
+              style={{
+                width: "fit-content",
+                padding: "14px 24px",
+                borderRadius: 14,
+                border: "none",
+                background: "#10b981",
+                color: "#fff",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 12px 30px rgba(16,185,129,0.26)",
+              }}
+            >
+              Join the waitlist
+            </button>
+          ) : (
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{ display: "grid", gap: 10 }}>
+                <input
+                  type="text"
+                  name="name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Your name"
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.24)",
+                    background: "rgba(255,255,255,0.12)",
+                    color: "#fff",
+                    fontSize: 14,
+                  }}
+                />
+                <input
+                  type="email"
+                  name="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Your email"
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.24)",
+                    background: "rgba(255,255,255,0.12)",
+                    color: "#fff",
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+              {error && <p style={{ fontSize: 13, color: "#fecaca", margin: 0 }}>{error}</p>}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setVisible(false)}
+                  style={{
+                    padding: "14px 20px",
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    color: "#f8fafc",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onSubmit}
+                  disabled={loading}
+                  style={{
+                    padding: "14px 20px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: "#ffffff",
+                    color: "#064e3b",
+                    fontWeight: 700,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading ? 0.75 : 1,
+                  }}
+                >
+                  {loading ? "Sending..." : "Tell Irene"}
+                </button>
+              </div>
+              <p style={{ fontSize: 12, opacity: 0.82, margin: 0 }}>
+                We’ll notify the HMEX team that you want early access.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function ReviewPage() {
   const { isDark, surface: S, accentColor, accentFaint } = useTheme();
@@ -255,6 +421,12 @@ export default function ReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showShareScreen, setShowShareScreen] = useState(false);
+  const [showWaitlistForm, setShowWaitlistForm] = useState(false);
+  const [waitlistName, setWaitlistName] = useState("");
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistStatus, setWaitlistStatus] = useState<"idle"|"success"|"error">("idle");
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
 
   useEffect(() => { generate(); }, []);
 
@@ -282,6 +454,45 @@ export default function ReviewPage() {
     try { setAssessment(await groqService.generateRiskAssessment()); }
     catch { setError("Failed to generate your assessment. Please try again."); }
     finally { setLoading(false); }
+  };
+
+  const handleWaitlistSubmit = async () => {
+    setWaitlistError(null);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!waitlistName.trim()) {
+      setWaitlistError("Please enter your name.");
+      setWaitlistStatus("error");
+      return;
+    }
+    if (!emailRegex.test(waitlistEmail.trim())) {
+      setWaitlistError("Please enter a valid email address.");
+      setWaitlistStatus("error");
+      return;
+    }
+
+    setWaitlistLoading(true);
+    setWaitlistError(null);
+    setWaitlistStatus("idle");
+
+    try {
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: waitlistName.trim(), email: waitlistEmail.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to join the waitlist.");
+      setWaitlistStatus("success");
+      setShowWaitlistForm(false);
+      setWaitlistName("");
+      setWaitlistEmail("");
+    } catch (err) {
+      setWaitlistStatus("error");
+      setWaitlistError(err instanceof Error ? err.message : "Failed to send waitlist request.");
+    } finally {
+      setWaitlistLoading(false);
+    }
   };
 
   // derive risk level from assessment for the share card
@@ -465,6 +676,27 @@ export default function ReviewPage() {
               ))}
             </div>
           </SectionCard>
+
+          <div style={{ height: 16 }} />
+
+          <WaitlistPanel
+            isDark={isDark}
+            accentColor={accentColor}
+            accentFaint={accentFaint}
+            onSubmit={handleWaitlistSubmit}
+            name={waitlistName}
+            email={waitlistEmail}
+            loading={waitlistLoading}
+            success={waitlistStatus === "success"}
+            error={waitlistError}
+            visible={showWaitlistForm}
+            setVisible={(value) => {
+              setShowWaitlistForm(value);
+              if (!value) setWaitlistError(null);
+            }}
+            setName={setWaitlistName}
+            setEmail={setWaitlistEmail}
+          />
 
           <div style={{ height: 16 }} />
 
