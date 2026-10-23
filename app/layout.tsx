@@ -5,6 +5,7 @@ import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import GoogleTranslate from "@/components/GoogleTranslate";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -60,6 +61,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           fontFamily: `'DM Sans', sans-serif`,
         }}
       >
+          <GoogleTranslate />
+
         {/* This div ensures DM Sans cascades absolutely everywhere */}
         <div style={{ fontFamily: `'DM Sans', sans-serif` }}>
           <ThemeProvider>

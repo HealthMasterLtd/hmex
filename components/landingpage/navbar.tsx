@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const navItems = [
   { label: "Home",            href: "/"               },
@@ -164,7 +165,7 @@ export default function Navbar() {
             <div style={{ width: 32, height: 32, overflow: "hidden", borderRadius: "50%" }}>
               <Image src="/white logo.png" alt="HMEX" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: S.text }}>
+            <span className="notranslate" style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: S.text }}>
               H<span style={{ color: accentColor }}>mex</span>
             </span>
           </Link>
@@ -190,6 +191,9 @@ export default function Navbar() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Language switcher — desktop */}
+            <LanguageSwitcher />
+
             {/* Theme toggle — desktop */}
             <ThemeToggle />
 
@@ -231,13 +235,16 @@ export default function Navbar() {
             <div style={{ width: 30, height: 30, overflow: "hidden", borderRadius: "50%" }}>
               <Image src="/white logo.png" alt="HMEX" width={30} height={30} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: S.text }}>
+            <span className="notranslate" style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em", color: S.text }}>
               H<span style={{ color: accentColor }}>mex</span>
             </span>
           </Link>
 
-          {/* Theme toggle — mobile top bar */}
-          <ThemeToggle />
+          {/* Language + theme — mobile top bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
         </div>
       </motion.nav>
 
@@ -285,7 +292,7 @@ export default function Navbar() {
                   <div style={{ width: 28, height: 28, overflow: "hidden", borderRadius: "50%" }}>
                     <Image src="/white logo.png" alt="HMEX" width={28} height={28} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: S.text }}>
+                  <span className="notranslate" style={{ fontSize: 14, fontWeight: 700, color: S.text }}>
                     H<span style={{ color: accentColor }}>mex</span>
                   </span>
                 </Link>
